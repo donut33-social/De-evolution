@@ -1,4 +1,4 @@
-# ElizaOS
+# Decentralized evolution agent
 
 ## 如何创建一个项目
 ```bash
