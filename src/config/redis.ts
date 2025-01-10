@@ -1,0 +1,4 @@
+export default {
+    REDIS_EXPIRE_TIME: 1000 * 60,
+    STEEM_ACCOUNT_MAX_LENGTH: 9
+}
