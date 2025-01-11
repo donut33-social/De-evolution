@@ -15,6 +15,7 @@ import {
     type ICacheManager } from "@elizaos/core";
 import path from "path";
 import fs from "fs";
+import { Prompt } from "./types";
 
 class DeEvoAgent extends AgentRuntime {
     
@@ -41,12 +42,15 @@ class DeEvoAgent extends AgentRuntime {
         super(opts);
     }
     
-    async updateCharacter(character: Character) {
-        this.character = character;
+    async pollingUpdateCharacter() {
+        setInterval(() => {
+            // TODO: Update character from api
+        }, 3600000);
     }
 
     async run() {
         elizaLogger.info("Hello, world!");
+        this.pollingUpdateCharacter();
     }
 
 }
