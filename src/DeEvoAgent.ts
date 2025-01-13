@@ -15,7 +15,7 @@ import {
     type ICacheManager } from "@elizaos/core";
 import path from "path";
 import fs from "fs";
-import { Prompt } from "./types";
+import { Prompt } from "./plugins/types";
 
 class DeEvoAgent extends AgentRuntime {
     

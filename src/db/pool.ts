@@ -95,7 +95,7 @@ function rollback(connection) {
  * @param params func方法的参数（不包含第一个参数 connection）
  * @returns {Promise.<*>} func方法执行后的返回值
  */
-async function execute(sql, params = []) {
+export async function execute(sql, params = []) {
   let connection = null;
   try {
     connection = await getConnection();
@@ -127,7 +127,7 @@ function query(connection, sql, params = []) {
  * @param values
  * @returns {Promise.<*>} func方法执行后的返回值
  */
-async function executeTransaction(...params) {
+export async function executeTransaction(...params) {
   const connection = await getConnection();
   await beginTransaction(connection);
 
