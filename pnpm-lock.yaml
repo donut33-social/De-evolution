@@ -10,25 +10,25 @@ importers:
     dependencies:
       '@elizaos/adapter-postgres':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       '@elizaos/adapter-sqlite':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
       '@elizaos/adapter-supabase':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
       '@elizaos/client-direct':
         specifier: ^0.1.7
-        version: 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
+        version: 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
       '@elizaos/client-twitter':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)
       '@elizaos/core':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       '@elizaos/plugin-bootstrap':
         specifier: ^0.1.8
-        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
+        version: 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
       '@tavily/core':
         specifier: ^0.0.2
         version: 0.0.2
@@ -82,7 +82,7 @@ importers:
         version: 0.33.5
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.5.0)(typescript@5.7.3)(yaml@2.7.0)
+        version: 8.3.5(postcss@8.5.1)(typescript@5.7.3)(yaml@2.7.0)
       twitter-api-sdk:
         specifier: ^1.2.1
         version: 1.2.1
@@ -665,8 +665,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@langchain/core@0.3.27':
-    resolution: {integrity: sha512-jtJKbJWB1NPU1YvtrExOB2rumvUFgkJwlWGxyjSIV9A6zcLVmUbcZGV8fCSuXgl5bbzOIQLJ1xcLYQmbW9TkTg==}
+  '@langchain/core@0.3.30':
+    resolution: {integrity: sha512-HFUpjJ6FkPSSeLKzCLKxba4VN1DKnrXRmjaWHDb5KUyE9DZrqak3Sh6k2dkzXDJIcdd/uNeeQGFyQnubVEMkPw==}
     engines: {node: '>=18'}
 
   '@langchain/openai@0.3.17':
@@ -1424,8 +1424,8 @@ packages:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==}
     engines: {node: '>= 0.4'}
 
-  es-object-atoms@1.0.0:
-    resolution: {integrity: sha512-MZ4iQ6JwHOBQjahnjwaC1ZtIBH+2ohjamzAO3oaHcXYup7qxjF2fixyH+Q71voWHeOkI2q/TnJao/KfXYIZWbw==}
+  es-object-atoms@1.0.1:
+    resolution: {integrity: sha512-BPOBuyUF9QIVhuNLhbToCLHP6+0MHwZ7xLBkPPCZqK4JmpJgGnv10035STzzQwFpqdzNFMB3irvDI63IagvDwA==}
     engines: {node: '>= 0.4'}
 
   esbuild@0.24.2:
@@ -2171,8 +2171,8 @@ packages:
       yaml:
         optional: true
 
-  postcss@8.5.0:
-    resolution: {integrity: sha512-27VKOqrYfPncKA2NrFOVhP5MGAfHKLYn/Q0mz9cNQyRAKYi3VNHwYU2qKKqPCqgBmeeJ0uAFB56NumXZ5ZReXg==}
+  postcss@8.5.1:
+    resolution: {integrity: sha512-6oz2beyjc5VMn/KV1pPw8fliQkhBXrVn1Z3TVyqZxU8kZpzEKhBdmCFqI6ZbmGtamQvQGuU1sgPTk8ZrXDD7jQ==}
     engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@2.0.0:
@@ -2275,6 +2275,9 @@ packages:
 
   readable-stream@2.3.7:
     resolution: {integrity: sha512-Ebho8K4jIbHAxnuxi7o42OrZgF/ZTNcsZj6nRKyUmkhLFq8CHItp/fy6hQZuZmP/n3yZ9VBUbp4zz/mX8hmYPw==}
+
+  readable-stream@2.3.8:
+    resolution: {integrity: sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==}
 
   readable-stream@3.6.2:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
@@ -2483,8 +2486,8 @@ packages:
     engines: {node: '>=16 || 14 >=14.17'}
     hasBin: true
 
-  svelte@5.17.3:
-    resolution: {integrity: sha512-eLgtpR2JiTgeuNQRCDcLx35Z7Lu9Qe09GPOz+gvtR9nmIZu5xgFd6oFiLGQlxLD0/u7xVyF5AUkjDVyFHe6Bvw==}
+  svelte@5.17.4:
+    resolution: {integrity: sha512-ne4IhhVBwzpUByjo1ocxQnqRoWsRilc9Ry1j+0uPWhHmg4jS/nnlSwYYfx7Ium8okCZ4hYM89rg0B5G0hQzk+g==}
     engines: {node: '>=18'}
 
   swr@2.3.0:
@@ -2928,13 +2931,13 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@ai-sdk/svelte@0.0.57(svelte@5.17.3)(zod@3.23.8)':
+  '@ai-sdk/svelte@0.0.57(svelte@5.17.4)(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider-utils': 1.0.22(zod@3.23.8)
       '@ai-sdk/ui-utils': 0.0.50(zod@3.23.8)
-      sswr: 2.1.0(svelte@5.17.3)
+      sswr: 2.1.0(svelte@5.17.4)
     optionalDependencies:
-      svelte: 5.17.3
+      svelte: 5.17.4
     transitivePeerDependencies:
       - zod
 
@@ -3060,9 +3063,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@elizaos/adapter-postgres@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))':
+  '@elizaos/adapter-postgres@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))':
     dependencies:
-      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       '@types/pg': 8.11.10
       pg: 8.13.1
     transitivePeerDependencies:
@@ -3089,9 +3092,9 @@ snapshots:
       - typeorm
       - vue
 
-  '@elizaos/adapter-sqlite@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
+  '@elizaos/adapter-sqlite@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
     dependencies:
-      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       '@types/better-sqlite3': 7.6.12
       better-sqlite3: 11.6.0
       sqlite-vec: 0.1.6
@@ -3119,9 +3122,9 @@ snapshots:
       - typeorm
       - vue
 
-  '@elizaos/adapter-supabase@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
+  '@elizaos/adapter-supabase@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
     dependencies:
-      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       '@supabase/supabase-js': 2.46.2
       whatwg-url: 7.1.0
     transitivePeerDependencies:
@@ -3149,10 +3152,10 @@ snapshots:
       - utf-8-validate
       - vue
 
-  '@elizaos/client-direct@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
+  '@elizaos/client-direct@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
     dependencies:
-      '@elizaos/core': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
-      '@elizaos/plugin-image-generation': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
+      '@elizaos/core': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
+      '@elizaos/plugin-image-generation': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)
       '@types/body-parser': 1.19.5
       '@types/cors': 2.8.17
       '@types/express': 5.0.0
@@ -3194,9 +3197,9 @@ snapshots:
       - vue
       - yaml
 
-  '@elizaos/client-twitter@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
+  '@elizaos/client-twitter@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)':
     dependencies:
-      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
+      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
       agent-twitter-client: 0.0.18
       discord.js: 14.16.3
       glob: 11.0.0
@@ -3227,7 +3230,7 @@ snapshots:
       - utf-8-validate
       - vue
 
-  '@elizaos/core@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))':
+  '@elizaos/core@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))':
     dependencies:
       '@ai-sdk/anthropic': 0.0.56(zod@3.23.8)
       '@ai-sdk/google': 0.0.55(zod@3.23.8)
@@ -3237,7 +3240,7 @@ snapshots:
       '@anthropic-ai/sdk': 0.30.1
       '@fal-ai/client': 1.2.0
       '@types/uuid': 10.0.0
-      ai: 3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8)
+      ai: 3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8)
       anthropic-vertex-ai: 1.0.2(zod@3.23.8)
       fastembed: 1.14.1
       fastestsmallesttextencoderdecoder: 1.0.22
@@ -3246,7 +3249,7 @@ snapshots:
       handlebars: 4.7.8
       js-sha1: 0.7.0
       js-tiktoken: 1.0.15
-      langchain: 0.3.6(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1))
+      langchain: 0.3.6(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1))
       ollama-ai-provider: 0.16.1(zod@3.23.8)
       openai: 4.73.0(zod@3.23.8)
       tinyld: 1.3.4
@@ -3277,7 +3280,7 @@ snapshots:
       - typeorm
       - vue
 
-  '@elizaos/core@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))':
+  '@elizaos/core@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))':
     dependencies:
       '@ai-sdk/anthropic': 0.0.56(zod@3.23.8)
       '@ai-sdk/google': 0.0.55(zod@3.23.8)
@@ -3288,7 +3291,7 @@ snapshots:
       '@anthropic-ai/sdk': 0.30.1
       '@fal-ai/client': 1.2.0
       '@types/uuid': 10.0.0
-      ai: 3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8)
+      ai: 3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8)
       anthropic-vertex-ai: 1.0.2(zod@3.23.8)
       fastembed: 1.14.1
       fastestsmallesttextencoderdecoder: 1.0.22
@@ -3297,7 +3300,7 @@ snapshots:
       handlebars: 4.7.8
       js-sha1: 0.7.0
       js-tiktoken: 1.0.15
-      langchain: 0.3.6(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1))
+      langchain: 0.3.6(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1))
       ollama-ai-provider: 0.16.1(zod@3.23.8)
       openai: 4.73.0(zod@3.23.8)
       tinyld: 1.3.4
@@ -3328,10 +3331,10 @@ snapshots:
       - typeorm
       - vue
 
-  '@elizaos/plugin-bootstrap@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
+  '@elizaos/plugin-bootstrap@0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
     dependencies:
-      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
-      tsup: 8.3.5(postcss@8.5.0)(typescript@5.7.3)(yaml@2.7.0)
+      '@elizaos/core': 0.1.8(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
+      tsup: 8.3.5(postcss@8.5.1)(typescript@5.7.3)(yaml@2.7.0)
       whatwg-url: 7.1.0
     transitivePeerDependencies:
       - '@google-cloud/vertexai'
@@ -3363,10 +3366,10 @@ snapshots:
       - vue
       - yaml
 
-  '@elizaos/plugin-image-generation@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.0)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
+  '@elizaos/plugin-image-generation@0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(postcss@8.5.1)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))(whatwg-url@7.1.0)(yaml@2.7.0)':
     dependencies:
-      '@elizaos/core': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))
-      tsup: 8.3.5(postcss@8.5.0)(typescript@5.7.3)(yaml@2.7.0)
+      '@elizaos/core': 0.1.7(@google-cloud/vertexai@1.9.2)(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))
+      tsup: 8.3.5(postcss@8.5.1)(typescript@5.7.3)(yaml@2.7.0)
       whatwg-url: 7.1.0
     transitivePeerDependencies:
       - '@google-cloud/vertexai'
@@ -3597,7 +3600,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1))':
+  '@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1))':
     dependencies:
       '@cfworker/json-schema': 4.1.0
       ansi-styles: 5.2.0
@@ -3614,9 +3617,9 @@ snapshots:
     transitivePeerDependencies:
       - openai
 
-  '@langchain/openai@0.3.17(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))':
+  '@langchain/openai@0.3.17(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))':
     dependencies:
-      '@langchain/core': 0.3.27(openai@4.73.0(zod@3.24.1))
+      '@langchain/core': 0.3.30(openai@4.73.0(zod@3.24.1))
       js-tiktoken: 1.0.15
       openai: 4.78.1(zod@3.24.1)
       zod: 3.24.1
@@ -3624,9 +3627,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@langchain/textsplitters@0.1.0(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))':
+  '@langchain/textsplitters@0.1.0(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))':
     dependencies:
-      '@langchain/core': 0.3.27(openai@4.73.0(zod@3.24.1))
+      '@langchain/core': 0.3.30(openai@4.73.0(zod@3.24.1))
       js-tiktoken: 1.0.15
 
   '@msgpack/msgpack@3.0.0-beta2': {}
@@ -3930,7 +3933,7 @@ snapshots:
       '@vue/shared': 3.5.13
       estree-walker: 2.0.2
       magic-string: 0.30.17
-      postcss: 8.5.0
+      postcss: 8.5.1
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.13':
@@ -4007,13 +4010,13 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
-  ai@3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.3))(svelte@5.17.3)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8):
+  ai@3.4.33(openai@4.73.0(zod@3.24.1))(react@19.0.0)(sswr@2.1.0(svelte@5.17.4))(svelte@5.17.4)(vue@3.5.13(typescript@5.7.3))(zod@3.23.8):
     dependencies:
       '@ai-sdk/provider': 0.0.26
       '@ai-sdk/provider-utils': 1.0.22(zod@3.23.8)
       '@ai-sdk/react': 0.0.70(react@19.0.0)(zod@3.23.8)
       '@ai-sdk/solid': 0.0.54(zod@3.23.8)
-      '@ai-sdk/svelte': 0.0.57(svelte@5.17.3)(zod@3.23.8)
+      '@ai-sdk/svelte': 0.0.57(svelte@5.17.4)(zod@3.23.8)
       '@ai-sdk/ui-utils': 0.0.50(zod@3.23.8)
       '@ai-sdk/vue': 0.0.59(vue@3.5.13(typescript@5.7.3))(zod@3.23.8)
       '@opentelemetry/api': 1.9.0
@@ -4025,8 +4028,8 @@ snapshots:
     optionalDependencies:
       openai: 4.73.0(zod@3.24.1)
       react: 19.0.0
-      sswr: 2.1.0(svelte@5.17.3)
-      svelte: 5.17.3
+      sswr: 2.1.0(svelte@5.17.4)
+      svelte: 5.17.4
       zod: 3.23.8
     transitivePeerDependencies:
       - solid-js
@@ -4216,7 +4219,7 @@ snapshots:
     dependencies:
       buffer-from: 1.1.2
       inherits: 2.0.4
-      readable-stream: 2.3.7
+      readable-stream: 2.3.8
       typedarray: 0.0.6
 
   consola@3.4.0: {}
@@ -4353,7 +4356,7 @@ snapshots:
 
   es-errors@1.3.0: {}
 
-  es-object-atoms@1.0.0:
+  es-object-atoms@1.0.1:
     dependencies:
       es-errors: 1.3.0
 
@@ -4607,7 +4610,7 @@ snapshots:
       call-bind-apply-helpers: 1.0.1
       es-define-property: 1.0.1
       es-errors: 1.3.0
-      es-object-atoms: 1.0.0
+      es-object-atoms: 1.0.1
       function-bind: 1.1.2
       get-proto: 1.0.1
       gopd: 1.2.0
@@ -4618,7 +4621,7 @@ snapshots:
   get-proto@1.0.1:
     dependencies:
       dunder-proto: 1.0.1
-      es-object-atoms: 1.0.0
+      es-object-atoms: 1.0.1
 
   github-from-package@0.0.0: {}
 
@@ -4799,11 +4802,11 @@ snapshots:
       jwa: 2.0.0
       safe-buffer: 5.2.1
 
-  langchain@0.3.6(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1)):
+  langchain@0.3.6(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))(axios@1.7.9)(handlebars@4.7.8)(openai@4.73.0(zod@3.24.1)):
     dependencies:
-      '@langchain/core': 0.3.27(openai@4.73.0(zod@3.24.1))
-      '@langchain/openai': 0.3.17(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))
-      '@langchain/textsplitters': 0.1.0(@langchain/core@0.3.27(openai@4.73.0(zod@3.24.1)))
+      '@langchain/core': 0.3.30(openai@4.73.0(zod@3.24.1))
+      '@langchain/openai': 0.3.17(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))
+      '@langchain/textsplitters': 0.1.0(@langchain/core@0.3.30(openai@4.73.0(zod@3.24.1)))
       js-tiktoken: 1.0.15
       js-yaml: 4.1.0
       jsonpointer: 5.0.1
@@ -5151,14 +5154,14 @@ snapshots:
 
   pirates@4.0.6: {}
 
-  postcss-load-config@6.0.1(postcss@8.5.0)(yaml@2.7.0):
+  postcss-load-config@6.0.1(postcss@8.5.1)(yaml@2.7.0):
     dependencies:
       lilconfig: 3.1.3
     optionalDependencies:
-      postcss: 8.5.0
+      postcss: 8.5.1
       yaml: 2.7.0
 
-  postcss@8.5.0:
+  postcss@8.5.1:
     dependencies:
       nanoid: 3.3.8
       picocolors: 1.1.1
@@ -5256,6 +5259,16 @@ snapshots:
   react@19.0.0: {}
 
   readable-stream@2.3.7:
+    dependencies:
+      core-util-is: 1.0.3
+      inherits: 2.0.4
+      isarray: 1.0.0
+      process-nextick-args: 2.0.1
+      safe-buffer: 5.1.2
+      string_decoder: 1.1.1
+      util-deprecate: 1.0.2
+
+  readable-stream@2.3.8:
     dependencies:
       core-util-is: 1.0.3
       inherits: 2.0.4
@@ -5476,9 +5489,9 @@ snapshots:
 
   sqlstring@2.3.1: {}
 
-  sswr@2.1.0(svelte@5.17.3):
+  sswr@2.1.0(svelte@5.17.4):
     dependencies:
-      svelte: 5.17.3
+      svelte: 5.17.4
       swrev: 4.0.0
 
   statuses@2.0.1: {}
@@ -5533,7 +5546,7 @@ snapshots:
       pirates: 4.0.6
       ts-interface-checker: 0.1.13
 
-  svelte@5.17.3:
+  svelte@5.17.4:
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@jridgewell/sourcemap-codec': 1.5.0
@@ -5660,7 +5673,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsup@8.3.5(postcss@8.5.0)(typescript@5.7.3)(yaml@2.7.0):
+  tsup@8.3.5(postcss@8.5.1)(typescript@5.7.3)(yaml@2.7.0):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.24.2)
       cac: 6.7.14
@@ -5670,7 +5683,7 @@ snapshots:
       esbuild: 0.24.2
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.5.0)(yaml@2.7.0)
+      postcss-load-config: 6.0.1(postcss@8.5.1)(yaml@2.7.0)
       resolve-from: 5.0.0
       rollup: 4.30.1
       source-map: 0.8.0-beta.0
@@ -5679,7 +5692,7 @@ snapshots:
       tinyglobby: 0.2.10
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.5.0
+      postcss: 8.5.1
       typescript: 5.7.3
     transitivePeerDependencies:
       - jiti
