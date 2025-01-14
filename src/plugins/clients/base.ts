@@ -19,9 +19,10 @@ import {
   getProfileByAgentName,
 } from "../../db/apis/tweet";
 
+export const DEFAULT_MAX_TWEET_LENGTH = 280;
+
 export class BaseClient {
   runtime: IAgentRuntime;
-  lastCheckedTweetId: number; // db id
   temperature: number = 0.5;
   directions: string;
 
@@ -73,5 +74,25 @@ export class BaseClient {
     return cached;
   }
 
-  async handleNewTweet(runtime: IAgentRuntime, content: Content) {}
+  async handleNewTweet(runtime: IAgentRuntime, content: Content) {
+    const tweet = await this.runtime.actions.postTweet(content.text);
+    const memories: Memory = {
+      id: stringToUuid(tweet.id + "-" + client.runtime.agentId),
+      agentId: client.runtime.agentId,
+      userId: client.runtime.agentId,
+      content: {
+          text: tweet.text,
+          source: "twitter",
+          url: tweet.permanentUrl,
+          inReplyTo: tweet.inReplyToStatusId
+              ? stringToUuid(
+                    tweet.inReplyToStatusId + "-" + client.runtime.agentId
+                )
+              : undefined,
+      },
+      roomId,
+      embedding: getEmbeddingZeroVector(),
+      createdAt: tweet.timestamp * 1000,
+  };
+  }
 }

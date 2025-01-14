@@ -62,11 +62,12 @@ var composeContext = ({
   template,
   templatingEngine
 }) => {
+  const templateStr = typeof template === "function" ? template({ state }) : template;
   if (templatingEngine === "handlebars") {
-    const templateFunction = handlebars.compile(template);
+    const templateFunction = handlebars.compile(templateStr);
     return templateFunction(state);
   }
-  const out = template.replace(/{{\w+}}/g, (match) => {
+  const out = templateStr.replace(/{{\w+}}/g, (match) => {
     const key = match.replace(/{{|}}/g, "");
     return state[key] ?? "";
   });
@@ -443,6 +444,7 @@ var ModelProviderName = /* @__PURE__ */ ((ModelProviderName2) => {
   ModelProviderName2["TOGETHER"] = "together";
   ModelProviderName2["LLAMALOCAL"] = "llama_local";
   ModelProviderName2["GOOGLE"] = "google";
+  ModelProviderName2["MISTRAL"] = "mistral";
   ModelProviderName2["CLAUDE_VERTEX"] = "claude_vertex";
   ModelProviderName2["REDPILL"] = "redpill";
   ModelProviderName2["OPENROUTER"] = "openrouter";
@@ -456,8 +458,12 @@ var ModelProviderName = /* @__PURE__ */ ((ModelProviderName2) => {
   ModelProviderName2["NANOGPT"] = "nanogpt";
   ModelProviderName2["HYPERBOLIC"] = "hyperbolic";
   ModelProviderName2["VENICE"] = "venice";
+  ModelProviderName2["NINETEEN_AI"] = "nineteen_ai";
   ModelProviderName2["AKASH_CHAT_API"] = "akash_chat_api";
   ModelProviderName2["LIVEPEER"] = "livepeer";
+  ModelProviderName2["LETZAI"] = "letzai";
+  ModelProviderName2["DEEPSEEK"] = "deepseek";
+  ModelProviderName2["INFERA"] = "infera";
   return ModelProviderName2;
 })(ModelProviderName || {});
 var Clients = /* @__PURE__ */ ((Clients2) => {
@@ -469,6 +475,7 @@ var Clients = /* @__PURE__ */ ((Clients2) => {
   Clients2["LENS"] = "lens";
   Clients2["AUTO"] = "auto";
   Clients2["SLACK"] = "slack";
+  Clients2["GITHUB"] = "github";
   return Clients2;
 })(Clients || {});
 var CacheStore = /* @__PURE__ */ ((CacheStore2) => {
@@ -492,6 +499,18 @@ var Service = class _Service {
     return this.constructor.serviceType;
   }
 };
+var IrysMessageType = /* @__PURE__ */ ((IrysMessageType2) => {
+  IrysMessageType2["REQUEST"] = "REQUEST";
+  IrysMessageType2["DATA_STORAGE"] = "DATA_STORAGE";
+  IrysMessageType2["REQUEST_RESPONSE"] = "REQUEST_RESPONSE";
+  return IrysMessageType2;
+})(IrysMessageType || {});
+var IrysDataType = /* @__PURE__ */ ((IrysDataType2) => {
+  IrysDataType2["FILE"] = "FILE";
+  IrysDataType2["IMAGE"] = "IMAGE";
+  IrysDataType2["OTHER"] = "OTHER";
+  return IrysDataType2;
+})(IrysDataType || {});
 var ServiceType = /* @__PURE__ */ ((ServiceType3) => {
   ServiceType3["IMAGE_DESCRIPTION"] = "image_description";
   ServiceType3["TRANSCRIPTION"] = "transcription";
@@ -504,6 +523,9 @@ var ServiceType = /* @__PURE__ */ ((ServiceType3) => {
   ServiceType3["AWS_S3"] = "aws_s3";
   ServiceType3["BUTTPLUG"] = "buttplug";
   ServiceType3["SLACK"] = "slack";
+  ServiceType3["IRYS"] = "irys";
+  ServiceType3["TEE_LOG"] = "tee_log";
+  ServiceType3["GOPLUS_SECURITY"] = "goplus_security";
   return ServiceType3;
 })(ServiceType || {});
 var LoggingLevel = /* @__PURE__ */ ((LoggingLevel2) => {
@@ -512,6 +534,12 @@ var LoggingLevel = /* @__PURE__ */ ((LoggingLevel2) => {
   LoggingLevel2["NONE"] = "none";
   return LoggingLevel2;
 })(LoggingLevel || {});
+var VerifiableInferenceProvider = /* @__PURE__ */ ((VerifiableInferenceProvider2) => {
+  VerifiableInferenceProvider2["RECLAIM"] = "reclaim";
+  VerifiableInferenceProvider2["OPACITY"] = "opacity";
+  VerifiableInferenceProvider2["PRIMUS"] = "primus";
+  return VerifiableInferenceProvider2;
+})(VerifiableInferenceProvider || {});
 var TokenizerType = /* @__PURE__ */ ((TokenizerType2) => {
   TokenizerType2["Auto"] = "auto";
   TokenizerType2["TikToken"] = "tiktoken";
@@ -523,6 +551,11 @@ var TranscriptionProvider = /* @__PURE__ */ ((TranscriptionProvider2) => {
   TranscriptionProvider2["Local"] = "local";
   return TranscriptionProvider2;
 })(TranscriptionProvider || {});
+var ActionTimelineType = /* @__PURE__ */ ((ActionTimelineType2) => {
+  ActionTimelineType2["ForYou"] = "foryou";
+  ActionTimelineType2["Following"] = "following";
+  return ActionTimelineType2;
+})(ActionTimelineType || {});
 
 // src/defaultCharacter.ts
 var defaultCharacter = {
@@ -1051,11 +1084,9 @@ var defaultCharacter = {
     "unorthodox",
     "meticulous",
     "provocative"
-  ]
+  ],
+  extends: []
 };
-
-// src/embedding.ts
-import path3 from "node:path";
 
 // src/settings.ts
 import { config } from "dotenv";
@@ -1145,443 +1176,1038 @@ function parseNamespacedSettings(env) {
 var models = {
   ["openai" /* OPENAI */]: {
     endpoint: settings_default.OPENAI_API_URL || "https://api.openai.com/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_OPENAI_MODEL || "gpt-4o-mini",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_OPENAI_MODEL || "gpt-4o",
-      ["large" /* LARGE */]: settings_default.LARGE_OPENAI_MODEL || "gpt-4o",
-      ["embedding" /* EMBEDDING */]: settings_default.EMBEDDING_OPENAI_MODEL || "text-embedding-3-small",
-      ["image" /* IMAGE */]: settings_default.IMAGE_OPENAI_MODEL || "dall-e-3"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_OPENAI_MODEL || "gpt-4o-mini",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_OPENAI_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_OPENAI_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.EMBEDDING_OPENAI_MODEL || "text-embedding-3-small",
+        dimensions: 1536
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.IMAGE_OPENAI_MODEL || "dall-e-3"
+      }
     }
   },
   ["eternalai" /* ETERNALAI */]: {
     endpoint: settings_default.ETERNALAI_URL,
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
-      ["medium" /* MEDIUM */]: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
-      ["large" /* LARGE */]: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
-      ["embedding" /* EMBEDDING */]: "",
-      ["image" /* IMAGE */]: ""
+      ["small" /* SMALL */]: {
+        name: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.ETERNALAI_MODEL || "neuralmagic/Meta-Llama-3.1-405B-Instruct-quantized.w4a16",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      }
     }
   },
   ["anthropic" /* ANTHROPIC */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 2e5,
-      maxOutputTokens: 4096,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     endpoint: "https://api.anthropic.com/v1",
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_ANTHROPIC_MODEL || "claude-3-haiku-20240307",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
-      ["large" /* LARGE */]: settings_default.LARGE_ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_ANTHROPIC_MODEL || "claude-3-haiku-20240307",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 4096,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 4096,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 4096,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      }
     }
   },
   ["claude_vertex" /* CLAUDE_VERTEX */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 2e5,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     endpoint: "https://api.anthropic.com/v1",
     // TODO: check
     model: {
-      ["small" /* SMALL */]: "claude-3-5-sonnet-20241022",
-      ["medium" /* MEDIUM */]: "claude-3-5-sonnet-20241022",
-      ["large" /* LARGE */]: "claude-3-opus-20240229"
+      ["small" /* SMALL */]: {
+        name: "claude-3-5-sonnet-20241022",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: "claude-3-5-sonnet-20241022",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: "claude-3-opus-20240229",
+        stop: [],
+        maxInputTokens: 2e5,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      }
     }
   },
   ["grok" /* GROK */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     endpoint: "https://api.x.ai/v1",
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_GROK_MODEL || "grok-2-1212",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_GROK_MODEL || "grok-2-1212",
-      ["large" /* LARGE */]: settings_default.LARGE_GROK_MODEL || "grok-2-1212",
-      ["embedding" /* EMBEDDING */]: settings_default.EMBEDDING_GROK_MODEL || "grok-2-1212"
-      // not sure about this one
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_GROK_MODEL || "grok-2-1212",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_GROK_MODEL || "grok-2-1212",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_GROK_MODEL || "grok-2-1212",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.EMBEDDING_GROK_MODEL || "grok-2-1212"
+        // not sure about this one
+      }
     }
   },
   ["groq" /* GROQ */]: {
     endpoint: "https://api.groq.com/openai/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8e3,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_GROQ_MODEL || "llama-3.1-8b-instant",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_GROQ_MODEL || "llama-3.3-70b-versatile",
-      ["large" /* LARGE */]: settings_default.LARGE_GROQ_MODEL || "llama-3.2-90b-vision-preview",
-      ["embedding" /* EMBEDDING */]: settings_default.EMBEDDING_GROQ_MODEL || "llama-3.1-8b-instant"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_GROQ_MODEL || "llama-3.1-8b-instant",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8e3,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_GROQ_MODEL || "llama-3.3-70b-versatile",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8e3,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_GROQ_MODEL || "llama-3.2-90b-vision-preview",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8e3,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.EMBEDDING_GROQ_MODEL || "llama-3.1-8b-instant"
+      }
     }
   },
   ["llama_cloud" /* LLAMACLOUD */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
-    imageSettings: {
-      steps: 4
-    },
     endpoint: "https://api.llamacloud.com/v1",
     model: {
-      ["small" /* SMALL */]: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
-      ["medium" /* MEDIUM */]: "meta-llama-3.1-8b-instruct",
-      ["large" /* LARGE */]: "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-      ["embedding" /* EMBEDDING */]: "togethercomputer/m2-bert-80M-32k-retrieval",
-      ["image" /* IMAGE */]: "black-forest-labs/FLUX.1-schnell"
+      ["small" /* SMALL */]: {
+        name: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: "meta-llama-3.1-8b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "togethercomputer/m2-bert-80M-32k-retrieval"
+      },
+      ["image" /* IMAGE */]: {
+        name: "black-forest-labs/FLUX.1-schnell",
+        steps: 4
+      }
     }
   },
   ["together" /* TOGETHER */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
-    imageSettings: {
-      steps: 4
-    },
     endpoint: "https://api.together.ai/v1",
     model: {
-      ["small" /* SMALL */]: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
-      ["medium" /* MEDIUM */]: "meta-llama-3.1-8b-instruct",
-      ["large" /* LARGE */]: "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-      ["embedding" /* EMBEDDING */]: "togethercomputer/m2-bert-80M-32k-retrieval",
-      ["image" /* IMAGE */]: "black-forest-labs/FLUX.1-schnell"
+      ["small" /* SMALL */]: {
+        name: "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo-128K",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "togethercomputer/m2-bert-80M-32k-retrieval"
+      },
+      ["image" /* IMAGE */]: {
+        name: "black-forest-labs/FLUX.1-schnell",
+        steps: 4
+      }
     }
   },
   ["llama_local" /* LLAMALOCAL */]: {
-    settings: {
-      stop: ["<|eot_id|>", "<|eom_id|>"],
-      maxInputTokens: 32768,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
     model: {
-      ["small" /* SMALL */]: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
-      ["medium" /* MEDIUM */]: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
-      // TODO: ?download=true
-      ["large" /* LARGE */]: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
-      // "RichardErkhov/NousResearch_-_Meta-Llama-3.1-70B-gguf", // TODO:
-      ["embedding" /* EMBEDDING */]: "togethercomputer/m2-bert-80M-32k-retrieval"
+      ["small" /* SMALL */]: {
+        name: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
+        // TODO: ?download=true
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B.Q8_0.gguf?download=true",
+        // "RichardErkhov/NousResearch_-_Meta-Llama-3.1-70B-gguf", // TODO:
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "togethercomputer/m2-bert-80M-32k-retrieval"
+      }
     }
   },
   ["google" /* GOOGLE */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
+    endpoint: "https://generativelanguage.googleapis.com",
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-1.5-flash-latest",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-1.5-flash-latest",
-      ["large" /* LARGE */]: settings_default.LARGE_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-1.5-pro-latest",
-      ["embedding" /* EMBEDDING */]: settings_default.EMBEDDING_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "text-embedding-004"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-2.0-flash-exp",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-2.0-flash-exp",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "gemini-2.0-flash-exp",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.EMBEDDING_GOOGLE_MODEL || settings_default.GOOGLE_MODEL || "text-embedding-004"
+      }
+    }
+  },
+  ["mistral" /* MISTRAL */]: {
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_MISTRAL_MODEL || settings_default.MISTRAL_MODEL || "mistral-small-latest",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_MISTRAL_MODEL || settings_default.MISTRAL_MODEL || "mistral-large-latest",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_MISTRAL_MODEL || settings_default.MISTRAL_MODEL || "mistral-large-latest",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      }
     }
   },
   ["redpill" /* REDPILL */]: {
     endpoint: "https://api.red-pill.ai/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      temperature: 0.6
-    },
     // Available models: https://docs.red-pill.ai/get-started/supported-models
     // To test other models, change the models below
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o-mini",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o",
-      ["large" /* LARGE */]: settings_default.LARGE_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o",
-      ["embedding" /* EMBEDDING */]: "text-embedding-3-small"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o-mini",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_REDPILL_MODEL || settings_default.REDPILL_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "text-embedding-3-small"
+      }
     }
   },
   ["openrouter" /* OPENROUTER */]: {
     endpoint: "https://openrouter.ai/api/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     // Available models: https://openrouter.ai/models
     // To test other models, change the models below
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
-      ["large" /* LARGE */]: settings_default.LARGE_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
-      ["embedding" /* EMBEDDING */]: "text-embedding-3-small"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_OPENROUTER_MODEL || settings_default.OPENROUTER_MODEL || "nousresearch/hermes-3-llama-3.1-405b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "text-embedding-3-small"
+      }
     }
   },
   ["ollama" /* OLLAMA */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.7
-    },
     endpoint: settings_default.OLLAMA_SERVER_URL || "http://localhost:11434",
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "llama3.2",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "hermes3",
-      ["large" /* LARGE */]: settings_default.LARGE_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "hermes3:70b",
-      ["embedding" /* EMBEDDING */]: settings_default.OLLAMA_EMBEDDING_MODEL || "mxbai-embed-large"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "llama3.2",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "hermes3",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_OLLAMA_MODEL || settings_default.OLLAMA_MODEL || "hermes3:70b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.OLLAMA_EMBEDDING_MODEL || "mxbai-embed-large",
+        dimensions: 1024
+      }
     }
   },
   ["heurist" /* HEURIST */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
-    imageSettings: {
-      steps: 20
-    },
     endpoint: "https://llm-gateway.heurist.xyz",
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_HEURIST_MODEL || "meta-llama/llama-3-70b-instruct",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_HEURIST_MODEL || "meta-llama/llama-3-70b-instruct",
-      ["large" /* LARGE */]: settings_default.LARGE_HEURIST_MODEL || "meta-llama/llama-3.1-405b-instruct",
-      ["embedding" /* EMBEDDING */]: "",
-      //Add later,
-      ["image" /* IMAGE */]: settings_default.HEURIST_IMAGE_MODEL || "PepeXL"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_HEURIST_MODEL || "meta-llama/llama-3-70b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_HEURIST_MODEL || "meta-llama/llama-3-70b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_HEURIST_MODEL || "meta-llama/llama-3.3-70b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.HEURIST_IMAGE_MODEL || "FLUX.1-dev",
+        steps: 20
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: "BAAI/bge-large-en-v1.5",
+        dimensions: 1024
+      }
     }
   },
   ["galadriel" /* GALADRIEL */]: {
-    endpoint: "https://api.galadriel.com/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.5,
-      presence_penalty: 0.5,
-      temperature: 0.8
-    },
+    endpoint: "https://api.galadriel.com/v1/verified",
     model: {
-      ["small" /* SMALL */]: "llama3.1:70b",
-      ["medium" /* MEDIUM */]: "llama3.1:70b",
-      ["large" /* LARGE */]: "llama3.1:405b",
-      ["embedding" /* EMBEDDING */]: "gte-large-en-v1.5",
-      ["image" /* IMAGE */]: "stabilityai/stable-diffusion-xl-base-1.0"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_GALADRIEL_MODEL || "gpt-4o-mini",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_GALADRIEL_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_GALADRIEL_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      }
     }
   },
   ["falai" /* FAL */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
-    imageSettings: {
-      steps: 28
-    },
     endpoint: "https://api.fal.ai/v1",
     model: {
-      ["small" /* SMALL */]: "",
-      // FAL doesn't provide text models
-      ["medium" /* MEDIUM */]: "",
-      ["large" /* LARGE */]: "",
-      ["embedding" /* EMBEDDING */]: "",
-      ["image" /* IMAGE */]: "fal-ai/flux-lora"
+      ["image" /* IMAGE */]: { name: "fal-ai/flux-lora", steps: 28 }
     }
   },
   ["gaianet" /* GAIANET */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
     endpoint: settings_default.GAIANET_SERVER_URL,
     model: {
-      ["small" /* SMALL */]: settings_default.GAIANET_MODEL || settings_default.SMALL_GAIANET_MODEL || "llama3b",
-      ["medium" /* MEDIUM */]: settings_default.GAIANET_MODEL || settings_default.MEDIUM_GAIANET_MODEL || "llama",
-      ["large" /* LARGE */]: settings_default.GAIANET_MODEL || settings_default.LARGE_GAIANET_MODEL || "qwen72b",
-      ["embedding" /* EMBEDDING */]: settings_default.GAIANET_EMBEDDING_MODEL || "nomic-embed"
+      ["small" /* SMALL */]: {
+        name: settings_default.GAIANET_MODEL || settings_default.SMALL_GAIANET_MODEL || "llama3b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.GAIANET_MODEL || settings_default.MEDIUM_GAIANET_MODEL || "llama",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.GAIANET_MODEL || settings_default.LARGE_GAIANET_MODEL || "qwen72b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.GAIANET_EMBEDDING_MODEL || "nomic-embed",
+        dimensions: 768
+      }
     }
   },
   ["ali_bailian" /* ALI_BAILIAN */]: {
     endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: "qwen-turbo",
-      ["medium" /* MEDIUM */]: "qwen-plus",
-      ["large" /* LARGE */]: "qwen-max",
-      ["image" /* IMAGE */]: "wanx-v1"
+      ["small" /* SMALL */]: {
+        name: "qwen-turbo",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: "qwen-plus",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: "qwen-max",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["image" /* IMAGE */]: {
+        name: "wanx-v1"
+      }
     }
   },
   ["volengine" /* VOLENGINE */]: {
     endpoint: settings_default.VOLENGINE_API_URL || "https://open.volcengineapi.com/api/v3/",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.4,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-lite-128k",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-pro-128k",
-      ["large" /* LARGE */]: settings_default.LARGE_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-pro-256k",
-      ["embedding" /* EMBEDDING */]: settings_default.VOLENGINE_EMBEDDING_MODEL || "doubao-embedding"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-lite-128k",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-pro-128k",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_VOLENGINE_MODEL || settings_default.VOLENGINE_MODEL || "doubao-pro-256k",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.4,
+        temperature: 0.6
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.VOLENGINE_EMBEDDING_MODEL || "doubao-embedding"
+      }
     }
   },
   ["nanogpt" /* NANOGPT */]: {
     endpoint: "https://nano-gpt.com/api/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_NANOGPT_MODEL || "gpt-4o-mini",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_NANOGPT_MODEL || "gpt-4o",
-      ["large" /* LARGE */]: settings_default.LARGE_NANOGPT_MODEL || "gpt-4o"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_NANOGPT_MODEL || "gpt-4o-mini",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_NANOGPT_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_NANOGPT_MODEL || "gpt-4o",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6
+      }
     }
   },
   ["hyperbolic" /* HYPERBOLIC */]: {
     endpoint: "https://api.hyperbolic.xyz/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Llama-3.2-3B-Instruct",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Meta-Llama-3.1-70B-Instruct",
-      ["large" /* LARGE */]: settings_default.LARGE_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Meta-Llama-3.1-405-Instruct",
-      ["image" /* IMAGE */]: settings_default.IMAGE_HYPERBOLIC_MODEL || "FLUX.1-dev"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Llama-3.2-3B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_HYPERBOLIC_MODEL || settings_default.HYPERBOLIC_MODEL || "meta-llama/Meta-Llama-3.1-405-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.IMAGE_HYPERBOLIC_MODEL || "FLUX.1-dev"
+      }
     }
   },
   ["venice" /* VENICE */]: {
     endpoint: "https://api.venice.ai/api/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_VENICE_MODEL || "llama-3.3-70b",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_VENICE_MODEL || "llama-3.3-70b",
-      ["large" /* LARGE */]: settings_default.LARGE_VENICE_MODEL || "llama-3.1-405b",
-      ["image" /* IMAGE */]: settings_default.IMAGE_VENICE_MODEL || "fluently-xl"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_VENICE_MODEL || "llama-3.3-70b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_VENICE_MODEL || "llama-3.3-70b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_VENICE_MODEL || "llama-3.1-405b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.IMAGE_VENICE_MODEL || "fluently-xl"
+      }
+    }
+  },
+  ["nineteen_ai" /* NINETEEN_AI */]: {
+    endpoint: "https://api.nineteen.ai/v1",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_NINETEEN_AI_MODEL || "unsloth/Llama-3.2-3B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_NINETEEN_AI_MODEL || "unsloth/Meta-Llama-3.1-8B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_NINETEEN_AI_MODEL || "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.IMAGE_NINETEEN_AI_MODEL || "dataautogpt3/ProteusV0.4-Lightning"
+      }
     }
   },
   ["akash_chat_api" /* AKASH_CHAT_API */]: {
     endpoint: "https://chatapi.akash.network/api/v1",
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      temperature: 0.6
-    },
     model: {
-      ["small" /* SMALL */]: settings_default.SMALL_AKASH_CHAT_API_MODEL || "Meta-Llama-3-2-3B-Instruct",
-      ["medium" /* MEDIUM */]: settings_default.MEDIUM_AKASH_CHAT_API_MODEL || "Meta-Llama-3-3-70B-Instruct",
-      ["large" /* LARGE */]: settings_default.LARGE_AKASH_CHAT_API_MODEL || "Meta-Llama-3-1-405B-Instruct-FP8"
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_AKASH_CHAT_API_MODEL || "Meta-Llama-3-2-3B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_AKASH_CHAT_API_MODEL || "Meta-Llama-3-3-70B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_AKASH_CHAT_API_MODEL || "Meta-Llama-3-1-405B-Instruct-FP8",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      }
     }
   },
   ["livepeer" /* LIVEPEER */]: {
-    settings: {
-      stop: [],
-      maxInputTokens: 128e3,
-      maxOutputTokens: 8192,
-      repetition_penalty: 0.4,
-      temperature: 0.7
-    },
     // livepeer endpoint is handled from the sdk
     model: {
-      ["small" /* SMALL */]: "",
-      ["medium" /* MEDIUM */]: "",
-      ["large" /* LARGE */]: "",
-      ["embedding" /* EMBEDDING */]: "",
-      ["image" /* IMAGE */]: settings_default.LIVEPEER_IMAGE_MODEL || "ByteDance/SDXL-Lightning"
+      ["image" /* IMAGE */]: {
+        name: settings_default.LIVEPEER_IMAGE_MODEL || "ByteDance/SDXL-Lightning"
+      }
+    }
+  },
+  ["infera" /* INFERA */]: {
+    endpoint: "https://api.infera.org",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_INFERA_MODEL || "llama3.2:3b",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_INFERA_MODEL || "mistral-nemo:latest",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_INFERA_MODEL || "mistral-small:latest",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      }
+    }
+  },
+  ["deepseek" /* DEEPSEEK */]: {
+    endpoint: settings_default.DEEPSEEK_API_URL || "https://api.deepseek.com",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_DEEPSEEK_MODEL || "deepseek-chat",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_DEEPSEEK_MODEL || "deepseek-chat",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_DEEPSEEK_MODEL || "deepseek-chat",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.7
+      }
     }
   }
 };
-function getModel(provider, type) {
-  return models[provider].model[type];
+function getModelSettings(provider, type) {
+  return models[provider]?.model[type];
+}
+function getImageModelSettings(provider) {
+  return models[provider]?.model["image" /* IMAGE */];
+}
+function getEmbeddingModelSettings(provider) {
+  return models[provider]?.model["embedding" /* EMBEDDING */];
 }
 function getEndpoint(provider) {
   return models[provider].endpoint;
 }
+
+// src/localembeddingManager.ts
+import path3 from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "url";
+import { FlagEmbedding, EmbeddingModel } from "fastembed";
+var LocalEmbeddingModelManager = class _LocalEmbeddingModelManager {
+  static instance;
+  model = null;
+  initPromise = null;
+  initializationLock = false;
+  constructor() {
+  }
+  static getInstance() {
+    if (!_LocalEmbeddingModelManager.instance) {
+      _LocalEmbeddingModelManager.instance = new _LocalEmbeddingModelManager();
+    }
+    return _LocalEmbeddingModelManager.instance;
+  }
+  async getRootPath() {
+    const __filename2 = fileURLToPath2(import.meta.url);
+    const __dirname3 = path3.dirname(__filename2);
+    const rootPath = path3.resolve(__dirname3, "..");
+    return rootPath.includes("/eliza/") ? rootPath.split("/eliza/")[0] + "/eliza/" : path3.resolve(__dirname3, "..");
+  }
+  async initialize() {
+    if (this.model) {
+      return;
+    }
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    if (this.initializationLock) {
+      while (this.initializationLock) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return;
+    }
+    this.initializationLock = true;
+    try {
+      this.initPromise = this.initializeModel();
+      await this.initPromise;
+    } finally {
+      this.initializationLock = false;
+      this.initPromise = null;
+    }
+  }
+  async initializeModel() {
+    const isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
+    if (!isNode) {
+      throw new Error("Local embedding not supported in browser");
+    }
+    try {
+      const fs3 = await import("fs");
+      const cacheDir = await this.getRootPath() + "/cache/";
+      if (!fs3.existsSync(cacheDir)) {
+        fs3.mkdirSync(cacheDir, { recursive: true });
+      }
+      logger_default.debug("Initializing BGE embedding model...");
+      this.model = await FlagEmbedding.init({
+        cacheDir,
+        model: EmbeddingModel.BGESmallENV15,
+        maxLength: 512
+      });
+      logger_default.debug("BGE model initialized successfully");
+    } catch (error) {
+      logger_default.error("Failed to initialize BGE model:", error);
+      throw error;
+    }
+  }
+  async generateEmbedding(input) {
+    if (!this.model) {
+      await this.initialize();
+    }
+    if (!this.model) {
+      throw new Error("Failed to initialize model");
+    }
+    try {
+      const embedding = await this.model.queryEmbed(input);
+      logger_default.debug("Raw embedding from BGE:", {
+        type: typeof embedding,
+        isArray: Array.isArray(embedding),
+        dimensions: Array.isArray(embedding) ? embedding.length : "not an array",
+        sample: Array.isArray(embedding) ? embedding.slice(0, 5) : embedding
+      });
+      return this.processEmbedding(embedding);
+    } catch (error) {
+      logger_default.error("Embedding generation failed:", error);
+      throw error;
+    }
+  }
+  processEmbedding(embedding) {
+    let finalEmbedding;
+    if (ArrayBuffer.isView(embedding) && embedding.constructor === Float32Array) {
+      finalEmbedding = Array.from(embedding);
+    } else if (Array.isArray(embedding) && ArrayBuffer.isView(embedding[0]) && embedding[0].constructor === Float32Array) {
+      finalEmbedding = Array.from(embedding[0]);
+    } else if (Array.isArray(embedding)) {
+      finalEmbedding = embedding;
+    } else {
+      throw new Error(`Unexpected embedding format: ${typeof embedding}`);
+    }
+    finalEmbedding = finalEmbedding.map((n) => Number(n));
+    if (!Array.isArray(finalEmbedding) || finalEmbedding[0] === void 0) {
+      throw new Error(
+        "Invalid embedding format: must be an array starting with a number"
+      );
+    }
+    if (finalEmbedding.length !== 384) {
+      logger_default.warn(
+        `Unexpected embedding dimension: ${finalEmbedding.length}`
+      );
+    }
+    return finalEmbedding;
+  }
+  async reset() {
+    if (this.model) {
+      this.model = null;
+    }
+    this.initPromise = null;
+    this.initializationLock = false;
+  }
+  // For testing purposes
+  static resetInstance() {
+    if (_LocalEmbeddingModelManager.instance) {
+      _LocalEmbeddingModelManager.instance.reset();
+      _LocalEmbeddingModelManager.instance = null;
+    }
+  }
+};
+var localembeddingManager_default = LocalEmbeddingModelManager;
 
 // src/embedding.ts
 var EmbeddingProvider = {
   OpenAI: "OpenAI",
   Ollama: "Ollama",
   GaiaNet: "GaiaNet",
+  Heurist: "Heurist",
   BGE: "BGE"
 };
 var getEmbeddingConfig = () => ({
-  dimensions: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? 1536 : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? 1024 : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? 768 : 384,
+  dimensions: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("openai" /* OPENAI */).dimensions : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("ollama" /* OLLAMA */).dimensions : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("gaianet" /* GAIANET */).dimensions : settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("heurist" /* HEURIST */).dimensions : 384,
   // BGE
-  model: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? "text-embedding-3-small" : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? settings_default.OLLAMA_EMBEDDING_MODEL || "mxbai-embed-large" : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? settings_default.GAIANET_EMBEDDING_MODEL || "nomic-embed" : "BGE-small-en-v1.5",
-  provider: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? "OpenAI" : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? "Ollama" : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? "GaiaNet" : "BGE"
+  model: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("openai" /* OPENAI */).name : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("ollama" /* OLLAMA */).name : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("gaianet" /* GAIANET */).name : settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("heurist" /* HEURIST */).name : "BGE-small-en-v1.5",
+  provider: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? "OpenAI" : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? "Ollama" : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? "GaiaNet" : settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true" ? "Heurist" : "BGE"
 });
 async function getRemoteEmbedding(input, options) {
   const baseEndpoint = options.endpoint.endsWith("/v1") ? options.endpoint : `${options.endpoint}${options.isOllama ? "/v1" : ""}`;
@@ -1618,17 +2244,27 @@ async function getRemoteEmbedding(input, options) {
 }
 function getEmbeddingType(runtime) {
   const isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
-  const isLocal = isNode && runtime.character.modelProvider !== "openai" /* OPENAI */ && runtime.character.modelProvider !== "gaianet" /* GAIANET */ && !settings_default.USE_OPENAI_EMBEDDING;
+  const isLocal = isNode && runtime.character.modelProvider !== "openai" /* OPENAI */ && runtime.character.modelProvider !== "gaianet" /* GAIANET */ && runtime.character.modelProvider !== "heurist" /* HEURIST */ && !settings_default.USE_OPENAI_EMBEDDING;
   return isLocal ? "local" : "remote";
 }
 function getEmbeddingZeroVector() {
   let embeddingDimension = 384;
   if (settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true") {
-    embeddingDimension = 1536;
+    embeddingDimension = getEmbeddingModelSettings(
+      "openai" /* OPENAI */
+    ).dimensions;
   } else if (settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true") {
-    embeddingDimension = 1024;
+    embeddingDimension = getEmbeddingModelSettings(
+      "ollama" /* OLLAMA */
+    ).dimensions;
   } else if (settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true") {
-    embeddingDimension = 768;
+    embeddingDimension = getEmbeddingModelSettings(
+      "gaianet" /* GAIANET */
+    ).dimensions;
+  } else if (settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true") {
+    embeddingDimension = getEmbeddingModelSettings(
+      "heurist" /* HEURIST */
+    ).dimensions;
   }
   return Array(embeddingDimension).fill(0);
 }
@@ -1665,7 +2301,7 @@ async function embed(runtime, input) {
   if (config2.provider === EmbeddingProvider.Ollama) {
     return await getRemoteEmbedding(input, {
       model: config2.model,
-      endpoint: runtime.character.modelEndpointOverride || models["ollama" /* OLLAMA */].endpoint,
+      endpoint: runtime.character.modelEndpointOverride || getEndpoint("ollama" /* OLLAMA */),
       isOllama: true,
       dimensions: config2.dimensions
     });
@@ -1673,8 +2309,16 @@ async function embed(runtime, input) {
   if (config2.provider == EmbeddingProvider.GaiaNet) {
     return await getRemoteEmbedding(input, {
       model: config2.model,
-      endpoint: runtime.character.modelEndpointOverride || models["gaianet" /* GAIANET */].endpoint || settings_default.SMALL_GAIANET_SERVER_URL || settings_default.MEDIUM_GAIANET_SERVER_URL || settings_default.LARGE_GAIANET_SERVER_URL,
+      endpoint: runtime.character.modelEndpointOverride || getEndpoint("gaianet" /* GAIANET */) || settings_default.SMALL_GAIANET_SERVER_URL || settings_default.MEDIUM_GAIANET_SERVER_URL || settings_default.LARGE_GAIANET_SERVER_URL,
       apiKey: settings_default.GAIANET_API_KEY || runtime.token,
+      dimensions: config2.dimensions
+    });
+  }
+  if (config2.provider === EmbeddingProvider.Heurist) {
+    return await getRemoteEmbedding(input, {
+      model: config2.model,
+      endpoint: getEndpoint("heurist" /* HEURIST */),
+      apiKey: runtime.token,
       dimensions: config2.dimensions
     });
   }
@@ -1690,102 +2334,18 @@ async function embed(runtime, input) {
   }
   return await getRemoteEmbedding(input, {
     model: config2.model,
-    endpoint: runtime.character.modelEndpointOverride || models[runtime.character.modelProvider].endpoint,
+    endpoint: runtime.character.modelEndpointOverride || getEndpoint(runtime.character.modelProvider),
     apiKey: runtime.token,
     dimensions: config2.dimensions
   });
   async function getLocalEmbedding(input2) {
     logger_default.debug("DEBUG - Inside getLocalEmbedding function");
-    const isNode2 = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
-    if (!isNode2) {
-      logger_default.warn(
-        "Local embedding not supported in browser, falling back to remote embedding"
-      );
-      throw new Error("Local embedding not supported in browser");
-    }
     try {
-      let getRootPath = function() {
-        const __filename2 = fileURLToPath2(import.meta.url);
-        const __dirname3 = path3.dirname(__filename2);
-        const rootPath = path3.resolve(__dirname3, "..");
-        if (rootPath.includes("/eliza/")) {
-          return rootPath.split("/eliza/")[0] + "/eliza/";
-        }
-        return path3.resolve(__dirname3, "..");
-      };
-      const moduleImports = await Promise.all([
-        import("fs"),
-        import("url"),
-        (async () => {
-          try {
-            return await import("fastembed");
-          } catch {
-            logger_default.error("Failed to load fastembed.");
-            throw new Error(
-              "fastembed import failed, falling back to remote embedding"
-            );
-          }
-        })()
-      ]);
-      const [fs3, { fileURLToPath: fileURLToPath2 }, fastEmbed] = moduleImports;
-      const { FlagEmbedding, EmbeddingModel } = fastEmbed;
-      const cacheDir = getRootPath() + "/cache/";
-      if (!fs3.existsSync(cacheDir)) {
-        fs3.mkdirSync(cacheDir, { recursive: true });
-      }
-      logger_default.debug("Initializing BGE embedding model...");
-      const embeddingModel = await FlagEmbedding.init({
-        cacheDir,
-        model: EmbeddingModel.BGESmallENV15,
-        // BGE-small-en-v1.5 specific settings
-        maxLength: 512
-        // BGE's context window
-      });
-      logger_default.debug("Generating embedding for input:", {
-        inputLength: input2.length,
-        inputPreview: input2.slice(0, 100) + "..."
-      });
-      const embedding = await embeddingModel.queryEmbed(input2);
-      logger_default.debug("Raw embedding from BGE:", {
-        type: typeof embedding,
-        isArray: Array.isArray(embedding),
-        dimensions: Array.isArray(embedding) ? embedding.length : "not an array",
-        sample: Array.isArray(embedding) ? embedding.slice(0, 5) : embedding
-      });
-      let finalEmbedding;
-      if (ArrayBuffer.isView(embedding) && embedding.constructor === Float32Array) {
-        finalEmbedding = Array.from(embedding);
-      } else if (Array.isArray(embedding) && ArrayBuffer.isView(embedding[0]) && embedding[0].constructor === Float32Array) {
-        finalEmbedding = Array.from(embedding[0]);
-      } else if (Array.isArray(embedding)) {
-        finalEmbedding = embedding;
-      } else {
-        throw new Error(
-          `Unexpected embedding format: ${typeof embedding}`
-        );
-      }
-      logger_default.debug("Processed embedding:", {
-        length: finalEmbedding.length,
-        sample: finalEmbedding.slice(0, 5),
-        allNumbers: finalEmbedding.every((n) => typeof n === "number")
-      });
-      finalEmbedding = finalEmbedding.map((n) => Number(n));
-      if (!Array.isArray(finalEmbedding) || finalEmbedding[0] === void 0) {
-        throw new Error(
-          "Invalid embedding format: must be an array starting with a number"
-        );
-      }
-      if (finalEmbedding.length !== 384) {
-        logger_default.warn(
-          `Unexpected embedding dimension: ${finalEmbedding.length} (expected 384)`
-        );
-      }
-      return finalEmbedding;
-    } catch {
-      logger_default.warn(
-        "Local embedding not supported in browser, falling back to remote embedding"
-      );
-      throw new Error("Local embedding not supported in browser");
+      const embeddingManager = localembeddingManager_default.getInstance();
+      return await embeddingManager.generateEmbedding(input2);
+    } catch (error) {
+      logger_default.error("Local embedding failed:", error);
+      throw error;
     }
   }
   async function retrieveCachedEmbedding(runtime2, input2) {
@@ -1925,6 +2485,27 @@ var parseActionResponseFromText = (text) => {
   }
   return { actions };
 };
+function truncateToCompleteSentence(text, maxLength) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  const lastPeriodIndex = text.lastIndexOf(".", maxLength - 1);
+  if (lastPeriodIndex !== -1) {
+    const truncatedAtPeriod = text.slice(0, lastPeriodIndex + 1).trim();
+    if (truncatedAtPeriod.length > 0) {
+      return truncatedAtPeriod;
+    }
+  }
+  const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 1);
+  if (lastSpaceIndex !== -1) {
+    const truncatedAtSpace = text.slice(0, lastSpaceIndex).trim();
+    if (truncatedAtSpace.length > 0) {
+      return truncatedAtSpace + "...";
+    }
+  }
+  const hardTruncated = text.slice(0, maxLength - 3).trim();
+  return hardTruncated + "...";
+}
 
 // src/evaluators.ts
 var evaluationTemplate = `TASK: Based on the conversation and conditions, determine which evaluation functions are appropriate to call.
@@ -2003,6 +2584,7 @@ function formatEvaluatorExampleDescriptions(evaluators) {
 // src/generation.ts
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createMistral } from "@ai-sdk/mistral";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
@@ -29801,6 +30383,37 @@ async function truncateTiktoken(model, context, maxTokens) {
     return context.slice(-maxTokens * 4);
   }
 }
+function getCloudflareGatewayBaseURL(runtime, provider) {
+  const isCloudflareEnabled = runtime.getSetting("CLOUDFLARE_GW_ENABLED") === "true";
+  const cloudflareAccountId = runtime.getSetting("CLOUDFLARE_AI_ACCOUNT_ID");
+  const cloudflareGatewayId = runtime.getSetting("CLOUDFLARE_AI_GATEWAY_ID");
+  elizaLogger.debug("Cloudflare Gateway Configuration:", {
+    isEnabled: isCloudflareEnabled,
+    hasAccountId: !!cloudflareAccountId,
+    hasGatewayId: !!cloudflareGatewayId,
+    provider
+  });
+  if (!isCloudflareEnabled) {
+    elizaLogger.debug("Cloudflare Gateway is not enabled");
+    return void 0;
+  }
+  if (!cloudflareAccountId) {
+    elizaLogger.warn("Cloudflare Gateway is enabled but CLOUDFLARE_AI_ACCOUNT_ID is not set");
+    return void 0;
+  }
+  if (!cloudflareGatewayId) {
+    elizaLogger.warn("Cloudflare Gateway is enabled but CLOUDFLARE_AI_GATEWAY_ID is not set");
+    return void 0;
+  }
+  const baseURL = `https://gateway.ai.cloudflare.com/v1/${cloudflareAccountId}/${cloudflareGatewayId}/${provider.toLowerCase()}`;
+  elizaLogger.info("Using Cloudflare Gateway:", {
+    provider,
+    baseURL,
+    accountId: cloudflareAccountId,
+    gatewayId: cloudflareGatewayId
+  });
+  return baseURL;
+}
 async function generateText({
   runtime,
   context,
@@ -29809,7 +30422,9 @@ async function generateText({
   onStepFinish,
   maxSteps = 1,
   stop,
-  customSystemPrompt
+  customSystemPrompt,
+  verifiableInference = process.env.VERIFIABLE_INFERENCE_ENABLED === "true",
+  verifiableInferenceOptions
 }) {
   if (!context) {
     console.error("generateText context is empty");
@@ -29818,11 +30433,45 @@ async function generateText({
   elizaLogger.log("Generating text...");
   elizaLogger.info("Generating text with options:", {
     modelProvider: runtime.modelProvider,
-    model: modelClass
+    model: modelClass,
+    verifiableInference
   });
+  elizaLogger.log("Using provider:", runtime.modelProvider);
+  if (verifiableInference && runtime.verifiableInferenceAdapter) {
+    elizaLogger.log(
+      "Using verifiable inference adapter:",
+      runtime.verifiableInferenceAdapter
+    );
+    try {
+      const result = await runtime.verifiableInferenceAdapter.generateText(
+        context,
+        modelClass,
+        verifiableInferenceOptions
+      );
+      elizaLogger.log("Verifiable inference result:", result);
+      const isValid = await runtime.verifiableInferenceAdapter.verifyProof(result);
+      if (!isValid) {
+        throw new Error("Failed to verify inference proof");
+      }
+      return result.text;
+    } catch (error) {
+      elizaLogger.error("Error in verifiable inference:", error);
+      throw error;
+    }
+  }
   const provider = runtime.modelProvider;
-  const endpoint = runtime.character.modelEndpointOverride || models[provider].endpoint;
-  let model = models[provider].model[modelClass];
+  elizaLogger.debug("Provider settings:", {
+    provider,
+    hasRuntime: !!runtime,
+    runtimeSettings: {
+      CLOUDFLARE_GW_ENABLED: runtime.getSetting("CLOUDFLARE_GW_ENABLED"),
+      CLOUDFLARE_AI_ACCOUNT_ID: runtime.getSetting("CLOUDFLARE_AI_ACCOUNT_ID"),
+      CLOUDFLARE_AI_GATEWAY_ID: runtime.getSetting("CLOUDFLARE_AI_GATEWAY_ID")
+    }
+  });
+  const endpoint = runtime.character.modelEndpointOverride || getEndpoint(provider);
+  const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+  let model = modelSettings.name;
   switch (provider) {
     // if runtime.getSetting("LLAMACLOUD_MODEL_LARGE") is true and modelProvider is LLAMACLOUD, then use the large model
     case "llama_cloud" /* LLAMACLOUD */:
@@ -29876,12 +30525,12 @@ async function generateText({
   }
   elizaLogger.info("Selected model:", model);
   const modelConfiguration = runtime.character?.settings?.modelConfig;
-  const temperature = modelConfiguration?.temperature || models[provider].settings.temperature;
-  const frequency_penalty = modelConfiguration?.frequency_penalty || models[provider].settings.frequency_penalty;
-  const presence_penalty = modelConfiguration?.presence_penalty || models[provider].settings.presence_penalty;
-  const max_context_length = modelConfiguration?.maxInputTokens || models[provider].settings.maxInputTokens;
-  const max_response_length = modelConfiguration?.max_response_length || models[provider].settings.maxOutputTokens;
-  const experimental_telemetry = modelConfiguration?.experimental_telemetry || models[provider].settings.experimental_telemetry;
+  const temperature = modelConfiguration?.temperature || modelSettings.temperature;
+  const frequency_penalty = modelConfiguration?.frequency_penalty || modelSettings.frequency_penalty;
+  const presence_penalty = modelConfiguration?.presence_penalty || modelSettings.presence_penalty;
+  const max_context_length = modelConfiguration?.maxInputTokens || modelSettings.maxInputTokens;
+  const max_response_length = modelConfiguration?.max_response_length || modelSettings.maxOutputTokens;
+  const experimental_telemetry = modelConfiguration?.experimental_telemetry || modelSettings.experimental_telemetry;
   const apiKey = runtime.token;
   try {
     elizaLogger.debug(
@@ -29889,7 +30538,7 @@ async function generateText({
     );
     context = await trimTokens(context, max_context_length, runtime);
     let response;
-    const _stop = stop || models[provider].settings.stop;
+    const _stop = stop || modelSettings.stop;
     elizaLogger.debug(
       `Using provider: ${provider}, model: ${model}, temperature: ${temperature}, max response length: ${max_response_length}`
     );
@@ -29902,11 +30551,13 @@ async function generateText({
       case "nanogpt" /* NANOGPT */:
       case "hyperbolic" /* HYPERBOLIC */:
       case "together" /* TOGETHER */:
+      case "nineteen_ai" /* NINETEEN_AI */:
       case "akash_chat_api" /* AKASH_CHAT_API */: {
-        elizaLogger.debug("Initializing OpenAI model.");
+        elizaLogger.debug("Initializing OpenAI model with Cloudflare check");
+        const baseURL2 = getCloudflareGatewayBaseURL(runtime, "openai") || endpoint;
         const openai = createOpenAI({
           apiKey,
-          baseURL: endpoint,
+          baseURL: baseURL2,
           fetch: runtime.fetch
         });
         const { text: openaiResponse } = await aiGenerateText({
@@ -29923,7 +30574,7 @@ async function generateText({
           experimental_telemetry
         });
         response = openaiResponse;
-        elizaLogger.debug("Received response from OpenAI model.");
+        console.log("Received response from OpenAI model.");
         break;
       }
       case "eternalai" /* ETERNALAI */: {
@@ -29932,21 +30583,31 @@ async function generateText({
           apiKey,
           baseURL: endpoint,
           fetch: async (url, options) => {
+            const chain_id = runtime.getSetting("ETERNALAI_CHAIN_ID") || "45762";
+            if (options?.body) {
+              const body = JSON.parse(options.body);
+              body.chain_id = chain_id;
+              options.body = JSON.stringify(body);
+            }
             const fetching = await runtime.fetch(url, options);
             if (parseBooleanFromText(
-              runtime.getSetting("ETERNAL_AI_LOG_REQUEST")
+              runtime.getSetting("ETERNALAI_LOG")
             )) {
               elizaLogger.info(
                 "Request data: ",
                 JSON.stringify(options, null, 2)
               );
               const clonedResponse = fetching.clone();
-              clonedResponse.json().then((data) => {
-                elizaLogger.info(
-                  "Response data: ",
-                  JSON.stringify(data, null, 2)
-                );
-              });
+              try {
+                clonedResponse.json().then((data) => {
+                  elizaLogger.info(
+                    "Response data: ",
+                    JSON.stringify(data, null, 2)
+                  );
+                });
+              } catch (e) {
+                elizaLogger.debug(e);
+              }
             }
             return fetching;
           }
@@ -29986,12 +30647,26 @@ async function generateText({
         elizaLogger.debug("Received response from Google model.");
         break;
       }
-      case "anthropic" /* ANTHROPIC */: {
-        elizaLogger.debug("Initializing Anthropic model.");
-        const anthropic = createAnthropic({
-          apiKey,
-          fetch: runtime.fetch
+      case "mistral" /* MISTRAL */: {
+        const mistral = createMistral();
+        const { text: mistralResponse } = await aiGenerateText({
+          model: mistral(model),
+          prompt: context,
+          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          temperature,
+          maxTokens: max_response_length,
+          frequencyPenalty: frequency_penalty,
+          presencePenalty: presence_penalty
         });
+        response = mistralResponse;
+        elizaLogger.debug("Received response from Mistral model.");
+        break;
+      }
+      case "anthropic" /* ANTHROPIC */: {
+        elizaLogger.debug("Initializing Anthropic model with Cloudflare check");
+        const baseURL2 = getCloudflareGatewayBaseURL(runtime, "anthropic") || "https://api.anthropic.com/v1";
+        elizaLogger.debug("Anthropic baseURL result:", { baseURL: baseURL2 });
+        const anthropic = createAnthropic({ apiKey, baseURL: baseURL2, fetch: runtime.fetch });
         const { text: anthropicResponse } = await aiGenerateText({
           model: anthropic.languageModel(model),
           prompt: context,
@@ -30061,7 +30736,10 @@ async function generateText({
         break;
       }
       case "groq" /* GROQ */: {
-        const groq = createGroq({ apiKey, fetch: runtime.fetch });
+        elizaLogger.debug("Initializing Groq model with Cloudflare check");
+        const baseURL2 = getCloudflareGatewayBaseURL(runtime, "groq");
+        elizaLogger.debug("Groq baseURL result:", { baseURL: baseURL2 });
+        const groq = createGroq({ apiKey, fetch: runtime.fetch, baseURL: baseURL2 });
         const { text: groqResponse } = await aiGenerateText({
           model: groq.languageModel(model),
           prompt: context,
@@ -30076,6 +30754,7 @@ async function generateText({
           experimental_telemetry
         });
         response = groqResponse;
+        elizaLogger.debug("Received response from Groq model.");
         break;
       }
       case "llama_local" /* LLAMALOCAL */: {
@@ -30101,7 +30780,7 @@ async function generateText({
       }
       case "redpill" /* REDPILL */: {
         elizaLogger.debug("Initializing RedPill model.");
-        const serverUrl = models[provider].endpoint;
+        const serverUrl = getEndpoint(provider);
         const openai = createOpenAI({
           apiKey,
           baseURL: serverUrl,
@@ -30126,7 +30805,7 @@ async function generateText({
       }
       case "openrouter" /* OPENROUTER */: {
         elizaLogger.debug("Initializing OpenRouter model.");
-        const serverUrl = models[provider].endpoint;
+        const serverUrl = getEndpoint(provider);
         const openrouter = createOpenAI({
           apiKey,
           baseURL: serverUrl,
@@ -30153,7 +30832,7 @@ async function generateText({
         {
           elizaLogger.debug("Initializing Ollama model.");
           const ollamaProvider = createOllama({
-            baseURL: models[provider].endpoint + "/api",
+            baseURL: getEndpoint(provider) + "/api",
             fetch: runtime.fetch
           });
           const ollama = ollamaProvider(model);
@@ -30200,7 +30879,7 @@ async function generateText({
       }
       case "gaianet" /* GAIANET */: {
         elizaLogger.debug("Initializing GAIANET model.");
-        var baseURL = models[provider].endpoint;
+        var baseURL = getEndpoint(provider);
         if (!baseURL) {
           switch (modelClass) {
             case "small" /* SMALL */:
@@ -30239,7 +30918,15 @@ async function generateText({
       }
       case "galadriel" /* GALADRIEL */: {
         elizaLogger.debug("Initializing Galadriel model.");
+        const headers = {};
+        const fineTuneApiKey = runtime.getSetting(
+          "GALADRIEL_FINE_TUNE_API_KEY"
+        );
+        if (fineTuneApiKey) {
+          headers["Fine-Tune-Authentication"] = fineTuneApiKey;
+        }
         const galadriel = createOpenAI({
+          headers,
           apiKey,
           baseURL: endpoint,
           fetch: runtime.fetch
@@ -30261,6 +30948,30 @@ async function generateText({
         elizaLogger.debug("Received response from Galadriel model.");
         break;
       }
+      case "infera" /* INFERA */: {
+        elizaLogger.debug("Initializing Infera model.");
+        const apiKey2 = settings_default.INFERA_API_KEY || runtime.token;
+        const infera = createOpenAI({
+          apiKey: apiKey2,
+          baseURL: endpoint,
+          headers: {
+            api_key: apiKey2,
+            "Content-Type": "application/json"
+          }
+        });
+        const { text: inferaResponse } = await aiGenerateText({
+          model: infera.languageModel(model),
+          prompt: context,
+          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          temperature,
+          maxTokens: max_response_length,
+          frequencyPenalty: frequency_penalty,
+          presencePenalty: presence_penalty
+        });
+        response = inferaResponse;
+        elizaLogger.debug("Received response from Infera model.");
+        break;
+      }
       case "venice" /* VENICE */: {
         elizaLogger.debug("Initializing Venice model.");
         const venice = createOpenAI({
@@ -30279,6 +30990,31 @@ async function generateText({
         });
         response = veniceResponse;
         elizaLogger.debug("Received response from Venice model.");
+        break;
+      }
+      case "deepseek" /* DEEPSEEK */: {
+        elizaLogger.debug("Initializing Deepseek model.");
+        const serverUrl = models[provider].endpoint;
+        const deepseek = createOpenAI({
+          apiKey,
+          baseURL: serverUrl,
+          fetch: runtime.fetch
+        });
+        const { text: deepseekResponse } = await aiGenerateText({
+          model: deepseek.languageModel(model),
+          prompt: context,
+          temperature,
+          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          tools,
+          onStepFinish,
+          maxSteps,
+          maxTokens: max_response_length,
+          frequencyPenalty: frequency_penalty,
+          presencePenalty: presence_penalty,
+          experimental_telemetry
+        });
+        response = deepseekResponse;
+        elizaLogger.debug("Received response from Deepseek model.");
         break;
       }
       default: {
@@ -30344,11 +31080,9 @@ async function generateTrueOrFalse({
   modelClass
 }) {
   let retryDelay = 1e3;
+  const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
   const stop = Array.from(
-    /* @__PURE__ */ new Set([
-      ...models[runtime.modelProvider].settings.stop || [],
-      ["\n"]
-    ])
+    /* @__PURE__ */ new Set([...modelSettings.stop || [], ["\n"]])
   );
   while (true) {
     try {
@@ -30458,9 +31192,10 @@ async function generateMessageResponse({
   context,
   modelClass
 }) {
-  const provider = runtime.modelProvider;
-  const max_context_length = models[provider].settings.maxInputTokens;
+  const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+  const max_context_length = modelSettings.maxInputTokens;
   context = await trimTokens(context, max_context_length, runtime);
+  elizaLogger.debug("Context:", context);
   let retryLength = 1e3;
   while (true) {
     try {
@@ -30485,8 +31220,8 @@ async function generateMessageResponse({
   }
 }
 var generateImage = async (data, runtime) => {
-  const model = getModel(runtime.imageModelProvider, "image" /* IMAGE */);
-  const modelSettings = models[runtime.imageModelProvider].imageSettings;
+  const modelSettings = getImageModelSettings(runtime.imageModelProvider);
+  const model = modelSettings.name;
   elizaLogger.info("Generating image with options:", {
     imageModelProvider: model
   });
@@ -30505,7 +31240,7 @@ var generateImage = async (data, runtime) => {
       case "livepeer" /* LIVEPEER */:
         return runtime.getSetting("LIVEPEER_GATEWAY_URL");
       default:
-        return runtime.getSetting("HEURIST_API_KEY") ?? runtime.getSetting("TOGETHER_API_KEY") ?? runtime.getSetting("FAL_API_KEY") ?? runtime.getSetting("OPENAI_API_KEY") ?? runtime.getSetting("VENICE_API_KEY") ?? runtime.getSetting("LIVEPEER_GATEWAY_URL");
+        return runtime.getSetting("HEURIST_API_KEY") ?? runtime.getSetting("NINETEEN_AI_API_KEY") ?? runtime.getSetting("TOGETHER_API_KEY") ?? runtime.getSetting("FAL_API_KEY") ?? runtime.getSetting("OPENAI_API_KEY") ?? runtime.getSetting("VENICE_API_KEY") ?? runtime.getSetting("LIVEPEER_GATEWAY_URL");
     }
   })();
   try {
@@ -30531,7 +31266,7 @@ var generateImage = async (data, runtime) => {
                 seed: data.seed || -1
               }
             },
-            model_id: data.modelId || "FLUX.1-dev",
+            model_id: model,
             deadline: 60,
             priority: 1
           })
@@ -30548,7 +31283,7 @@ var generateImage = async (data, runtime) => {
     runtime.imageModelProvider === "llama_cloud" /* LLAMACLOUD */) {
       const together = new Together({ apiKey });
       const response = await together.images.create({
-        model: "black-forest-labs/FLUX.1-schnell",
+        model,
         prompt: data.prompt,
         width: data.width,
         height: data.height,
@@ -30635,7 +31370,7 @@ var generateImage = async (data, runtime) => {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: data.modelId || "fluently-xl",
+            model,
             prompt: data.prompt,
             negative_prompt: data.negativePrompt,
             width: data.width,
@@ -30660,6 +31395,39 @@ var generateImage = async (data, runtime) => {
         return `data:image/png;base64,${base64String}`;
       });
       return { success: true, data: base64s };
+    } else if (runtime.imageModelProvider === "nineteen_ai" /* NINETEEN_AI */) {
+      const response = await fetch(
+        "https://api.nineteen.ai/v1/text-to-image",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model,
+            prompt: data.prompt,
+            negative_prompt: data.negativePrompt,
+            width: data.width,
+            height: data.height,
+            steps: data.numIterations,
+            cfg_scale: data.guidanceScale || 3
+          })
+        }
+      );
+      const result = await response.json();
+      if (!result.images || !Array.isArray(result.images)) {
+        throw new Error("Invalid response format from Nineteen AI");
+      }
+      const base64s = result.images.map((base64String) => {
+        if (!base64String) {
+          throw new Error(
+            "Empty base64 string in Nineteen AI response"
+          );
+        }
+        return `data:image/png;base64,${base64String}`;
+      });
+      return { success: true, data: base64s };
     } else if (runtime.imageModelProvider === "livepeer" /* LIVEPEER */) {
       if (!apiKey) {
         throw new Error("Livepeer Gateway is not defined");
@@ -30677,7 +31445,7 @@ var generateImage = async (data, runtime) => {
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              model_id: data.modelId || "ByteDance/SDXL-Lightning",
+              model_id: model,
               prompt: data.prompt,
               width: data.width || 1024,
               height: data.height || 1024
@@ -30791,7 +31559,10 @@ var generateObject = async ({
   schemaName,
   schemaDescription,
   stop,
-  mode = "json"
+  mode = "json",
+  verifiableInference = false,
+  verifiableInferenceAdapter,
+  verifiableInferenceOptions
 }) => {
   if (!context) {
     const errorMessage = "generateObject context is empty";
@@ -30799,13 +31570,14 @@ var generateObject = async ({
     throw new Error(errorMessage);
   }
   const provider = runtime.modelProvider;
-  const model = models[provider].model[modelClass];
-  const temperature = models[provider].settings.temperature;
-  const frequency_penalty = models[provider].settings.frequency_penalty;
-  const presence_penalty = models[provider].settings.presence_penalty;
-  const max_context_length = models[provider].settings.maxInputTokens;
-  const max_response_length = models[provider].settings.maxOutputTokens;
-  const experimental_telemetry = models[provider].settings.experimental_telemetry;
+  const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+  const model = modelSettings.name;
+  const temperature = modelSettings.temperature;
+  const frequency_penalty = modelSettings.frequency_penalty;
+  const presence_penalty = modelSettings.presence_penalty;
+  const max_context_length = modelSettings.maxInputTokens;
+  const max_response_length = modelSettings.maxOutputTokens;
+  const experimental_telemetry = modelSettings.experimental_telemetry;
   const apiKey = runtime.token;
   try {
     context = await trimTokens(context, max_context_length, runtime);
@@ -30815,7 +31587,7 @@ var generateObject = async ({
       maxTokens: max_response_length,
       frequencyPenalty: frequency_penalty,
       presencePenalty: presence_penalty,
-      stop: stop || models[provider].settings.stop,
+      stop: stop || modelSettings.stop,
       experimental_telemetry
     };
     const response = await handleProvider({
@@ -30829,7 +31601,10 @@ var generateObject = async ({
       modelOptions,
       runtime,
       context,
-      modelClass
+      modelClass,
+      verifiableInference,
+      verifiableInferenceAdapter,
+      verifiableInferenceOptions
     });
     return response;
   } catch (error) {
@@ -30838,7 +31613,15 @@ var generateObject = async ({
   }
 };
 async function handleProvider(options) {
-  const { provider, runtime, context, modelClass } = options;
+  const {
+    provider,
+    runtime,
+    context,
+    modelClass
+    //verifiableInference,
+    //verifiableInferenceAdapter,
+    //verifiableInferenceOptions,
+  } = options;
   switch (provider) {
     case "openai" /* OPENAI */:
     case "eternalai" /* ETERNALAI */:
@@ -30864,12 +31647,16 @@ async function handleProvider(options) {
       });
     case "google" /* GOOGLE */:
       return await handleGoogle(options);
+    case "mistral" /* MISTRAL */:
+      return await handleMistral(options);
     case "redpill" /* REDPILL */:
       return await handleRedPill(options);
     case "openrouter" /* OPENROUTER */:
       return await handleOpenRouter(options);
     case "ollama" /* OLLAMA */:
       return await handleOllama(options);
+    case "deepseek" /* DEEPSEEK */:
+      return await handleDeepSeek(options);
     default: {
       const errorMessage = `Unsupported provider: ${provider}`;
       elizaLogger.error(errorMessage);
@@ -30883,10 +31670,12 @@ async function handleOpenAI({
   schema,
   schemaName,
   schemaDescription,
-  mode,
-  modelOptions
+  mode = "json",
+  modelOptions,
+  provider: _provider,
+  runtime
 }) {
-  const baseURL = models.openai.endpoint || void 0;
+  const baseURL = getCloudflareGatewayBaseURL(runtime, "openai") || models.openai.endpoint;
   const openai = createOpenAI({ apiKey, baseURL });
   return await aiGenerateObject({
     model: openai.languageModel(model),
@@ -30903,10 +31692,14 @@ async function handleAnthropic({
   schema,
   schemaName,
   schemaDescription,
-  mode,
-  modelOptions
+  mode = "json",
+  modelOptions,
+  runtime
 }) {
-  const anthropic = createAnthropic({ apiKey });
+  elizaLogger.debug("Handling Anthropic request with Cloudflare check");
+  const baseURL = getCloudflareGatewayBaseURL(runtime, "anthropic");
+  elizaLogger.debug("Anthropic handleAnthropic baseURL:", { baseURL });
+  const anthropic = createAnthropic({ apiKey, baseURL });
   return await aiGenerateObject({
     model: anthropic.languageModel(model),
     schema,
@@ -30922,7 +31715,7 @@ async function handleGrok({
   schema,
   schemaName,
   schemaDescription,
-  mode,
+  mode = "json",
   modelOptions
 }) {
   const grok = createOpenAI({ apiKey, baseURL: models.grok.endpoint });
@@ -30941,10 +31734,14 @@ async function handleGroq({
   schema,
   schemaName,
   schemaDescription,
-  mode,
-  modelOptions
+  mode = "json",
+  modelOptions,
+  runtime
 }) {
-  const groq = createGroq({ apiKey });
+  elizaLogger.debug("Handling Groq request with Cloudflare check");
+  const baseURL = getCloudflareGatewayBaseURL(runtime, "groq");
+  elizaLogger.debug("Groq handleGroq baseURL:", { baseURL });
+  const groq = createGroq({ apiKey, baseURL });
   return await aiGenerateObject({
     model: groq.languageModel(model),
     schema,
@@ -30960,12 +31757,30 @@ async function handleGoogle({
   schema,
   schemaName,
   schemaDescription,
-  mode,
+  mode = "json",
   modelOptions
 }) {
   const google = createGoogleGenerativeAI();
   return await aiGenerateObject({
     model: google(model),
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    ...modelOptions
+  });
+}
+async function handleMistral({
+  model,
+  schema,
+  schemaName,
+  schemaDescription,
+  mode,
+  modelOptions
+}) {
+  const mistral = createMistral();
+  return await aiGenerateObject({
+    model: mistral(model),
     schema,
     schemaName,
     schemaDescription,
@@ -30979,7 +31794,7 @@ async function handleRedPill({
   schema,
   schemaName,
   schemaDescription,
-  mode,
+  mode = "json",
   modelOptions
 }) {
   const redPill = createOpenAI({ apiKey, baseURL: models.redpill.endpoint });
@@ -30998,7 +31813,7 @@ async function handleOpenRouter({
   schema,
   schemaName,
   schemaDescription,
-  mode,
+  mode = "json",
   modelOptions
 }) {
   const openRouter = createOpenAI({
@@ -31019,16 +31834,35 @@ async function handleOllama({
   schema,
   schemaName,
   schemaDescription,
-  mode,
+  mode = "json",
   modelOptions,
   provider
 }) {
   const ollamaProvider = createOllama({
-    baseURL: models[provider].endpoint + "/api"
+    baseURL: getEndpoint(provider) + "/api"
   });
   const ollama = ollamaProvider(model);
   return await aiGenerateObject({
     model: ollama,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    ...modelOptions
+  });
+}
+async function handleDeepSeek({
+  model,
+  apiKey,
+  schema,
+  schemaName,
+  schemaDescription,
+  mode,
+  modelOptions
+}) {
+  const openai = createOpenAI({ apiKey, baseURL: models.deepseek.endpoint });
+  return await aiGenerateObject({
+    model: openai.languageModel(model),
     schema,
     schemaName,
     schemaDescription,
@@ -31255,7 +32089,8 @@ var MemoryManager = class {
     return await this.runtime.databaseAdapter.getMemoriesByRoomIds({
       tableName: this.tableName,
       agentId: this.runtime.agentId,
-      roomIds: params.roomIds
+      roomIds: params.roomIds,
+      limit: params.limit
     });
   }
   async getMemoryById(id) {
@@ -31462,11 +32297,19 @@ async function formatRelationships({
 }
 
 // src/runtime.ts
+import { readFile } from "fs/promises";
+import { join } from "path";
 import { names as names4, uniqueNamesGenerator as uniqueNamesGenerator4 } from "unique-names-generator";
 import { v4 as uuidv4 } from "uuid";
 
 // src/uuid.ts
 import { sha1 } from "js-sha1";
+import { z } from "zod";
+var uuidSchema = z.string().uuid();
+function validateUuid(value) {
+  const result = uuidSchema.safeParse(value);
+  return result.success ? result.data : null;
+}
 function stringToUuid(target) {
   if (typeof target === "number") {
     target = target.toString();
@@ -31593,6 +32436,345 @@ var knowledge_default = {
   preprocess
 };
 
+// src/ragknowledge.ts
+var RAGKnowledgeManager = class {
+  /**
+   * The AgentRuntime instance associated with this manager.
+   */
+  runtime;
+  /**
+   * The name of the database table this manager operates on.
+   */
+  tableName;
+  /**
+   * Constructs a new KnowledgeManager instance.
+   * @param opts Options for the manager.
+   * @param opts.tableName The name of the table this manager will operate on.
+   * @param opts.runtime The AgentRuntime instance associated with this manager.
+   */
+  constructor(opts) {
+    this.runtime = opts.runtime;
+    this.tableName = opts.tableName;
+  }
+  defaultRAGMatchThreshold = 0.85;
+  defaultRAGMatchCount = 5;
+  /**
+   * Common English stop words to filter out from query analysis
+   */
+  stopWords = /* @__PURE__ */ new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "does",
+    "for",
+    "from",
+    "had",
+    "has",
+    "have",
+    "he",
+    "her",
+    "his",
+    "how",
+    "hey",
+    "i",
+    "in",
+    "is",
+    "it",
+    "its",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "this",
+    "to",
+    "was",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "will",
+    "with",
+    "would",
+    "there",
+    "their",
+    "they",
+    "your",
+    "you"
+  ]);
+  /**
+   * Filters out stop words and returns meaningful terms
+   */
+  getQueryTerms(query) {
+    return query.toLowerCase().split(" ").filter((term) => term.length > 3).filter((term) => !this.stopWords.has(term));
+  }
+  /**
+   * Preprocesses text content for better RAG performance.
+   * @param content The text content to preprocess.
+   * @returns The preprocessed text.
+   */
+  preprocess(content) {
+    if (!content || typeof content !== "string") {
+      logger_default.warn("Invalid input for preprocessing");
+      return "";
+    }
+    return content.replace(/```[\s\S]*?```/g, "").replace(/`.*?`/g, "").replace(/#{1,6}\s*(.*)/g, "$1").replace(/!\[(.*?)\]\(.*?\)/g, "$1").replace(/\[(.*?)\]\(.*?\)/g, "$1").replace(/(https?:\/\/)?(www\.)?([^\s]+\.[^\s]+)/g, "$3").replace(/<@[!&]?\d+>/g, "").replace(/<[^>]*>/g, "").replace(/^\s*[-*_]{3,}\s*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "").replace(/\s+/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[^a-zA-Z0-9\s\-_./:?=&]/g, "").trim().toLowerCase();
+  }
+  hasProximityMatch(text, terms) {
+    const words = text.toLowerCase().split(" ");
+    const positions = terms.map((term) => words.findIndex((w) => w.includes(term))).filter((pos) => pos !== -1);
+    if (positions.length < 2) return false;
+    for (let i = 0; i < positions.length - 1; i++) {
+      if (Math.abs(positions[i] - positions[i + 1]) <= 5) {
+        return true;
+      }
+    }
+    return false;
+  }
+  async getKnowledge(params) {
+    const agentId = params.agentId || this.runtime.agentId;
+    if (params.id) {
+      const directResults = await this.runtime.databaseAdapter.getKnowledge({
+        id: params.id,
+        agentId
+      });
+      if (directResults.length > 0) {
+        return directResults;
+      }
+    }
+    if (params.query) {
+      try {
+        const processedQuery = this.preprocess(params.query);
+        let searchText = processedQuery;
+        if (params.conversationContext) {
+          const relevantContext = this.preprocess(
+            params.conversationContext
+          );
+          searchText = `${relevantContext} ${processedQuery}`;
+        }
+        const embeddingArray = await embed(this.runtime, searchText);
+        const embedding = new Float32Array(embeddingArray);
+        const results = await this.runtime.databaseAdapter.searchKnowledge({
+          agentId: this.runtime.agentId,
+          embedding,
+          match_threshold: this.defaultRAGMatchThreshold,
+          match_count: (params.limit || this.defaultRAGMatchCount) * 2,
+          searchText: processedQuery
+        });
+        const rerankedResults = results.map((result) => {
+          let score = result.similarity;
+          const queryTerms = this.getQueryTerms(processedQuery);
+          const matchingTerms = queryTerms.filter(
+            (term) => result.content.text.toLowerCase().includes(term)
+          );
+          if (matchingTerms.length > 0) {
+            score *= 1 + matchingTerms.length / queryTerms.length * 2;
+            if (this.hasProximityMatch(
+              result.content.text,
+              matchingTerms
+            )) {
+              score *= 1.5;
+            }
+          } else {
+            if (!params.conversationContext) {
+              score *= 0.3;
+            }
+          }
+          return {
+            ...result,
+            score,
+            matchedTerms: matchingTerms
+            // Add for debugging
+          };
+        }).sort((a, b) => b.score - a.score);
+        return rerankedResults.filter(
+          (result) => result.score >= this.defaultRAGMatchThreshold
+        ).slice(0, params.limit || this.defaultRAGMatchCount);
+      } catch (error) {
+        console.log(`[RAG Search Error] ${error}`);
+        return [];
+      }
+    }
+    return [];
+  }
+  async createKnowledge(item) {
+    if (!item.content.text) {
+      logger_default.warn("Empty content in knowledge item");
+      return;
+    }
+    try {
+      const processedContent = this.preprocess(item.content.text);
+      const mainEmbeddingArray = await embed(
+        this.runtime,
+        processedContent
+      );
+      const mainEmbedding = new Float32Array(mainEmbeddingArray);
+      await this.runtime.databaseAdapter.createKnowledge({
+        id: item.id,
+        agentId: this.runtime.agentId,
+        content: {
+          text: item.content.text,
+          metadata: {
+            ...item.content.metadata,
+            isMain: true
+          }
+        },
+        embedding: mainEmbedding,
+        createdAt: Date.now()
+      });
+      const chunks = await splitChunks(processedContent, 512, 20);
+      for (const [index, chunk] of chunks.entries()) {
+        const chunkEmbeddingArray = await embed(this.runtime, chunk);
+        const chunkEmbedding = new Float32Array(chunkEmbeddingArray);
+        const chunkId = `${item.id}-chunk-${index}`;
+        await this.runtime.databaseAdapter.createKnowledge({
+          id: chunkId,
+          agentId: this.runtime.agentId,
+          content: {
+            text: chunk,
+            metadata: {
+              ...item.content.metadata,
+              isChunk: true,
+              originalId: item.id,
+              chunkIndex: index
+            }
+          },
+          embedding: chunkEmbedding,
+          createdAt: Date.now()
+        });
+      }
+    } catch (error) {
+      logger_default.error(`Error processing knowledge ${item.id}:`, error);
+      throw error;
+    }
+  }
+  async searchKnowledge(params) {
+    const {
+      match_threshold = this.defaultRAGMatchThreshold,
+      match_count = this.defaultRAGMatchCount,
+      embedding,
+      searchText
+    } = params;
+    const float32Embedding = Array.isArray(embedding) ? new Float32Array(embedding) : embedding;
+    return await this.runtime.databaseAdapter.searchKnowledge({
+      agentId: params.agentId || this.runtime.agentId,
+      embedding: float32Embedding,
+      match_threshold,
+      match_count,
+      searchText
+    });
+  }
+  async removeKnowledge(id) {
+    await this.runtime.databaseAdapter.removeKnowledge(id);
+  }
+  async clearKnowledge(shared) {
+    await this.runtime.databaseAdapter.clearKnowledge(
+      this.runtime.agentId,
+      shared ? shared : false
+    );
+  }
+  async processFile(file) {
+    const timeMarker = (label) => {
+      const time = (Date.now() - startTime) / 1e3;
+      logger_default.info(`[Timing] ${label}: ${time.toFixed(2)}s`);
+    };
+    const startTime = Date.now();
+    const content = file.content;
+    try {
+      const fileSizeKB = new TextEncoder().encode(content).length / 1024;
+      logger_default.info(
+        `[File Progress] Starting ${file.path} (${fileSizeKB.toFixed(2)} KB)`
+      );
+      const processedContent = this.preprocess(content);
+      timeMarker("Preprocessing");
+      const mainEmbeddingArray = await embed(
+        this.runtime,
+        processedContent
+      );
+      const mainEmbedding = new Float32Array(mainEmbeddingArray);
+      timeMarker("Main embedding");
+      await this.runtime.databaseAdapter.createKnowledge({
+        id: stringToUuid(file.path),
+        agentId: this.runtime.agentId,
+        content: {
+          text: content,
+          metadata: {
+            source: file.path,
+            type: file.type,
+            isShared: file.isShared || false
+          }
+        },
+        embedding: mainEmbedding,
+        createdAt: Date.now()
+      });
+      timeMarker("Main document storage");
+      const chunks = await splitChunks(processedContent, 512, 20);
+      const totalChunks = chunks.length;
+      logger_default.info(`Generated ${totalChunks} chunks`);
+      timeMarker("Chunk generation");
+      const BATCH_SIZE = 10;
+      let processedChunks = 0;
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchStart = Date.now();
+        const batch = chunks.slice(
+          i,
+          Math.min(i + BATCH_SIZE, chunks.length)
+        );
+        const embeddings = await Promise.all(
+          batch.map((chunk) => embed(this.runtime, chunk))
+        );
+        await Promise.all(
+          embeddings.map(async (embeddingArray, index) => {
+            const chunkId = `${stringToUuid(file.path)}-chunk-${i + index}`;
+            const chunkEmbedding = new Float32Array(embeddingArray);
+            await this.runtime.databaseAdapter.createKnowledge({
+              id: chunkId,
+              agentId: this.runtime.agentId,
+              content: {
+                text: batch[index],
+                metadata: {
+                  source: file.path,
+                  type: file.type,
+                  isShared: file.isShared || false,
+                  isChunk: true,
+                  originalId: stringToUuid(file.path),
+                  chunkIndex: i + index
+                }
+              },
+              embedding: chunkEmbedding,
+              createdAt: Date.now()
+            });
+          })
+        );
+        processedChunks += batch.length;
+        const batchTime = (Date.now() - batchStart) / 1e3;
+        logger_default.info(
+          `[Batch Progress] Processed ${processedChunks}/${totalChunks} chunks (${batchTime.toFixed(2)}s for batch)`
+        );
+      }
+      const totalTime = (Date.now() - startTime) / 1e3;
+      logger_default.info(
+        `[Complete] Processed ${file.path} in ${totalTime.toFixed(2)}s`
+      );
+    } catch (error) {
+      if (file.isShared && error?.code === "SQLITE_CONSTRAINT_PRIMARYKEY") {
+        logger_default.info(
+          `Shared knowledge ${file.path} already exists in database, skipping creation`
+        );
+        return;
+      }
+      logger_default.error(`Error processing file ${file.path}:`, error);
+      throw error;
+    }
+  }
+};
+
 // src/runtime.ts
 var AgentRuntime = class {
   /**
@@ -31638,8 +32820,8 @@ var AgentRuntime = class {
    */
   imageModelProvider;
   /**
-  * The model to use for describing images.
-  */
+   * The model to use for describing images.
+   */
   imageVisionModelProvider;
   /**
    * Fetch function to use
@@ -31670,10 +32852,12 @@ var AgentRuntime = class {
    * Searchable document fragments
    */
   knowledgeManager;
+  ragKnowledgeManager;
   services = /* @__PURE__ */ new Map();
   memoryManagers = /* @__PURE__ */ new Map();
   cacheManager;
   clients;
+  verifiableInferenceAdapter;
   registerMemoryManager(manager) {
     if (!manager.tableName) {
       throw new Error("Memory manager must have a tableName");
@@ -31747,7 +32931,7 @@ var AgentRuntime = class {
     ).then(() => {
       this.ensureParticipantExists(this.agentId, this.agentId);
     });
-    elizaLogger.success("Agent ID", this.agentId);
+    elizaLogger.success(`Agent ID: ${this.agentId}`);
     this.fetch = opts.fetch ?? this.fetch;
     this.cacheManager = opts.cacheManager;
     this.messageManager = new MemoryManager({
@@ -31769,6 +32953,10 @@ var AgentRuntime = class {
     this.knowledgeManager = new MemoryManager({
       runtime: this,
       tableName: "fragments"
+    });
+    this.ragKnowledgeManager = new RAGKnowledgeManager({
+      runtime: this,
+      tableName: "knowledge"
     });
     (opts.managers ?? []).forEach((manager) => {
       this.registerMemoryManager(manager);
@@ -31836,6 +33024,7 @@ var AgentRuntime = class {
     (opts.evaluators ?? []).forEach((evaluator) => {
       this.registerEvaluator(evaluator);
     });
+    this.verifiableInferenceAdapter = opts.verifiableInferenceAdapter;
   }
   async initialize() {
     for (const [serviceType, service] of this.services.entries()) {
@@ -31860,14 +33049,28 @@ var AgentRuntime = class {
         );
     }
     if (this.character && this.character.knowledge && this.character.knowledge.length > 0) {
-      await this.processCharacterKnowledge(this.character.knowledge);
+      if (this.character.settings.ragKnowledge) {
+        await this.processCharacterRAGKnowledge(
+          this.character.knowledge
+        );
+      } else {
+        const stringKnowledge = this.character.knowledge.filter(
+          (item) => typeof item === "string"
+        );
+        await this.processCharacterKnowledge(stringKnowledge);
+      }
     }
   }
   async stop() {
     elizaLogger.debug("runtime::stop - character", this.character);
     for (const cStr in this.clients) {
       const c = this.clients[cStr];
-      elizaLogger.log("runtime::stop - requesting", cStr, "client stop for", this.character.name);
+      elizaLogger.log(
+        "runtime::stop - requesting",
+        cStr,
+        "client stop for",
+        this.character.name
+      );
       c.stop();
     }
   }
@@ -31896,6 +33099,131 @@ var AgentRuntime = class {
           text: item
         }
       });
+    }
+  }
+  /**
+   * Processes character knowledge by creating document memories and fragment memories.
+   * This function takes an array of knowledge items, creates a document knowledge for each item if it doesn't exist,
+   * then chunks the content into fragments, embeds each fragment, and creates fragment knowledge.
+   * An array of knowledge items or objects containing id, path, and content.
+   */
+  async processCharacterRAGKnowledge(items) {
+    let hasError = false;
+    for (const item of items) {
+      if (!item) continue;
+      try {
+        let isShared = false;
+        let contentItem = item;
+        if (typeof item === "object" && "path" in item) {
+          isShared = item.shared === true;
+          contentItem = item.path;
+        } else {
+          contentItem = item;
+        }
+        const knowledgeId = stringToUuid(contentItem);
+        const fileExtension = contentItem.split(".").pop()?.toLowerCase();
+        if (fileExtension && ["md", "txt", "pdf"].includes(fileExtension)) {
+          try {
+            const rootPath = join(process.cwd(), "..");
+            const filePath = join(
+              rootPath,
+              "characters",
+              "knowledge",
+              contentItem
+            );
+            elizaLogger.info(
+              "Attempting to read file from:",
+              filePath
+            );
+            const existingKnowledge = await this.ragKnowledgeManager.getKnowledge({
+              id: knowledgeId,
+              agentId: this.agentId
+            });
+            const content = await readFile(
+              filePath,
+              "utf8"
+            );
+            if (!content) {
+              hasError = true;
+              continue;
+            }
+            if (existingKnowledge.length > 0) {
+              const existingContent = existingKnowledge[0].content.text;
+              if (existingContent === content) {
+                elizaLogger.info(
+                  `File ${contentItem} unchanged, skipping`
+                );
+                continue;
+              } else {
+                await this.ragKnowledgeManager.removeKnowledge(
+                  knowledgeId
+                );
+                await this.ragKnowledgeManager.removeKnowledge(
+                  `${knowledgeId}-chunk-*`
+                );
+              }
+            }
+            elizaLogger.info(
+              `Successfully read ${fileExtension.toUpperCase()} file content for`,
+              this.character.name,
+              "-",
+              contentItem
+            );
+            await this.ragKnowledgeManager.processFile({
+              path: contentItem,
+              content,
+              type: fileExtension,
+              isShared
+            });
+          } catch (error) {
+            hasError = true;
+            elizaLogger.error(
+              `Failed to read knowledge file ${contentItem}. Error details:`,
+              error?.message || error || "Unknown error"
+            );
+            continue;
+          }
+        } else {
+          elizaLogger.info(
+            "Processing direct knowledge for",
+            this.character.name,
+            "-",
+            contentItem.slice(0, 100)
+          );
+          const existingKnowledge = await this.ragKnowledgeManager.getKnowledge({
+            id: knowledgeId,
+            agentId: this.agentId
+          });
+          if (existingKnowledge.length > 0) {
+            elizaLogger.info(
+              `Direct knowledge ${knowledgeId} already exists, skipping`
+            );
+            continue;
+          }
+          await this.ragKnowledgeManager.createKnowledge({
+            id: knowledgeId,
+            agentId: this.agentId,
+            content: {
+              text: contentItem,
+              metadata: {
+                type: "direct"
+              }
+            }
+          });
+        }
+      } catch (error) {
+        hasError = true;
+        elizaLogger.error(
+          `Error processing knowledge item ${item}:`,
+          error?.message || error || "Unknown error"
+        );
+        continue;
+      }
+    }
+    if (hasError) {
+      elizaLogger.warn(
+        "Some knowledge items failed to process, but continuing with available knowledge"
+      );
     }
   }
   getSetting(key) {
@@ -32021,8 +33349,10 @@ var AgentRuntime = class {
       }
     );
     const resolvedEvaluators = await Promise.all(evaluatorPromises);
-    const evaluatorsData = resolvedEvaluators.filter(Boolean);
-    if (evaluatorsData.length === 0) {
+    const evaluatorsData = resolvedEvaluators.filter(
+      (evaluator) => evaluator !== null
+    );
+    if (!evaluatorsData || evaluatorsData.length === 0) {
       return [];
     }
     const context = composeContext({
@@ -32036,13 +33366,14 @@ var AgentRuntime = class {
     const result = await generateText({
       runtime: this,
       context,
-      modelClass: "small" /* SMALL */
+      modelClass: "small" /* SMALL */,
+      verifiableInferenceAdapter: this.verifiableInferenceAdapter
     });
     const evaluators = parseJsonArrayFromText(
       result
     );
     for (const evaluator of this.evaluators) {
-      if (!evaluators.includes(evaluator.name)) continue;
+      if (!evaluators?.includes(evaluator.name)) continue;
       if (evaluator.handler)
         await evaluator.handler(this, message, state, {}, callback);
     }
@@ -32172,7 +33503,7 @@ var AgentRuntime = class {
         (msg) => msg.content.attachments && msg.content.attachments.length > 0
       );
       if (lastMessageWithAttachment) {
-        const lastMessageTime = lastMessageWithAttachment.createdAt;
+        const lastMessageTime = lastMessageWithAttachment?.createdAt ?? Date.now();
         const oneHourBeforeLastMessage = lastMessageTime - 60 * 60 * 1e3;
         allAttachments = recentMessagesData.reverse().map((msg) => {
           const msgTime = msg.createdAt ?? Date.now();
@@ -32230,13 +33561,11 @@ Text: ${attachment.text}
         userA,
         userB
       ]);
-      const existingMemories = await this.messageManager.getMemoriesByRoomIds({
+      return this.messageManager.getMemoriesByRoomIds({
         // filter out the current room id from rooms
-        roomIds: rooms.filter((room) => room !== roomId)
+        roomIds: rooms.filter((room) => room !== roomId),
+        limit: 20
       });
-      existingMemories.sort((a, b) => b.createdAt - a.createdAt);
-      const recentInteractionsData = existingMemories.slice(0, 20);
-      return recentInteractionsData;
     };
     const recentInteractions = userId !== this.agentId ? await getRecentInteractions(userId, this.agentId) : [];
     const getRecentMessageInteractions = async (recentInteractionsData) => {
@@ -32274,8 +33603,20 @@ Text: ${attachment.text}
     if (Array.isArray(bio)) {
       bio = bio.sort(() => 0.5 - Math.random()).slice(0, 3).join(" ");
     }
-    const knowledegeData = await knowledge_default.get(this, message);
-    const formattedKnowledge = formatKnowledge(knowledegeData);
+    let knowledgeData = [];
+    let formattedKnowledge = "";
+    if (this.character.settings?.ragKnowledge) {
+      const recentContext = recentMessagesData.slice(-3).map((msg) => msg.content.text).join(" ");
+      knowledgeData = await this.ragKnowledgeManager.getKnowledge({
+        query: message.content.text,
+        conversationContext: recentContext,
+        limit: 5
+      });
+      formattedKnowledge = formatKnowledge(knowledgeData);
+    } else {
+      knowledgeData = await knowledge_default.get(this, message);
+      formattedKnowledge = formatKnowledge(knowledgeData);
+    }
     const initialState = {
       agentId: this.agentId,
       agentName,
@@ -32285,7 +33626,8 @@ Text: ${attachment.text}
         Math.random() * this.character.adjectives.length
       )] : "",
       knowledge: formattedKnowledge,
-      knowledgeData: knowledegeData,
+      knowledgeData,
+      ragKnowledgeData: knowledgeData,
       // Recent interactions between the sender and receiver, formatted as messages
       recentMessageInteractions: formattedMessageInteractions,
       // Recent interactions between the sender and receiver, formatted as posts
@@ -32434,10 +33776,10 @@ Text: ${attachment.text}
         (msg) => msg.content.attachments && msg.content.attachments.length > 0
       );
       if (lastMessageWithAttachment) {
-        const lastMessageTime = lastMessageWithAttachment.createdAt;
+        const lastMessageTime = lastMessageWithAttachment?.createdAt ?? Date.now();
         const oneHourBeforeLastMessage = lastMessageTime - 60 * 60 * 1e3;
         allAttachments = recentMessagesData.filter((msg) => {
-          const msgTime = msg.createdAt;
+          const msgTime = msg.createdAt ?? Date.now();
           return msgTime >= oneHourBeforeLastMessage;
         }).flatMap((msg) => msg.content.attachments || []);
       }
@@ -32461,28 +33803,34 @@ Text: ${attachment.text}
       attachments: formattedAttachments
     };
   }
+  getVerifiableInferenceAdapter() {
+    return this.verifiableInferenceAdapter;
+  }
+  setVerifiableInferenceAdapter(adapter) {
+    this.verifiableInferenceAdapter = adapter;
+  }
 };
 var formatKnowledge = (knowledge) => {
   return knowledge.map((knowledge2) => `- ${knowledge2.content.text}`).join("\n");
 };
 
 // src/environment.ts
-import { z } from "zod";
-var envSchema = z.object({
+import { z as z2 } from "zod";
+var envSchema = z2.object({
   // API Keys with specific formats
-  OPENAI_API_KEY: z.string().startsWith("sk-", "OpenAI API key must start with 'sk-'"),
-  REDPILL_API_KEY: z.string().min(1, "REDPILL API key is required"),
-  GROK_API_KEY: z.string().min(1, "GROK API key is required"),
-  GROQ_API_KEY: z.string().startsWith("gsk_", "GROQ API key must start with 'gsk_'"),
-  OPENROUTER_API_KEY: z.string().min(1, "OpenRouter API key is required"),
-  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1, "Gemini API key is required"),
-  ELEVENLABS_XI_API_KEY: z.string().min(1, "ElevenLabs API key is required")
+  OPENAI_API_KEY: z2.string().startsWith("sk-", "OpenAI API key must start with 'sk-'"),
+  REDPILL_API_KEY: z2.string().min(1, "REDPILL API key is required"),
+  GROK_API_KEY: z2.string().min(1, "GROK API key is required"),
+  GROQ_API_KEY: z2.string().startsWith("gsk_", "GROQ API key must start with 'gsk_'"),
+  OPENROUTER_API_KEY: z2.string().min(1, "OpenRouter API key is required"),
+  GOOGLE_GENERATIVE_AI_API_KEY: z2.string().min(1, "Gemini API key is required"),
+  ELEVENLABS_XI_API_KEY: z2.string().min(1, "ElevenLabs API key is required")
 });
 function validateEnv() {
   try {
     return envSchema.parse(process.env);
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof z2.ZodError) {
       const errorMessages = error.errors.map((err) => `${err.path}: ${err.message}`).join("\n");
       throw new Error(`Environment validation failed:
 ${errorMessages}`);
@@ -32490,89 +33838,109 @@ ${errorMessages}`);
     throw error;
   }
 }
-var MessageExampleSchema = z.object({
-  user: z.string(),
-  content: z.object({
-    text: z.string(),
-    action: z.string().optional(),
-    source: z.string().optional(),
-    url: z.string().optional(),
-    inReplyTo: z.string().uuid().optional(),
-    attachments: z.array(z.any()).optional()
-  }).and(z.record(z.string(), z.unknown()))
+var MessageExampleSchema = z2.object({
+  user: z2.string(),
+  content: z2.object({
+    text: z2.string(),
+    action: z2.string().optional(),
+    source: z2.string().optional(),
+    url: z2.string().optional(),
+    inReplyTo: z2.string().uuid().optional(),
+    attachments: z2.array(z2.any()).optional()
+  }).and(z2.record(z2.string(), z2.unknown()))
   // For additional properties
 });
-var PluginSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  actions: z.array(z.any()).optional(),
-  providers: z.array(z.any()).optional(),
-  evaluators: z.array(z.any()).optional(),
-  services: z.array(z.any()).optional(),
-  clients: z.array(z.any()).optional()
+var PluginSchema = z2.object({
+  name: z2.string(),
+  description: z2.string(),
+  actions: z2.array(z2.any()).optional(),
+  providers: z2.array(z2.any()).optional(),
+  evaluators: z2.array(z2.any()).optional(),
+  services: z2.array(z2.any()).optional(),
+  clients: z2.array(z2.any()).optional()
 });
-var CharacterSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string(),
-  system: z.string().optional(),
-  modelProvider: z.nativeEnum(ModelProviderName),
-  modelEndpointOverride: z.string().optional(),
-  templates: z.record(z.string()).optional(),
-  bio: z.union([z.string(), z.array(z.string())]),
-  lore: z.array(z.string()),
-  messageExamples: z.array(z.array(MessageExampleSchema)),
-  postExamples: z.array(z.string()),
-  topics: z.array(z.string()),
-  adjectives: z.array(z.string()),
-  knowledge: z.array(z.string()).optional(),
-  clients: z.array(z.nativeEnum(Clients)),
-  plugins: z.union([
-    z.array(z.string()),
-    z.array(PluginSchema)
-  ]),
-  settings: z.object({
-    secrets: z.record(z.string()).optional(),
-    voice: z.object({
-      model: z.string().optional(),
-      url: z.string().optional()
+var CharacterSchema = z2.object({
+  id: z2.string().uuid().optional(),
+  name: z2.string(),
+  system: z2.string().optional(),
+  modelProvider: z2.nativeEnum(ModelProviderName),
+  modelEndpointOverride: z2.string().optional(),
+  templates: z2.record(z2.string()).optional(),
+  bio: z2.union([z2.string(), z2.array(z2.string())]),
+  lore: z2.array(z2.string()),
+  messageExamples: z2.array(z2.array(MessageExampleSchema)),
+  postExamples: z2.array(z2.string()),
+  topics: z2.array(z2.string()),
+  adjectives: z2.array(z2.string()),
+  knowledge: z2.array(
+    z2.union([
+      z2.string(),
+      z2.object({
+        path: z2.string(),
+        shared: z2.boolean().optional()
+      })
+    ])
+  ).optional(),
+  clients: z2.array(z2.nativeEnum(Clients)),
+  plugins: z2.union([z2.array(z2.string()), z2.array(PluginSchema)]),
+  settings: z2.object({
+    secrets: z2.record(z2.string()).optional(),
+    voice: z2.object({
+      model: z2.string().optional(),
+      url: z2.string().optional()
     }).optional(),
-    model: z.string().optional(),
-    embeddingModel: z.string().optional()
+    model: z2.string().optional(),
+    embeddingModel: z2.string().optional()
   }).optional(),
-  clientConfig: z.object({
-    discord: z.object({
-      shouldIgnoreBotMessages: z.boolean().optional(),
-      shouldIgnoreDirectMessages: z.boolean().optional()
+  clientConfig: z2.object({
+    discord: z2.object({
+      shouldIgnoreBotMessages: z2.boolean().optional(),
+      shouldIgnoreDirectMessages: z2.boolean().optional()
     }).optional(),
-    telegram: z.object({
-      shouldIgnoreBotMessages: z.boolean().optional(),
-      shouldIgnoreDirectMessages: z.boolean().optional()
+    telegram: z2.object({
+      shouldIgnoreBotMessages: z2.boolean().optional(),
+      shouldIgnoreDirectMessages: z2.boolean().optional()
     }).optional()
   }).optional(),
-  style: z.object({
-    all: z.array(z.string()),
-    chat: z.array(z.string()),
-    post: z.array(z.string())
+  style: z2.object({
+    all: z2.array(z2.string()),
+    chat: z2.array(z2.string()),
+    post: z2.array(z2.string())
   }),
-  twitterProfile: z.object({
-    username: z.string(),
-    screenName: z.string(),
-    bio: z.string(),
-    nicknames: z.array(z.string()).optional()
+  twitterProfile: z2.object({
+    username: z2.string(),
+    screenName: z2.string(),
+    bio: z2.string(),
+    nicknames: z2.array(z2.string()).optional()
   }).optional(),
-  nft: z.object({
-    prompt: z.string().optional()
-  }).optional()
+  nft: z2.object({
+    prompt: z2.string().optional()
+  }).optional(),
+  extends: z2.array(z2.string()).optional()
 });
 function validateCharacterConfig(json) {
   try {
     return CharacterSchema.parse(json);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("\n");
+    if (error instanceof z2.ZodError) {
+      const groupedErrors = error.errors.reduce(
+        (acc, err) => {
+          const path5 = err.path.join(".");
+          if (!acc[path5]) {
+            acc[path5] = [];
+          }
+          acc[path5].push(err.message);
+          return acc;
+        },
+        {}
+      );
+      Object.entries(groupedErrors).forEach(([field, messages]) => {
+        logger_default.error(
+          `Validation errors in ${field}: ${messages.join(" - ")}`
+        );
+      });
       throw new Error(
-        `Character configuration validation failed:
-${errorMessages}`
+        "Character configuration validation failed. Check logs for details."
       );
     }
     throw error;
@@ -32668,6 +34036,7 @@ var CacheManager = class {
   }
 };
 export {
+  ActionTimelineType,
   AgentRuntime,
   CacheManager,
   CacheStore,
@@ -32678,15 +34047,19 @@ export {
   EmbeddingProvider,
   FsCacheAdapter,
   GoalStatus,
+  IrysDataType,
+  IrysMessageType,
   LoggingLevel,
   MemoryCacheAdapter,
   MemoryManager,
   ModelClass,
   ModelProviderName,
+  RAGKnowledgeManager,
   Service,
   ServiceType,
   TokenizerType,
   TranscriptionProvider,
+  VerifiableInferenceProvider,
   addHeader,
   booleanFooter,
   composeActionExamples,
@@ -32727,12 +34100,14 @@ export {
   generateWebSearch,
   getActorDetails,
   getEmbeddingConfig,
+  getEmbeddingModelSettings,
   getEmbeddingType,
   getEmbeddingZeroVector,
   getEndpoint,
   getEnvVariable,
   getGoals,
-  getModel,
+  getImageModelSettings,
+  getModelSettings,
   getProviders,
   getRelationship,
   getRelationships,
@@ -32754,9 +34129,12 @@ export {
   stringArrayFooter,
   stringToUuid,
   trimTokens,
+  truncateToCompleteSentence,
   updateGoal,
+  uuidSchema,
   validateCharacterConfig,
-  validateEnv
+  validateEnv,
+  validateUuid
 };
 /*! Bundled license information:
 

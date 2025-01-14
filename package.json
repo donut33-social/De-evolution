@@ -13,13 +13,17 @@
   "license": "ISC",
   "dependencies": {
     "@elizaos/adapter-postgres": "^0.1.8",
+    "@elizaos/adapter-sqlite": "^0.1.8",
+    "@elizaos/adapter-supabase": "^0.1.8",
+    "@elizaos/client-direct": "^0.1.7",
     "@elizaos/client-twitter": "^0.1.8",
-    "@elizaos/core": "^0.1.7",
+    "@elizaos/core": "^0.1.8",
     "@elizaos/plugin-bootstrap": "^0.1.8",
     "@tavily/core": "^0.0.2",
+    "agent-twitter-client": "^0.0.18",
     "axios": "^1.7.9",
     "better-sqlite3": "^11.7.2",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
     "fs": "0.0.1-security",
@@ -40,7 +44,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
+    "@types/node": "^22.10.6",
     "ts-node": "^10.9.2"
   }
 }
