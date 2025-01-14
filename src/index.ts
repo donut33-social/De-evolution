@@ -578,7 +578,7 @@ async function startAgent(
         runtime.clients = await initializeClients(character, runtime);
 
         // add to container
-        directClient.registerAgent(runtime);
+        // directClient.registerAgent(runtime);
 
         // report to console
         elizaLogger.debug(`Started ${character.name} as ${runtime.agentId}`);
@@ -644,23 +644,23 @@ const startAgents = async () => {
     }
 
     // upload some agent functionality into directClient
-    directClient.startAgent = async (character) => {
-        // Handle plugins
-        character.plugins = await handlePluginImporting(character.plugins);
+    // directClient.startAgent = async (character) => {
+    //     // Handle plugins
+    //     character.plugins = await handlePluginImporting(character.plugins);
 
-        // wrap it so we don't have to inject directClient later
-        return startAgent(character, directClient);
-    };
+    //     // wrap it so we don't have to inject directClient later
+    //     return startAgent(character, directClient);
+    // };
 
-    directClient.start(serverPort);
+    // directClient.start(serverPort);
 
-    if (serverPort !== parseInt(settings.SERVER_PORT || "3000")) {
-        elizaLogger.log(`Server started on alternate port ${serverPort}`);
-    }
+    // if (serverPort !== parseInt(settings.SERVER_PORT || "3000")) {
+    //     elizaLogger.log(`Server started on alternate port ${serverPort}`);
+    // }
 
-    elizaLogger.log(
-        "Run `pnpm start:client` to start the client and visit the outputted URL (http://localhost:5173) to chat with your agents. When running multiple agents, use client with different port `SERVER_PORT=3001 pnpm start:client`"
-    );
+    // elizaLogger.log(
+    //     "Run `pnpm start:client` to start the client and visit the outputted URL (http://localhost:5173) to chat with your agents. When running multiple agents, use client with different port `SERVER_PORT=3001 pnpm start:client`"
+    // );
 };
 
 startAgents().catch((error) => {

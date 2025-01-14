@@ -71,28 +71,14 @@ Tweet:
 # Respond with qualifying action tags only. Default to NO action unless extremely confident of relevance.` +
     postActionResponseFooter;
 
-interface PendingTweet {
-    cleanedContent: string;
-    roomId: UUID;
-    newTweetContent: string;
-    discordMessageId: string;
-    channelId: string;
-    timestamp: number;
-}
-
-type PendingTweetApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
-
 export class TwitterPostClient {
     client: ClientBase;
     runtime: IAgentRuntime;
     twitterUsername: string;
     private isProcessing: boolean = false;
-    private lastProcessTime: number = 0;
     private stopProcessingActions: boolean = false;
     private isDryRun: boolean;
-    private approvalRequired: boolean = false;
-    private discordApprovalChannelId: string;
-    private approvalCheckInterval: number;
+    private lastProcessTime: number = 0;
 
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
@@ -1096,27 +1082,5 @@ export class TwitterPostClient {
 
     async stop() {
         this.stopProcessingActions = true;
-    }
-
-    private async cleanupPendingTweet(discordMessageId: string) {
-        const pendingTweetsKey = `twitter/${this.client.profile.username}/pendingTweet`;
-        const currentPendingTweets =
-            (await this.runtime.cacheManager.get<PendingTweet[]>(
-                pendingTweetsKey
-            )) || [];
-
-        // Remove the specific tweet
-        const updatedPendingTweets = currentPendingTweets.filter(
-            (tweet) => tweet.discordMessageId !== discordMessageId
-        );
-
-        if (updatedPendingTweets.length === 0) {
-            await this.runtime.cacheManager.delete(pendingTweetsKey);
-        } else {
-            await this.runtime.cacheManager.set(
-                pendingTweetsKey,
-                updatedPendingTweets
-            );
-        }
     }
 }
