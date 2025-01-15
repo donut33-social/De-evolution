@@ -18,6 +18,7 @@ import {
 } from "agent-twitter-client";
 import { EventEmitter } from "events";
 import { TwitterConfig } from "./environment.ts";
+import { getRecentTweets } from "../db/apis/tweet.ts";
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -316,6 +317,12 @@ export class ClientBase extends EventEmitter {
             });
         //elizaLogger.debug("process homeTimeline", processedTimeline);
         return processedTimeline;
+    }
+
+    async fetchTweetsForActions(): Promise<Tweet[]> {
+        const tick = this.twitterConfig.TICK;
+        const tweets = await getRecentTweets(tick, this.twitterConfig.TWITTER_USERNAME);
+        return tweets;
     }
 
     async fetchTimelineForActions(count: number): Promise<Tweet[]> {

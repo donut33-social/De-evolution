@@ -20,6 +20,7 @@ import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { State } from "@elizaos/core";
 import { ActionResponse } from "@elizaos/core";
+import { time } from "console";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
@@ -178,9 +179,9 @@ export class TwitterPostClient {
             }
         };
 
-        if (this.client.twitterConfig.POST_IMMEDIATELY) {
-            await this.generateNewTweet();
-        }
+        // if (this.client.twitterConfig.POST_IMMEDIATELY) {
+        //     await this.generateNewTweet();
+        // }
 
         // Only start tweet generation loop if not in dry run mode
         generateNewTweetLoop();
@@ -330,9 +331,10 @@ export class TwitterPostClient {
             let result;
 
             if (cleanedContent.length > DEFAULT_MAX_TWEET_LENGTH) {
-                result = await this.handleNoteTweet(client, cleanedContent);
+                elizaLogger.error("Tweet too long, skipping");
+                return;
             } else {
-                result = await this.sendStandardTweet(client, cleanedContent);
+                result = await this.sendStandardTweet(client, cleanedContent + `\n\n#TipTag #${this.client.twitterConfig.TICK}`);
             }
 
             const tweet = this.createTweetObject(
@@ -571,9 +573,17 @@ export class TwitterPostClient {
                 "twitter"
             );
 
-            const timelines = await this.client.fetchTimelineForActions(
+            let timelines = await this.client.fetchTimelineForActions(
                 MAX_TIMELINES_TO_FETCH
             );
+            const communityTweets = await this.client.fetchTweetsForActions();
+
+            for (let tweet of communityTweets) {
+                if (!timelines.find(t => t.id === tweet.id)) {
+                    timelines.push(tweet);
+                }
+            }
+
             const maxActionsProcessing =
                 this.client.twitterConfig.MAX_ACTIONS_PROCESSING;
             const processedTimelines = [];
