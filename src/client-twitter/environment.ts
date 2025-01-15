@@ -4,6 +4,10 @@ import {
     ActionTimelineType,
 } from "@elizaos/core";
 import { z, ZodError } from "zod";
+import { getProfileByAgentName } from "../db/apis/agent";
+import { decrypt } from "../utils/encode";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const DEFAULT_MAX_TWEET_LENGTH = 270;
 
@@ -28,6 +32,7 @@ const twitterUsernameSchema = z
  */
 export const twitterEnvSchema = z.object({
     TWITTER_DRY_RUN: z.boolean(),
+    TWITTER_ID: z.string().min(1, "X/Twitter ID is required"),
     TWITTER_USERNAME: z.string().min(1, "X/Twitter username is required"),
     TWITTER_PASSWORD: z.string().min(1, "X/Twitter password is required"),
     TWITTER_EMAIL: z.string().email("Valid X/Twitter email is required"),
@@ -115,6 +120,10 @@ export async function validateTwitterConfig(
     runtime: IAgentRuntime
 ): Promise<TwitterConfig> {
     try {
+        const profile = await getProfileByAgentName(runtime.character.name);
+        if (!profile?.twitterId) {
+            throw new Error("Profile not found");
+        }
         const twitterConfig = {
             TWITTER_DRY_RUN:
                 parseBooleanFromText(
@@ -122,16 +131,27 @@ export async function validateTwitterConfig(
                         process.env.TWITTER_DRY_RUN
                 ) ?? false, // parseBooleanFromText return null if "", map "" to false
 
+            TWITTER_ID:
+                runtime.getSetting("TWITTER_ID") ||
+                profile?.twitterId ||
+                process.env.TWITTER_ID,
+
             TWITTER_USERNAME:
                 runtime.getSetting("TWITTER_USERNAME") ||
+                profile?.username ||
                 process.env.TWITTER_USERNAME,
 
             TWITTER_PASSWORD:
                 runtime.getSetting("TWITTER_PASSWORD") ||
-                process.env.TWITTER_PASSWORD,
+                decrypt(profile?.password,
+                process.env.ENCODE_KEY,
+                process.env.ENCODE_IV
+            ) ||
+            process.env.TWITTER_PASSWORD,
 
             TWITTER_EMAIL:
                 runtime.getSetting("TWITTER_EMAIL") ||
+                profile?.email ||
                 process.env.TWITTER_EMAIL,
 
             // number as string?
@@ -150,6 +170,7 @@ export async function validateTwitterConfig(
             // string passthru
             TWITTER_2FA_SECRET:
                 runtime.getSetting("TWITTER_2FA_SECRET") ||
+                profile?.secret2fa ||
                 process.env.TWITTER_2FA_SECRET ||
                 "",
 
