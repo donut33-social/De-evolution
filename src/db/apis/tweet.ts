@@ -1,5 +1,5 @@
-import { execute } from '../pool';
-import { emptyOrRow, emptyOrRows } from "../helper";
+import { execute } from '../pool.ts';
+import { emptyOrRow, emptyOrRows } from "../helper.ts";
 
 export const getRecentTweets = async (agentName: string) => {
     let sql = `SELECT t.tweet_id as tweetId, t.content, t.tags, t.page_info as pageInfo, 

@@ -1,7 +1,7 @@
 import { PostgresDatabaseAdapter } from "@elizaos/adapter-postgres";
 import { SqliteDatabaseAdapter } from "@elizaos/adapter-sqlite";
 import { SupabaseDatabaseAdapter } from "@elizaos/adapter-supabase";
-import { TwitterClientInterface } from "./client-twitter/index";
+import { TwitterClientInterface } from "./client-twitter/index.ts";
 import { DirectClient } from "@elizaos/client-direct";
 
 import {

@@ -1,4 +1,4 @@
-import { b64uEnc, b64uDec } from '../utils/helper'
+import { b64uEnc, b64uDec } from '../utils/helper.ts'
 
 export default {
     DB_HOST: process.env.DB_HOST,
@@ -10,20 +10,26 @@ export default {
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_PWD: b64uDec(process.env.REDIS_PWD),
 
-    TWITTER_REDIS_HOST: process.env.TWITTER_REDIS_HOST,
-    TWITTER_REDIS_PORT: process.env.TWITTER_REDIS_PORT,
-    TWITTER_REDIS_PWD: b64uDec(process.env.TWITTER_REDIS_PWD),
-
     TWITTER_SEARCH_TOKEN: b64uDec(process.env.TWITTER_SEARCH_TOKEN),
     TWITTER_SEARCH_TOKEN2: b64uDec(process.env.TWITTER_SEARCH_TOKEN2),
 
-    STEEM_TRANSFER_DELEGATE_KEY: b64uDec(process.env.STEEM_TRANSFER_DELEGATE_KEY),
-    // use to decode message that encode by tweetnacl
-    SEND_KEY_PRIVATE: b64uDec(process.env.SEND_KEY_PRIVATE),
-    TIPTAG_POSTING_KEY: b64uDec(process.env.TIPTAG_POSTING_KEY),
-
-    TIPTAG_FARCASTER_UUID: process.env.TIPTAG_FARCASTER_UUID,
-    TIPTAG_FARCASTER_FID: process.env.TIPTAG_FARCASTER_FID,
     AGENT_REFRESH_PASS_KEY: process.env.AGENT_REFRESH_PASS_KEY,
     BASE_API_URL: process.env.BASE_API_URL,
+
+    ENCODE_KEY: process.env.ENCODE_KEY,
+    ENCODE_IV: process.env.ENCODE_IV,
+
+    TWITTER_DRY_RUN: process.env.TWITTER_DRY_RUN,
+    TWITTER_POLL_INTERVAL: process.env.TWITTER_POLL_INTERVAL,
+    TWITTER_SEARCH_ENABLE: process.env.TWITTER_SEARCH_ENABLE,
+    TWITTER_TARGET_USERS: process.env.TWITTER_TARGET_USERS,
+    TWITTER_RETRY_LIMIT: process.env.TWITTER_RETRY_LIMIT,
+    TWITTER_SPACES_ENABLE: process.env.TWITTER_SPACES_ENABLE,
+    POST_INTERVAL_MIN: process.env.POST_INTERVAL_MIN,
+    POST_INTERVAL_MAX: process.env.POST_INTERVAL_MAX,
+    ENABLE_ACTION_PROCESSING: process.env.ENABLE_ACTION_PROCESSING,
+    ACTION_INTERVAL: process.env.ACTION_INTERVAL,
+    POST_IMMEDIATELY: process.env.POST_IMMEDIATELY,
+    MAX_ACTIONS_PROCESSING: process.env.MAX_ACTIONS_PROCESSING,
+    ACTION_TIMELINE_TYPE: process.env.ACTION_TIMELINE_TYPE,
 }

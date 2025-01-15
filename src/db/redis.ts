@@ -1,8 +1,8 @@
 // @ts-nocheck
-import log4js from '../utils/logger'
-const redis = require('redis');
-import envConfig from '../config/fromEnv'
-import ConstantNumber from '../config/redis'
+import log4js from '../utils/logger.ts'
+import redis from 'redis'
+import envConfig from '../config/fromEnv.ts'
+import ConstantNumber from '../config/redis.ts'
 import _ from 'lodash'
 
 const logger = log4js.getLogger('db')

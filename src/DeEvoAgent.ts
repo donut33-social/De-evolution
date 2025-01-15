@@ -4,7 +4,7 @@ import {
     parseJsonArrayFromText,
     parseJSONObjectFromText
 } from "@elizaos/core";
-import { getCharacter } from "./db/apis/agent";
+import { getCharacter } from "./db/apis/agent.ts";
 
 class DeEvoAgent extends AgentRuntime {
     updateCharacterInterval: NodeJS.Timeout;

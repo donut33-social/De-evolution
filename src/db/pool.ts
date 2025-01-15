@@ -1,7 +1,7 @@
 // @ts-nocheck
-const mysql = require("mysql");
-import { format } from "../utils/helper";
-import envConfig from '../config/fromEnv'
+import mysql from "mysql";
+import { format } from "../utils/helper.ts";
+import envConfig from '../config/fromEnv.ts'
 
 // 数据库配置信息
 var config = {
@@ -143,13 +143,3 @@ export async function executeTransaction(...params) {
     connection && connection.release && connection.release();
   }
 }
-
-module.exports = {
-  query,
-  getConnection,
-  execute,
-  beginTransaction,
-  commit,
-  rollback,
-  executeTransaction
-};

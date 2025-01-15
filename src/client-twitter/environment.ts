@@ -6,8 +6,7 @@ import {
 import { z, ZodError } from "zod";
 import { getProfileByAgentName } from "../db/apis/agent";
 import { decrypt } from "../utils/encode";
-import dotenv from "dotenv";
-dotenv.config();
+import fromEnv from "../config/fromEnv";
 
 export const DEFAULT_MAX_TWEET_LENGTH = 270;
 
@@ -128,83 +127,78 @@ export async function validateTwitterConfig(
             TWITTER_DRY_RUN:
                 parseBooleanFromText(
                     runtime.getSetting("TWITTER_DRY_RUN") ||
-                        process.env.TWITTER_DRY_RUN
+                        fromEnv.TWITTER_DRY_RUN
                 ) ?? false, // parseBooleanFromText return null if "", map "" to false
 
             TWITTER_ID:
                 runtime.getSetting("TWITTER_ID") ||
-                profile?.twitterId ||
-                process.env.TWITTER_ID,
+                profile?.twitterId,
 
             TWITTER_USERNAME:
                 runtime.getSetting("TWITTER_USERNAME") ||
-                profile?.username ||
-                process.env.TWITTER_USERNAME,
+                profile?.username,
 
             TWITTER_PASSWORD:
                 runtime.getSetting("TWITTER_PASSWORD") ||
                 decrypt(profile?.password,
-                process.env.ENCODE_KEY,
-                process.env.ENCODE_IV
-            ) ||
-            process.env.TWITTER_PASSWORD,
+                fromEnv.ENCODE_KEY,
+                fromEnv.ENCODE_IV
+            ),
 
             TWITTER_EMAIL:
                 runtime.getSetting("TWITTER_EMAIL") ||
-                profile?.email ||
-                process.env.TWITTER_EMAIL,
+                profile?.email,
 
             // number as string?
             MAX_TWEET_LENGTH: safeParseInt(
-                runtime.getSetting("MAX_TWEET_LENGTH") ||
-                    process.env.MAX_TWEET_LENGTH,
+                runtime.getSetting("MAX_TWEET_LENGTH"),
                 DEFAULT_MAX_TWEET_LENGTH
             ),
 
             TWITTER_SEARCH_ENABLE:
                 parseBooleanFromText(
                     runtime.getSetting("TWITTER_SEARCH_ENABLE") ||
-                        process.env.TWITTER_SEARCH_ENABLE
+                        fromEnv.TWITTER_SEARCH_ENABLE
                 ) ?? false,
 
             // string passthru
             TWITTER_2FA_SECRET:
                 runtime.getSetting("TWITTER_2FA_SECRET") ||
-                profile?.secret2fa ||
-                process.env.TWITTER_2FA_SECRET ||
+                profile?.secret2fa
+                ||
                 "",
 
             // int
             TWITTER_RETRY_LIMIT: safeParseInt(
                 runtime.getSetting("TWITTER_RETRY_LIMIT") ||
-                    process.env.TWITTER_RETRY_LIMIT,
+                    fromEnv.TWITTER_RETRY_LIMIT,
                 5
             ),
 
             // int in seconds
             TWITTER_POLL_INTERVAL: safeParseInt(
                 runtime.getSetting("TWITTER_POLL_INTERVAL") ||
-                    process.env.TWITTER_POLL_INTERVAL,
+                    fromEnv.TWITTER_POLL_INTERVAL,
                 120 // 2m
             ),
 
             // comma separated string
             TWITTER_TARGET_USERS: parseTargetUsers(
                 runtime.getSetting("TWITTER_TARGET_USERS") ||
-                    process.env.TWITTER_TARGET_USERS
+                    fromEnv.TWITTER_TARGET_USERS
             ),
 
             // int in minutes
             POST_INTERVAL_MIN: safeParseInt(
                 runtime.getSetting("POST_INTERVAL_MIN") ||
-                    process.env.POST_INTERVAL_MIN,
+                    fromEnv.POST_INTERVAL_MIN,
                 90 // 1.5 hours
             ),
 
             // int in minutes
             POST_INTERVAL_MAX: safeParseInt(
                 runtime.getSetting("POST_INTERVAL_MAX") ||
-                    process.env.POST_INTERVAL_MAX,
+                    fromEnv.POST_INTERVAL_MAX,
                 180 // 3 hours
             ),
 
@@ -212,13 +206,13 @@ export async function validateTwitterConfig(
             ENABLE_ACTION_PROCESSING:
                 parseBooleanFromText(
                     runtime.getSetting("ENABLE_ACTION_PROCESSING") ||
-                        process.env.ENABLE_ACTION_PROCESSING
+                        fromEnv.ENABLE_ACTION_PROCESSING
                 ) ?? false,
 
             // init in minutes (min 1m)
             ACTION_INTERVAL: safeParseInt(
                 runtime.getSetting("ACTION_INTERVAL") ||
-                    process.env.ACTION_INTERVAL,
+                    fromEnv.ACTION_INTERVAL,
                 5 // 5 minutes
             ),
 
@@ -226,24 +220,24 @@ export async function validateTwitterConfig(
             POST_IMMEDIATELY:
                 parseBooleanFromText(
                     runtime.getSetting("POST_IMMEDIATELY") ||
-                        process.env.POST_IMMEDIATELY
+                        fromEnv.POST_IMMEDIATELY
                 ) ?? false,
 
             TWITTER_SPACES_ENABLE:
                 parseBooleanFromText(
                     runtime.getSetting("TWITTER_SPACES_ENABLE") ||
-                        process.env.TWITTER_SPACES_ENABLE
+                        fromEnv.TWITTER_SPACES_ENABLE
                 ) ?? false,
 
             MAX_ACTIONS_PROCESSING: safeParseInt(
                 runtime.getSetting("MAX_ACTIONS_PROCESSING") ||
-                    process.env.MAX_ACTIONS_PROCESSING,
+                    fromEnv.MAX_ACTIONS_PROCESSING,
                 1
             ),
 
             ACTION_TIMELINE_TYPE:
                 runtime.getSetting("ACTION_TIMELINE_TYPE") ||
-                process.env.ACTION_TIMELINE_TYPE,
+                fromEnv.ACTION_TIMELINE_TYPE,
         };
 
         return twitterEnvSchema.parse(twitterConfig);

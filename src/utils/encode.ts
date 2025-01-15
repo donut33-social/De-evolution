@@ -1,6 +1,4 @@
 import crypto from "crypto";
-import dotenv from "dotenv";
-dotenv.config();
 
 function generatePassword() {
     return {
@@ -23,5 +21,5 @@ function decrypt(encryptedText: string, key: string, iv: string): string {
     return decrypted;
 }
 
-export { encrypt, decrypt };
+export { generatePassword, encrypt, decrypt };
 // console.log(generatePassword())

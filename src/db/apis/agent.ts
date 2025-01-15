@@ -1,5 +1,5 @@
-import { execute } from '../pool';
-import { emptyOrRow, emptyOrRows } from "../helper";
+import { execute } from '../pool.ts';
+import { emptyOrRow, emptyOrRows } from "../helper.ts";
 
 export const getCharacter = async (agentName: string) => {
     let sql = `SELECT twitter_id as twitterId, name, tick, bios, lores, topics, adjectives

@@ -1,9 +1,9 @@
 import { Client } from "twitter-api-sdk";
-import log4js from "./logger";
+import log4js from "./logger.ts";
 import { TwitterConfig } from "../plugins/types";
-import redis from "../db/redis";
-import redisConfig from "../config/redis";
-import { refreshAgentToken } from "./api";
+import redis from "../db/redis.ts";
+import redisConfig from "../config/redis.ts";
+import { refreshAgentToken } from "./api.ts";
 
 const logger = log4js.getLogger("tweet");
 
