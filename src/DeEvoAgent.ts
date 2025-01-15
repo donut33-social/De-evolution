@@ -34,12 +34,24 @@ class DeEvoAgent extends AgentRuntime {
         const lore = parseJsonArrayFromText(character.lores) ?? this.character.lore;
         const topics = parseJsonArrayFromText(character.topics) ?? this.character.topics;
         const adjectives = parseJsonArrayFromText(character.adjectives) ?? this.character.adjectives;
+        const messageExamples = parseJsonArrayFromText(character.messageExamples) ?? this.character.messageExamples;
+        const knowledge = parseJsonArrayFromText(character.knowledges) ?? this.character.knowledge;
+        const styleAll = character.styleAll ?? this.character.style.all;
+        const styleChat = character.styleChat ?? this.character.style.chat;
+        const stylePost = character.stylePost ?? this.character.style.post;
         const newCharacter = {
             ...this.character,
             bio,
             lore,
             topics,
-            adjectives
+            adjectives,
+            messageExamples,
+            knowledge,
+            style: {
+                all: styleAll,
+                chat: styleChat,
+                post: stylePost
+            }
         }
         this.character = newCharacter;
     }
