@@ -28,9 +28,10 @@ export const getProfileByTwitterUsername = async (twitterUsername: string) => {
 export const getProfileByAgentName = async (agentName: string) => {
     let sql = `SELECT twitter_id as twitterId, twitter_username as username, twitter_name as name,
      followers as followersCount, followings as followingCount, create_at as createdAt,
-     ag.password, ag.email, ag.secret_2fa as secret2fa, ag.tick
+     ag.password, ag.email, ag.secret_2fa as secret2fa, ag.tick, c.token as contract
      FROM account as a 
      LEFT JOIN agent as ag ON ag.twitter_id = a.twitter_id
+     LEFT JOIN community as c ON c.tick = ag.tick
      WHERE ag.name = ? LIMIT 1`;
     let result = await execute(sql, [agentName]);
     return emptyOrRow(result);

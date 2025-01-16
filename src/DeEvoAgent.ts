@@ -4,10 +4,12 @@ import {
     parseJsonArrayFromText,
     parseJSONObjectFromText
 } from "@elizaos/core";
-import { getCharacter } from "./db/apis/agent.ts";
+import { getCharacter, getProfileByAgentName } from "./db/apis/agent.ts";
 
 class DeEvoAgent extends AgentRuntime {
     updateCharacterInterval: NodeJS.Timeout;
+    contract: String;   // community token contract
+    tick: String;       // community token tick symbol
     
     pollingUpdateCharacter() {
         this.updateCharacterInterval = setInterval(this.updateCharacter, 600000);
@@ -17,6 +19,9 @@ class DeEvoAgent extends AgentRuntime {
         elizaLogger.info("De evolution agent initialized");
         this.pollingUpdateCharacter();
         await super.initialize();
+        const profile = await getProfileByAgentName(this.character.name);
+        this.contract = profile.contract;
+        this.tick = profile.tick;
     }
     override async stop() {
         elizaLogger.info("De evolution agent stopped");
