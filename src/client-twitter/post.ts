@@ -1,4 +1,4 @@
-import { Tweet } from "agent-twitter-client";
+import { TagAiTweet } from "../plugins/types.ts";
 import {
     composeContext,
     generateText,
@@ -15,12 +15,11 @@ import { ClientBase } from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
 import { generateTweetActions } from "@elizaos/core";
 import { IImageDescriptionService, ServiceType } from "@elizaos/core";
-import { buildConversationThread } from "./utils.ts";
+import { buildConversationThread, wait } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { State } from "@elizaos/core";
 import { ActionResponse } from "@elizaos/core";
-import { time } from "console";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
@@ -61,7 +60,7 @@ Guidelines:
   - Promotional/marketing unless directly relevant
 
 Actions (respond only with tags):
-[LIKE] - Perfect topic match AND aligns with character (9.8/10)
+[LIKE] - Perfect topic match AND aligns with character (9.7/10)
 [RETWEET] - Exceptional content that embodies character's expertise (9.5/10)
 [QUOTE] - Can add substantial domain expertise (9.5/10)
 [REPLY] - Can contribute meaningful, expert-level insight (9.5/10)
@@ -162,12 +161,12 @@ export class TwitterPostClient {
                         elizaLogger.log(
                             `Next action processing scheduled in ${actionInterval} minutes`
                         );
-                        // Wait for the full interval before next processing
-                        await new Promise(
-                            (resolve) =>
-                                setTimeout(resolve, actionInterval * 60 * 1000) // now in minutes
-                        );
                     }
+                    // always wait for the full interval before next processing
+                    await new Promise(
+                        (resolve) =>
+                            setTimeout(resolve, actionInterval * 60 * 1000) // now in minutes
+                    );
                 } catch (error) {
                     elizaLogger.error(
                         "Error in action processing loop:",
@@ -201,7 +200,7 @@ export class TwitterPostClient {
         tweetResult: any,
         client: any,
         twitterUsername: string
-    ): Tweet {
+    ): TagAiTweet {
         return {
             id: tweetResult.rest_id,
             name: client.profile.screenName,
@@ -219,13 +218,13 @@ export class TwitterPostClient {
             thread: [],
             urls: [],
             videos: [],
-        } as Tweet;
+        } as TagAiTweet;
     }
 
     async processAndCacheTweet(
         runtime: IAgentRuntime,
         client: ClientBase,
-        tweet: Tweet,
+        tweet: TagAiTweet,
         roomId: UUID,
         newTweetContent: string
     ) {
@@ -260,39 +259,8 @@ export class TwitterPostClient {
             },
             roomId,
             embedding: getEmbeddingZeroVector(),
-            createdAt: tweet.timestamp,
+            createdAt: (tweet.timestamp * 1000) ?? new Date(tweet.timeParsed).getTime(),
         });
-    }
-
-    async handleNoteTweet(
-        client: ClientBase,
-        content: string,
-        tweetId?: string
-    ) {
-        try {
-            const noteTweetResult = await client.requestQueue.add(
-                async () =>
-                    await client.twitterClient.sendNoteTweet(content, tweetId)
-            );
-
-            if (noteTweetResult.errors && noteTweetResult.errors.length > 0) {
-                // Note Tweet failed due to authorization. Falling back to standard Tweet.
-                const truncateContent = truncateToCompleteSentence(
-                    content,
-                    this.client.twitterConfig.MAX_TWEET_LENGTH
-                );
-                return await this.sendStandardTweet(
-                    client,
-                    truncateContent,
-                    tweetId
-                );
-            } else {
-                return noteTweetResult.data.notetweet_create.tweet_results
-                    .result;
-            }
-        } catch (error) {
-            throw new Error(`Note Tweet failed: ${error}`);
-        }
     }
 
     async sendStandardTweet(
@@ -334,7 +302,7 @@ export class TwitterPostClient {
                 elizaLogger.error("Tweet too long, skipping");
                 return;
             } else {
-                result = await this.sendStandardTweet(client, cleanedContent + `\n\n#TipTag #${this.client.twitterConfig.TICK}`);
+                result = await this.sendStandardTweet(client, cleanedContent + `\n\n#${this.client.twitterConfig.DEFAULT_TAG} #${this.client.twitterConfig.TICK}`);
             }
 
             const tweet = this.createTweetObject(
@@ -385,7 +353,7 @@ export class TwitterPostClient {
                     },
                 },
                 {
-                    twitterUserName: this.client.profile.username,
+                    twitterUserName: this.client.profile.username
                 }
             );
 
@@ -531,11 +499,11 @@ export class TwitterPostClient {
         }
 
         // If not JSON or no valid content found, clean the raw text
-        return this.trimTweetLength(cleanedResponse);
+        return this.trimTweetLength(cleanedResponse) + `\n\n#${this.client.twitterConfig.DEFAULT_TAG} #${this.client.twitterConfig.TICK}`;
     }
 
     // Helper method to ensure tweet length compliance
-    private trimTweetLength(text: string, maxLength: number = 280): string {
+    private trimTweetLength(text: string, maxLength: number = 270): string {
         if (text.length <= maxLength) return text;
 
         // Try to cut at last sentence
@@ -546,7 +514,7 @@ export class TwitterPostClient {
 
         // Fallback to word boundary
         return (
-            text.slice(0, text.lastIndexOf(" ", maxLength - 3)).trim() + "..."
+            text.slice(0, text.lastIndexOf(" ", maxLength)).trim()
         );
     }
 
@@ -573,10 +541,10 @@ export class TwitterPostClient {
                 "twitter"
             );
 
-            let timelines = await this.client.fetchTimelineForActions(
+            let timelines: TagAiTweet[] = await this.client.fetchTimelineForActions(
                 MAX_TIMELINES_TO_FETCH
             );
-            const communityTweets = await this.client.fetchTweetsForActions();
+            const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions();
 
             for (let tweet of communityTweets) {
                 if (!timelines.find(t => t.id === tweet.id)) {
@@ -615,6 +583,8 @@ export class TwitterPostClient {
                         },
                         {
                             twitterUserName: this.twitterUsername,
+                            source: "twitter",
+                            authorUsername: tweet.username,
                             currentTweet: `ID: ${tweet.id}\nFrom: ${tweet.name} (@${tweet.username})\nText: ${tweet.text}`,
                         }
                     );
@@ -683,6 +653,11 @@ export class TwitterPostClient {
                 processedTimelines
             ).slice(0, maxActionsProcessing);
 
+            if (communityTweets.length > 0) {
+                // update last_handled_tweet_id
+                await this.client.updateLastHandledTweetId(communityTweets[communityTweets.length - 1].dbId);
+            }
+
             return this.processTimelineActions(sortedTimelines); // Return results array to indicate completion
         } catch (error) {
             elizaLogger.error("Error in processTweetActions:", error);
@@ -702,7 +677,7 @@ export class TwitterPostClient {
      */
     private async processTimelineActions(
         timelines: {
-            tweet: Tweet;
+            tweet: TagAiTweet;
             actionResponse: ActionResponse;
             tweetState: State;
             roomId: UUID;
@@ -731,6 +706,9 @@ export class TwitterPostClient {
                             await this.client.twitterClient.likeTweet(tweet.id);
                             executedActions.push("like");
                             elizaLogger.log(`Liked tweet ${tweet.id}`);
+                            // add like to tagai
+                            await this.client.createNewLikeAction(tweet.id);
+                            await this.handleCurate(tweet, tweetState, executedActions);
                         } catch (error) {
                             elizaLogger.error(
                                 `Error liking tweet ${tweet.id}:`,
@@ -751,6 +729,8 @@ export class TwitterPostClient {
                             await this.client.twitterClient.retweet(tweet.id);
                             executedActions.push("retweet");
                             elizaLogger.log(`Retweeted tweet ${tweet.id}`);
+                            // add retweet to tagai
+                            await this.client.createNewRetweetAction(tweet.id);
                         } catch (error) {
                             elizaLogger.error(
                                 `Error retweeting tweet ${tweet.id}:`,
@@ -770,7 +750,7 @@ export class TwitterPostClient {
                         const formattedConversation = thread
                             .map(
                                 (t) =>
-                                    `@${t.username} (${new Date(t.timestamp * 1000).toLocaleString()}): ${t.text}`
+                                    `@${t.username} (${(t.timeParsed ?? new Date(t.timestamp * 1000)).toLocaleString()}): ${t.text}`
                             )
                             .join("\n\n");
 
@@ -826,6 +806,8 @@ export class TwitterPostClient {
                             },
                             {
                                 twitterUserName: this.twitterUsername,
+                                source: "twitter",
+                                authorUsername: tweet.username,
                                 currentPost: `From @${tweet.username}: ${tweet.text}`,
                                 formattedConversation,
                                 imageContext:
@@ -945,7 +927,7 @@ export class TwitterPostClient {
                         agentId: this.runtime.agentId,
                         roomId,
                         embedding: getEmbeddingZeroVector(),
-                        createdAt: tweet.timestamp * 1000,
+                        createdAt: tweet.timestamp * 1000 ?? new Date(tweet.timeParsed).getTime(),
                     });
                 }
 
@@ -958,9 +940,26 @@ export class TwitterPostClient {
                 elizaLogger.error(`Error processing tweet ${tweet.id}:`, error);
                 continue;
             }
+            // await 3-7 minutes
+            await wait(3 * 60 * 1000, 7 * 60 * 1000);
         }
 
         return results;
+    }
+
+    /**
+     * Handles curate actions
+     * Determine whether this article is worth curating
+     * @param tweet 
+     * @param tweetState 
+     * @param executedActions 
+     */
+    private async handleCurate(
+        tweet: TagAiTweet,
+        tweetState: any,
+        executedActions: string[]
+    ) {
+
     }
 
     /**
@@ -968,7 +967,7 @@ export class TwitterPostClient {
      * have been replied without making API calls.
      */
     private async handleTextOnlyReply(
-        tweet: Tweet,
+        tweet: TagAiTweet,
         tweetState: any,
         executedActions: string[]
     ) {
@@ -978,7 +977,7 @@ export class TwitterPostClient {
             const formattedConversation = thread
                 .map(
                     (t) =>
-                        `@${t.username} (${new Date(t.timestamp * 1000).toLocaleString()}): ${t.text}`
+                        `@${t.username} (${(t.timeParsed ?? new Date(t.timestamp * 1000)).toLocaleString()}): ${t.text}`
                 )
                 .join("\n\n");
 
@@ -1024,6 +1023,8 @@ export class TwitterPostClient {
                 },
                 {
                     twitterUserName: this.twitterUsername,
+                    source: "twitter",
+                    authorUsername: tweet.username,
                     currentPost: `From @${tweet.username}: ${tweet.text}`,
                     formattedConversation,
                     imageContext:
@@ -1035,7 +1036,7 @@ export class TwitterPostClient {
             );
 
             // Generate and clean the reply content
-            const replyText = await this.generateTweetContent(enrichedState, {
+            let replyText = await this.generateTweetContent(enrichedState, {
                 template:
                     this.runtime.character.templates
                         ?.twitterMessageHandlerTemplate ||
@@ -1060,18 +1061,14 @@ export class TwitterPostClient {
             let result;
 
             if (replyText.length > DEFAULT_MAX_TWEET_LENGTH) {
-                result = await this.handleNoteTweet(
-                    this.client,
-                    replyText,
-                    tweet.id
-                );
-            } else {
-                result = await this.sendStandardTweet(
-                    this.client,
-                    replyText,
-                    tweet.id
-                );
+                replyText = this.trimTweetLength(replyText);
             }
+            result = await this.sendStandardTweet(
+                this.client,
+                replyText,
+                tweet.id
+            );
+            
 
             if (result) {
                 elizaLogger.log("Successfully posted reply tweet");

@@ -32,7 +32,7 @@ export const isValidTweet = (tweet: Tweet): boolean => {
 export async function buildConversationThread(
     tweet: Tweet,
     client: ClientBase,
-    maxReplies: number = 10
+    maxReplies: number = 5
 ): Promise<Tweet[]> {
     const thread: Tweet[] = [];
     const visited: Set<string> = new Set();

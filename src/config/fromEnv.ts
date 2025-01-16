@@ -32,4 +32,6 @@ export default {
     POST_IMMEDIATELY: process.env.POST_IMMEDIATELY,
     MAX_ACTIONS_PROCESSING: process.env.MAX_ACTIONS_PROCESSING,
     ACTION_TIMELINE_TYPE: process.env.ACTION_TIMELINE_TYPE,
+
+    TAGAI_TAG: process.env.TAGAI_TAG
 }

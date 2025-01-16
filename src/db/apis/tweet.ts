@@ -1,7 +1,8 @@
-import { execute } from '../pool.ts';
+import { execute, executeTransaction } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
+
 export const getRecentTweets = async (tick: string, agentUsername: string) => {
-    let sql = `SELECT t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 
+    let sql = `SELECT t.id as dbId, t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 
     t.retweet_id as quotedStatusId, t.create_at as timeParsed,
     t.retweet_info as retweetInfo, t.tweet_time as tweetTime, t.tick, 
     t.like_count as likes, t.retweet_count as retweets, t.reply_count as replies,
@@ -17,6 +18,11 @@ export const getRecentTweets = async (tick: string, agentUsername: string) => {
     return emptyOrRows(result);
 }
 
+export const updateLastHandledAgentTweetId = async (tick: string, dbId: number | string) => {
+    let sql = `UPDATE agent SET last_handled_tweet_id = ? WHERE tick = ?`;
+    await execute(sql, [dbId, tick]);
+}
+
 export const getRecentReplys = async (agentName: string) => {
     let sql = `SELECT t.tweet_id as tweetId, t.content, t.tags, t.page_info as pageInfo, 
     t.retweet_info as retweetInfo, t.tweet_time as tweetTime, t.tick, 
@@ -29,4 +35,26 @@ export const getRecentReplys = async (agentName: string) => {
     WHERE r.id > ag.last_handled_reply_id AND ag.agent_name = ?`;
     let result = await execute(sql, [agentName]);
     return emptyOrRows(result);
+}
+
+export const newLikeAction = async (twitterId: string, tweetId: string) => {
+    let sql = `
+        INSERT INTO relation_like (twitter_id, tweet_id) 
+        SELECT ?, ?
+        FROM tweet
+        WHERE tweet_id = ?;
+        UPDATE tweet SET like_count = like_count + 1 WHERE tweet_id = ?;
+    `;
+    await executeTransaction(sql, [twitterId, tweetId, tweetId, tweetId]);
+}
+
+export const newRetweetAction = async (twitterId: string, tweetId: string) => {
+    let sql = `
+        INSERT INTO relation_retweet (twitter_id, tweet_id) 
+        SELECT ?, ?
+        FROM tweet
+        WHERE tweet_id = ?;
+        UPDATE tweet SET retweet_count = retweet_count + 1 WHERE tweet_id = ?;
+    `;
+    await executeTransaction(sql, [twitterId, tweetId, tweetId, tweetId]);
 }

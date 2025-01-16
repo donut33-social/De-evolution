@@ -36,6 +36,7 @@ export const twitterEnvSchema = z.object({
     TWITTER_PASSWORD: z.string().min(1, "X/Twitter password is required"),
     TWITTER_EMAIL: z.string().email("Valid X/Twitter email is required"),
     TICK: z.string(),
+    DEFAULT_TAG: z.string(),
     MAX_TWEET_LENGTH: z.number().int().default(DEFAULT_MAX_TWEET_LENGTH),
     TWITTER_SEARCH_ENABLE: z.boolean().default(false),
     TWITTER_2FA_SECRET: z.string(),
@@ -148,6 +149,8 @@ export async function validateTwitterConfig(
 
             TICK: runtime.getSetting("TICK") || profile?.tick,
 
+            DEFAULT_TAG: runtime.getSetting("DEFAULT_TAG") || fromEnv.TAGAI_TAG,
+
             TWITTER_EMAIL:
                 runtime.getSetting("TWITTER_EMAIL") ||
                 profile?.email,
@@ -200,22 +203,19 @@ export async function validateTwitterConfig(
 
             // int in minutes
             POST_INTERVAL_MAX: safeParseInt(
-                runtime.getSetting("POST_INTERVAL_MAX") ||
-                    fromEnv.POST_INTERVAL_MAX,
+                runtime.getSetting("POST_INTERVAL_MAX"),
                 360 // 6 hours
             ),
 
             // bool
             ENABLE_ACTION_PROCESSING:
                 parseBooleanFromText(
-                    runtime.getSetting("ENABLE_ACTION_PROCESSING") ||
-                        fromEnv.ENABLE_ACTION_PROCESSING
+                    runtime.getSetting("ENABLE_ACTION_PROCESSING")
                 ) ?? false,
 
             // init in minutes (min 1m)
             ACTION_INTERVAL: safeParseInt(
-                runtime.getSetting("ACTION_INTERVAL") ||
-                    fromEnv.ACTION_INTERVAL,
+                runtime.getSetting("ACTION_INTERVAL"),
                 5 // 5 minutes
             ),
 

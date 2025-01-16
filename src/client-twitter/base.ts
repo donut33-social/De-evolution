@@ -18,7 +18,7 @@ import {
 } from "agent-twitter-client";
 import { EventEmitter } from "events";
 import { TwitterConfig } from "./environment.ts";
-import { getRecentTweets } from "../db/apis/tweet.ts";
+import { getRecentTweets, newLikeAction, newRetweetAction, updateLastHandledAgentTweetId } from "../db/apis/tweet.ts";
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -323,6 +323,33 @@ export class ClientBase extends EventEmitter {
         const tick = this.twitterConfig.TICK;
         const tweets = await getRecentTweets(tick, this.twitterConfig.TWITTER_USERNAME);
         return tweets;
+    }
+
+    async updateLastHandledTweetId(dbId: number | string): Promise<void> {
+        try {
+            const tick = this.twitterConfig.TICK;
+            await updateLastHandledAgentTweetId(tick, dbId);
+        } catch (error) {
+            elizaLogger.error("Error updating last handled agent tweet id:", error);
+        }
+    }
+
+    async createNewLikeAction(tweetId: string): Promise<void> {
+        try {
+            const twitterId = this.profile.id;
+            await newLikeAction(twitterId, tweetId);
+        } catch (error) {
+            elizaLogger.error("Error creating new like action:", error);
+        }
+    }
+
+    async createNewRetweetAction(tweetId: string): Promise<void> {
+        try {
+            const twitterId = this.profile.id;
+            await newRetweetAction(twitterId, tweetId);
+        } catch (error) {
+            elizaLogger.error("Error creating new retweet action:", error);
+        }
     }
 
     async fetchTimelineForActions(count: number): Promise<Tweet[]> {

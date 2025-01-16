@@ -1,3 +1,4 @@
+import { Tweet } from "agent-twitter-client";
 
 export type TwitterConfig = {
     access_token: string;
@@ -14,10 +15,8 @@ export type TwitterProfile = {
     createdAt: string;
 };
 
-export type Tweet = {
-    id: string;
-    content: string;
-    createdAt: string;
+export type TagAiTweet = Tweet & {
+    dbId?: number | string;
 };
 
 export type Prompt = {
