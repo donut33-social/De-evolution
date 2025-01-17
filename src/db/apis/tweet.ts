@@ -58,3 +58,10 @@ export const newRetweetAction = async (twitterId: string, tweetId: string) => {
     `;
     await executeTransaction(sql, [twitterId, tweetId, tweetId, tweetId]);
 }
+
+export const getTweetCurationById = async (tweetId: string) => {
+    let sql = `SELECT community_id as tick, day_number as dayNumber, curation_type as curationType,
+     FROM curation WHERE tweet_id = ? AND is_settled = 0`;
+    let result = await execute(sql, [tweetId]);
+    return emptyOrRow(result);
+}
