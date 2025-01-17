@@ -477,6 +477,7 @@ export async function createAgent(
         plugins: [
             evmPlugin,
             solanaPlugin,
+            bootstrapPlugin
         ].filter(Boolean),
         providers: [userRelatedProvider],
         actions: [],

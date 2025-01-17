@@ -1,6 +1,6 @@
 import { Provider, IAgentRuntime, Memory, State, elizaLogger } from "@elizaos/core";
 import DeEvoAgent from "../../DeEvoAgent";
-import { getUserInfoByUsername } from "../../db/apis/user";
+import { getUserInfoByUsername, getUserVPOPByTwitterId } from "../../db/apis/user";
 import { getBalance, getEthBalance } from "../../utils/ethers";
 
 export const userRelatedProvider: Provider = {
@@ -18,19 +18,48 @@ export const userRelatedProvider: Provider = {
             const userInfo = await getUserInfoByUsername(state.authorUsername as string);
             const tick = runtime.tick;
             const contract = runtime.contract;
-            let tokenBalance = 0;
-            let ethBalance = 0;
+            let result: null | string = null
             // get user balance
             if (contract && userInfo.ethAddr) {
                 const [ethBalance, tokenBalance] = await Promise.all([getEthBalance(userInfo.ethAddr, 'base'), getBalance(userInfo.ethAddr, contract as string, 'base')]) 
-                return `@${state.authorUsername} has ${tokenBalance} $${tick} and ${ethBalance} ETH. $${tick} total supply is 1B.
+                result += `@${state.authorUsername} has ${tokenBalance} $${tick} and ${ethBalance} ETH. $${tick} total supply is 1B.
 @${state.authorUsername} has ${ethBalance} ETH balance.
-@${state.authorUsername} has ${userInfo.followers} followers and ${userInfo.followings} followings.`;
+@${state.authorUsername} has ${userInfo.followers} followers and ${userInfo.followings} followings.
+`;
             }
-            return null;
+
+            // provider user cureation vp and op
+            if (message.content.action === 'curate') {
+                const { vp, op } = await getVPOP(runtime, userInfo.twitterId);
+                
+                result += `@${state.authorUsername} has ${vp} VP and ${op} OP.`;
+            }
+            return result;
         } catch (error) {
             elizaLogger.error(error);
         }
         return null;
     }
+}
+
+async function getVPOP(runtime: DeEvoAgent, twitterId: string) {
+    const vpop = await getUserVPOPByTwitterId(twitterId);
+    let vp = vpop.vp;
+    let op = vpop.op;
+    const lastUpdateVpStamp = vpop.lastUpdateVpStamp;
+    const lastUpdateOpStamp = vpop.lastUpdateOpStamp;
+    if ((!vp && vp !== 0) || !lastUpdateOpStamp) {
+        vp ??= 0;
+    }else {
+        vp = (vp + (Date.now() - lastUpdateVpStamp) * runtime.maxVP / (864000000 * runtime.opvpRecoverDay))
+        vp = vp > runtime.maxVP ? runtime.maxVP : vp
+    }
+    if ((!op && op !== 0) || !lastUpdateOpStamp) {
+        op ??= 0;
+    }else {
+        op = (op + (Date.now() - lastUpdateOpStamp) * runtime.maxOP / (864000000 * runtime.opvpRecoverDay))
+        op = op > runtime.maxOP ? runtime.maxOP : op
+    }
+
+    return { vp, op, lastUpdateVpStamp, lastUpdateOpStamp };
 }
