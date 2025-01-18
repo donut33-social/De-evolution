@@ -9,6 +9,7 @@ import {
     TemplateType,
     UUID,
     truncateToCompleteSentence,
+    Content
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
@@ -959,7 +960,23 @@ export class TwitterPostClient {
         tweetState: any,
         executedActions: string[]
     ) {
-
+        this.runtime.processActions({
+            userId: this.runtime.agentId,
+            agentId: this.runtime.agentId,
+            content: {
+                text: tweet.text,
+                action: "CURATE",
+            },
+            roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
+        },
+        [],
+        tweetState, 
+        async (response: Content) => {
+            if (response.action === 'CURATE') {
+                executedActions.push(`curate(${response.vp})`);
+            }
+            return []
+        });
     }
 
     /**

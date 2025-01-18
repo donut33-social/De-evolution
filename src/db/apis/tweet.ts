@@ -65,3 +65,13 @@ export const getTweetCurationById = async (tweetId: string) => {
     let result = await execute(sql, [tweetId]);
     return emptyOrRow(result);
 }
+
+export const newCurate = async (tweetId: string, twitterId: string, tick: string, vp: number) => {
+    let sql = `CALL new_curate(?,?,?,?,@isCuration);
+                SELECT @isCuration;`;
+    const res: any = await execute(sql, [tweetId, twitterId, tick, vp])
+    if (res && res.length > 1) {
+        return res[1][0]['@isCuration']
+    }
+    return 0;
+}

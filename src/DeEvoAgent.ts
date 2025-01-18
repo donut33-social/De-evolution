@@ -8,8 +8,9 @@ import { getCharacter, getProfileByAgentName } from "./db/apis/agent.ts";
 
 class DeEvoAgent extends AgentRuntime {
     updateCharacterInterval: NodeJS.Timeout;
-    contract: String;   // community token contract
-    tick: String;       // community token tick symbol
+    ethAddress?: string | undefined;
+    contract: string;   // community token contract
+    tick: string;       // community token tick symbol
     maxOP: number;     // max OP for a user
     maxVP: number;     // max VP for a user
     opvpRecoverDay: number; // OP and VP recover day
@@ -24,6 +25,7 @@ class DeEvoAgent extends AgentRuntime {
         await super.initialize();
         const profile = await getProfileByAgentName(this.character.name);
         this.contract = profile.contract;
+        this.ethAddress = profile.ethAddr;
         this.tick = profile.tick;
         this.maxOP = this.getSetting('MAX_OP') ?? 2000;
         this.maxVP = this.getSetting('MAX_VP') ?? 200;
