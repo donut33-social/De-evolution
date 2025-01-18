@@ -261,7 +261,7 @@ export class TwitterPostClient {
             },
             roomId,
             embedding: getEmbeddingZeroVector(),
-            createdAt: (tweet.timestamp * 1000) ?? new Date(tweet.timeParsed).getTime(),
+            createdAt: tweet.timestamp ? (tweet.timestamp * 1000) : new Date(tweet.timeParsed).getTime(),
         });
     }
 
@@ -929,7 +929,7 @@ export class TwitterPostClient {
                         agentId: this.runtime.agentId,
                         roomId,
                         embedding: getEmbeddingZeroVector(),
-                        createdAt: tweet.timestamp * 1000,
+                        createdAt: tweet.timestamp ? tweet.timestamp * 1000 : new Date(tweet.timeParsed).getTime(),
                     });
                 }
 

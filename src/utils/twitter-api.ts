@@ -1,6 +1,6 @@
 import { Client } from "twitter-api-sdk";
 import log4js from "./logger.ts";
-import { TwitterConfig } from "../plugins/types";
+import { TwitterConfig } from "../plugins/types.ts";
 import redis from "../db/redis.ts";
 import redisConfig from "../config/redis.ts";
 import { refreshAgentToken } from "./api.ts";

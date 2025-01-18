@@ -4,9 +4,9 @@ import {
     ActionTimelineType,
 } from "@elizaos/core";
 import { z, ZodError } from "zod";
-import { getProfileByAgentName } from "../db/apis/agent";
-import { decrypt } from "../utils/encode";
-import fromEnv from "../config/fromEnv";
+import { getProfileByAgentName } from "../db/apis/agent.ts";
+import { decrypt } from "../utils/encode.ts";
+import fromEnv from "../config/fromEnv.ts";
 
 export const DEFAULT_MAX_TWEET_LENGTH = 270;
 

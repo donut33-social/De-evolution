@@ -1,5 +1,5 @@
 import axios from "axios";
-import fromEnv from "../config/fromEnv";
+import fromEnv from "../config/fromEnv.ts";
 
 const baseUrl = fromEnv.BASE_API_URL;
 

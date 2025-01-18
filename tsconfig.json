@@ -20,5 +20,6 @@
     "noEmitOnError": false,
     "moduleDetection": "force",
     "allowArbitraryExtensions": true
-  }
+  },
+  "include": ["src/**/*.ts", "!src/eliza/**/*"]
 }

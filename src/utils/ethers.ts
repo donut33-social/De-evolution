@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { elizaLogger } from "@elizaos/core";
-import abis from "./abis";
+import abis from "./abis.ts";
 
 const chainConfig = {
     "base": {

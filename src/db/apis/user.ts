@@ -1,5 +1,5 @@
-import { execute } from "../pool";
-import { emptyOrRows, emptyOrRow } from "../helper";
+import { execute } from "../pool.ts";
+import { emptyOrRows, emptyOrRow } from "../helper.ts";
 
 export const getUserInfoByUsername = async (username: string) => {
     let sql = `SELECT twitter_id as twitterId, followers, followings, 
