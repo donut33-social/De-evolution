@@ -10,9 +10,9 @@ import {
   generateText,
   elizaLogger
 } from "@elizaos/core";
-import DeEvoAgent from "../../DeEvoAgent";
-import { getTweetCurationById, newCurate } from "../../db/apis/tweet";
-import { getBalance } from "../../utils/ethers";
+import DeEvoAgent from "../../DeEvoAgent.ts";
+import { getTweetCurationById, newCurate } from "../../db/apis/tweet.ts";
+import { getBalance } from "../../utils/ethers.ts";
 import { ethers } from "ethers";
 
 const shouldCurateTemplate = `# Areas of Expertise

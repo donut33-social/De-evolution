@@ -2,11 +2,11 @@
   "name": "temp",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/index.ts",
+    "start": "tsc src/index.ts && node src/index.js",
     "script": "ts-node src/script/updateAgent.ts"
   },
   "keywords": [],
@@ -16,7 +16,6 @@
     "@elizaos/adapter-postgres": "^0.1.8",
     "@elizaos/adapter-sqlite": "^0.1.8",
     "@elizaos/adapter-supabase": "^0.1.8",
-    "@elizaos/client-direct": "^0.1.7",
     "@elizaos/client-twitter": "^0.1.8",
     "@elizaos/core": "^0.1.8",
     "@elizaos/plugin-bootstrap": "^0.1.8",
@@ -24,6 +23,7 @@
     "@elizaos/plugin-solana": "^0.1.8",
     "@tavily/core": "^0.0.2",
     "agent-twitter-client": "^0.0.18",
+    "amqplib": "^0.10.5",
     "axios": "^1.7.9",
     "better-sqlite3": "^11.7.2",
     "dotenv": "^16.4.7",
@@ -40,15 +40,20 @@
     "redis": "^4.7.0",
     "sharp": "^0.33.5",
     "twitter-api-sdk": "^1.2.1",
-    "typescript": "^5.7.3",
     "url": "^0.11.4",
     "ws": "^8.18.0",
     "yargs": "^17.7.2",
     "zod": "^3.24.1"
   },
+  "pnpm": {
+    "overrides": {
+      "onnxruntime-node": "1.20.0"
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.10.6",
     "ts-node": "^10.9.2",
-    "tsup": "^8.3.5"
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3"
   }
 }

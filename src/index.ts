@@ -2,7 +2,8 @@ import { PostgresDatabaseAdapter } from "@elizaos/adapter-postgres";
 import { SqliteDatabaseAdapter } from "@elizaos/adapter-sqlite";
 import { SupabaseDatabaseAdapter } from "@elizaos/adapter-supabase";
 import { TwitterClientInterface } from "./client-twitter/index.ts";
-import { DirectClient } from "@elizaos/client-direct";
+import dotenv from "dotenv";
+dotenv.config();
 
 import {
     AgentRuntime,
@@ -544,8 +545,7 @@ function initializeCache(
 }
 
 async function startAgent(
-    character: Character,
-    directClient: DirectClient
+    character: Character
 ): Promise<AgentRuntime> {
     let db: IDatabaseAdapter & IDatabaseCacheAdapter;
     try {
@@ -623,7 +623,6 @@ const checkPortAvailable = (port: number): Promise<boolean> => {
 };
 
 const startAgents = async () => {
-    const directClient = new DirectClient();
     let serverPort = parseInt(settings.SERVER_PORT || "3000");
     const args = parseArguments();
     let charactersArg = args.characters || args.character;
@@ -635,7 +634,7 @@ const startAgents = async () => {
 
     try {
         for (const character of characters) {
-            await startAgent(character, directClient);
+            await startAgent(character);
         }
     } catch (error) {
         elizaLogger.error("Error starting agents:", error);

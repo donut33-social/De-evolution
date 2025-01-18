@@ -9,7 +9,8 @@ import {
     TemplateType,
     UUID,
     truncateToCompleteSentence,
-    Content
+    Content,
+    Memory
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
@@ -928,7 +929,7 @@ export class TwitterPostClient {
                         agentId: this.runtime.agentId,
                         roomId,
                         embedding: getEmbeddingZeroVector(),
-                        createdAt: tweet.timestamp * 1000 ?? new Date(tweet.timeParsed).getTime(),
+                        createdAt: tweet.timestamp * 1000,
                     });
                 }
 
@@ -960,23 +961,25 @@ export class TwitterPostClient {
         tweetState: any,
         executedActions: string[]
     ) {
-        this.runtime.processActions({
-            userId: this.runtime.agentId,
-            agentId: this.runtime.agentId,
-            content: {
-                text: tweet.text,
-                action: "CURATE",
-            },
-            roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
-        },
-        [],
-        tweetState, 
-        async (response: Content) => {
-            if (response.action === 'CURATE') {
-                executedActions.push(`curate(${response.vp})`);
+        await this.runtime.processActions(
+            {
+                userId: this.runtime.agentId,
+                agentId: this.runtime.agentId,
+                content: {
+                    text: tweet.text,
+                    action: "CURATE",
+                },
+                roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
+            } as Memory,
+            [],
+            tweetState, 
+            async (response: Content) => {
+                if (response.action === 'CURATE') {
+                    executedActions.push(`curate(${response.vp})`);
+                }
+                return [];
             }
-            return []
-        });
+        );
     }
 
     /**

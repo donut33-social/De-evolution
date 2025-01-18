@@ -1,7 +1,7 @@
 import { Provider, IAgentRuntime, Memory, State, elizaLogger } from "@elizaos/core";
-import DeEvoAgent from "../../DeEvoAgent";
-import { getUserInfoByUsername, getUserVPOPByTwitterId } from "../../db/apis/user";
-import { getBalance, getEthBalance } from "../../utils/ethers";
+import DeEvoAgent from "../../DeEvoAgent.ts";
+import { getUserInfoByUsername, getUserVPOPByTwitterId } from "../../db/apis/user.ts";
+import { getBalance, getEthBalance } from "../../utils/ethers.ts";
 
 export const userRelatedProvider: Provider = {
     async  get(
