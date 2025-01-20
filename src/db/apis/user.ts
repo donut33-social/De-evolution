@@ -6,7 +6,7 @@ export const getUserInfoByUsername = async (username: string) => {
     eth_addr as ethAddr, sol_addr as solAddr, btc_addr as btcAddr
     FROM account WHERE twitter_username = ?`;
     let result = await execute(sql, [username]);
-    return emptyOrRows(result);
+    return emptyOrRow(result);
 }
 
 export const getUserVPOPByTwitterId = async (twitterId: string) => {

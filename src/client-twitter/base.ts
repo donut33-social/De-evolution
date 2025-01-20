@@ -319,9 +319,9 @@ export class ClientBase extends EventEmitter {
         return processedTimeline;
     }
 
-    async fetchTweetsForActions(): Promise<Tweet[]> {
+    async fetchTweetsForActions(limit?: number): Promise<Tweet[]> {
         const tick = this.twitterConfig.TICK;
-        const tweets = await getRecentTweets(tick, this.twitterConfig.TWITTER_USERNAME);
+        const tweets = await getRecentTweets(tick, this.twitterConfig.TWITTER_USERNAME, limit);
         return tweets;
     }
 

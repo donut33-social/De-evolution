@@ -10,7 +10,9 @@ import {
     UUID,
     truncateToCompleteSentence,
     Content,
-    Memory
+    Memory,
+    generateMessageResponse,
+    messageCompletionFooter
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
@@ -164,30 +166,20 @@ export class TwitterPostClient {
         };
 
         const processActionsLoop = async () => {
-            const actionInterval = this.client.twitterConfig.ACTION_INTERVAL; // Defaults to 5 minutes
-
             while (!this.stopProcessingActions) {
                 try {
                     const results = await this.processTweetActions();
                     if (results) {
                         elizaLogger.log(`Processed ${results.length} tweets`);
-                        elizaLogger.log(
-                            `Next action processing scheduled in ${actionInterval} minutes`
-                        );
                     }
-                    // always wait for the full interval before next processing
-                    await new Promise(
-                        (resolve) =>
-                            setTimeout(resolve, actionInterval * 60 * 1000) // now in minutes
-                    );
                 } catch (error) {
                     elizaLogger.error(
                         "Error in action processing loop:",
                         error
                     );
                     // Add exponential backoff on error
-                    await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30s on error
                 }
+                await wait(180000, 480000);
             }
         };
 
@@ -558,7 +550,7 @@ export class TwitterPostClient {
             let timelines: TagAiTweet[] = await this.client.fetchTimelineForActions(
                 MAX_TIMELINES_TO_FETCH
             );
-            const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions();
+            const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions(5);
 
             for (let tweet of communityTweets) {
                 if (!timelines.find(t => t.id === tweet.id)) {
@@ -600,7 +592,8 @@ export class TwitterPostClient {
                             source: "twitter",
                             authorUsername: tweet.username,
                             currentTweet: `ID: ${tweet.id}\nFrom: ${tweet.name} (@${tweet.username})\nText: ${tweet.text}`,
-                            maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
+                            maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                            tweetId: tweet.id,
                         }
                     );
 
@@ -716,6 +709,16 @@ export class TwitterPostClient {
                             `Dry run: would have liked tweet ${tweet.id}`
                         );
                         executedActions.push("like (dry run)");
+                        try {
+                            await this.handleCurate(tweet, tweetState, executedActions);
+                        } catch (error) {
+                            elizaLogger.error(
+                                `Error curating tweet ${tweet.id}:`,
+                                error
+                            );
+
+                            console.trace(error)
+                        }
                     } else {
                         try {
                             await this.client.twitterClient.likeTweet(tweet.id);
@@ -957,7 +960,8 @@ export class TwitterPostClient {
                 continue;
             }
             // await 3-7 minutes
-            await wait(3 * 60 * 1000, 7 * 60 * 1000);
+            elizaLogger.log("await 3-7 minutes for the next action")
+            await wait(3 * 60 * 100, 7 * 60 * 100);
         }
 
         return results;
@@ -975,25 +979,63 @@ export class TwitterPostClient {
         tweetState: any,
         executedActions: string[]
     ) {
-        await this.runtime.processActions(
+        this.logState(tweetState)
+        tweetState = await this.runtime.composeState(
             {
-                userId: this.runtime.agentId,
-                agentId: this.runtime.agentId,
+                ...tweetState,
                 content: {
                     text: tweet.text,
-                    action: "CURATE",
-                },
-                roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
-            } as Memory,
-            [],
-            tweetState, 
-            async (response: Content) => {
-                if (response.action === 'CURATE') {
-                    executedActions.push(`curate(${response.vp})`);
+                    action: 'CURATE',
                 }
-                return [];
+            }, {
+                tweetId: tweet.id,
+                source: 'twitter',
+                authorUsername: tweet.username,
             }
-        );
+        )
+
+        if (tweetState.actions.lastIndexOf('CURATE') > -1) {
+            await this.runtime.processActions(
+                {
+                    userId: this.runtime.agentId,
+                    agentId: this.runtime.agentId,
+                    content: {
+                        text: tweet.text,
+                        action: 'CURATE',
+                    },
+                    roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
+                    tweetId: tweet.id,
+                } as Memory,
+                [{
+                    userId: this.runtime.agentId,
+                    agentId: this.runtime.agentId,
+                    content: {
+                        text: tweet.text,
+                        action: 'CURATE',
+                    },
+                    roomId: stringToUuid(tweet.conversationId + "-" + this.runtime.agentId),
+                }],
+                tweetState, 
+                async (response: Content) => {
+                    elizaLogger.log("handleCurate callback response", response)
+                    if (response.action === 'CURATE') {
+                        executedActions.push(`curate(${response.vp})`);
+                    }
+                    return [];
+                }
+            );
+        }
+    }
+
+    private logState(state: any){
+        elizaLogger.log('State:', {
+            twitterUserName: state.twitterUserName,
+            source: state.source,
+            authorUsername: state.authorUsername,
+            currentTweet: state.currentTweet,
+            maxTweetLength: state.maxTweetLength,
+            tweetId: state.tweetId,
+        })
     }
 
     /**

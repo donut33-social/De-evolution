@@ -20,6 +20,7 @@
     "@elizaos/core": "^0.1.8",
     "@elizaos/plugin-bootstrap": "^0.1.8",
     "@elizaos/plugin-evm": "^0.1.8",
+    "@elizaos/plugin-node": "^0.1.8",
     "@elizaos/plugin-solana": "^0.1.8",
     "@tavily/core": "^0.0.2",
     "agent-twitter-client": "^0.0.18",

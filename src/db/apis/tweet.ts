@@ -2,7 +2,7 @@ import { execute, executeTransaction } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
 import fromEnv from '../../config/fromEnv.ts';
 
-export const getRecentTweets = async (tick: string, agentUsername: string) => {
+export const getRecentTweets = async (tick: string, agentUsername: string, limit: number = 30) => {
     let sql = `SELECT t.id as dbId, t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 
     t.retweet_id as quotedStatusId, t.create_at as timeParsed,
     t.retweet_info as retweetInfo, t.tweet_time as tweetTime, t.tick, 
@@ -13,9 +13,9 @@ export const getRecentTweets = async (tick: string, agentUsername: string) => {
     FROM tweet as t
     LEFT JOIN account as a ON a.twitter_id = t.twitter_id
     LEFT JOIN agent as ag ON ag.tick = t.tick
-    WHERE t.id > ag.last_handled_tweet_id AND ag.tick = ? AND a.twitter_username != ?`;
+    WHERE t.id > ag.last_handled_tweet_id AND ag.tick = ? AND a.twitter_username != ? LIMIT ?`;
 
-    let result = await execute(sql, [tick, agentUsername]);
+    let result = await execute(sql, [tick, agentUsername, limit]);
     return emptyOrRows(result);
 }
 
@@ -64,14 +64,14 @@ export const newRetweetAction = async (twitterId: string, tweetId: string) => {
 }
 
 export const getTweetCurationById = async (tweetId: string) => {
-    let sql = `SELECT community_id as tick, day_number as dayNumber, curation_type as curationType,
+    let sql = `SELECT community_id as tick, day_number as dayNumber, curation_type as curationType
      FROM curation WHERE tweet_id = ? AND is_settled = 0`;
     let result = await execute(sql, [tweetId]);
     return emptyOrRow(result);
 }
 
 export const newCurate = async (tweetId: string, twitterId: string, tick: string, vp: number) => {
-    if (fromEnv.TWITTER_DRY_RUN === 'true') return;
+    if (fromEnv.TWITTER_DRY_RUN === 'true') return 1;
     let sql = `CALL new_curate(?,?,?,?,@isCuration);
                 SELECT @isCuration;`;
     const res: any = await execute(sql, [tweetId, twitterId, tick, vp])

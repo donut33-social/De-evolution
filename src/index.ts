@@ -28,8 +28,11 @@ import {
 import DeEvoAgent from "./DeEvoAgent.ts";
 
 import { bootstrapPlugin } from "@elizaos/plugin-bootstrap";
+import { createNodePlugin } from "@elizaos/plugin-node";
 // import { evmPlugin } from "@elizaos/plugin-evm";
 import { solanaPlugin } from "@elizaos/plugin-solana";
+import curateAction from './plugins/actions/curate.ts'
+import { userRelatedProvider } from './plugins/providers/userRelated.ts'
 
 import Database from "better-sqlite3";
 import fs from "fs";
@@ -37,7 +40,6 @@ import net from "net";
 import path from "path";
 import { fileURLToPath } from "url";
 import yargs from "yargs";
-import { userRelatedProvider } from "./plugins/providers/userRelated.ts";
 
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
@@ -476,10 +478,11 @@ export async function createAgent(
         character,
         // character.plugins are handled when clients are added
         plugins: [
-            bootstrapPlugin
+            bootstrapPlugin,
+            createNodePlugin()
         ].filter(Boolean),
         providers: [userRelatedProvider],
-        actions: [],
+        actions: [curateAction],
         services: [],
         managers: [],
         cacheManager: cache,

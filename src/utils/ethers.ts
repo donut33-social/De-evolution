@@ -25,7 +25,7 @@ export async function getBalance(address: string, token: string, chain: string) 
     const provider = await getProvider(chain);
     const contract = new ethers.Contract(token, abis.ERC20, provider);
     const balance = await contract.balanceOf(address);
-    return balance / 1e18;
+    return balance.toString() / 1e18;
 }
 
 export async function getEthBalance(address: string, chain: string) {

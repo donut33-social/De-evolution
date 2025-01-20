@@ -18,11 +18,11 @@ export const userRelatedProvider: Provider = {
             const userInfo = await getUserInfoByUsername(state.authorUsername as string);
             const tick = runtime.tick;
             const contract = runtime.contract;
-            let result: null | string = null
+            let result: null | string = ''
             // get user balance
             if (contract && userInfo.ethAddr) {
                 const [ethBalance, tokenBalance] = await Promise.all([getEthBalance(userInfo.ethAddr, 'base'), getBalance(userInfo.ethAddr, contract as string, 'base')]) 
-                result += `@${state.authorUsername} has ${tokenBalance} $${tick} and ${ethBalance} ETH. $${tick} total supply is 1B.
+                result += `@${state.authorUsername} has ${tokenBalance} $${tick} and $${tick} total supply is 1B.
 @${state.authorUsername} has ${ethBalance} ETH balance.
 @${state.authorUsername} has ${userInfo.followers} followers and ${userInfo.followings} followings.
 `;
@@ -33,6 +33,10 @@ export const userRelatedProvider: Provider = {
                 const { vp, op } = await getVPOP(runtime, userInfo.twitterId);
                 
                 result += `@${state.authorUsername} has ${vp} VP and ${op} OP.`;
+            }
+            console.log('userRelatedProvider result:', result)
+            if (result.length === 0) {
+                return null;
             }
             return result;
         } catch (error) {
