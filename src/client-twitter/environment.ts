@@ -8,7 +8,7 @@ import { getProfileByAgentName } from "../db/apis/agent.ts";
 import { decrypt } from "../utils/encode.ts";
 import fromEnv from "../config/fromEnv.ts";
 
-export const DEFAULT_MAX_TWEET_LENGTH = 270;
+export const DEFAULT_MAX_TWEET_LENGTH = 260;
 
 const twitterUsernameSchema = z
     .string()

@@ -562,7 +562,7 @@ export class ClientBase extends EventEmitter {
             }
         }
 
-        const timeline = await this.fetchHomeTimeline(cachedTimeline ? 10 : 50);
+        const timeline = await this.fetchHomeTimeline(cachedTimeline ? 10 : 30);
         const username = this.twitterConfig.TWITTER_USERNAME;
 
         // Get the most recent 20 mentions and interactions

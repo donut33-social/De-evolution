@@ -30,20 +30,31 @@ const twitterPostTemplate = `
 {{knowledge}}
 
 # About {{agentName}} (@{{twitterUserName}}):
+Bio:
 {{bio}}
+
+Lore:
 {{lore}}
+
+Topics:
 {{topics}}
 
-{{providers}}
-
+Examples:
 {{characterPostExamples}}
 
+Styles:
 {{postDirections}}
+
+More infos:
+{{providers}}
 
 # Task: Generate a post in the voice and style and perspective of {{agentName}} @{{twitterUserName}}.
 Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
-Your response should be 1, 2, or 3 sentences (choose the length at random).
-Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.`;
+Your response should be 1 or 2 short sentences (choose the length at random).
+Your response should not contain any questions. Brief, concise statements only. 
+No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.
+
+**Your MUST testing your response string use node.js's "string.length" function, make sure the result is less than {{maxTweetLength}}. **`;
 
 export const twitterActionTemplate =
     `
@@ -185,8 +196,8 @@ export class TwitterPostClient {
         // }
 
         // Only start tweet generation loop if not in dry run mode
-        generateNewTweetLoop();
-        elizaLogger.log("Tweet generation loop started");
+        // generateNewTweetLoop();
+        // elizaLogger.log("Tweet generation loop started");
 
         if (this.client.twitterConfig.ENABLE_ACTION_PROCESSING) {
             processActionsLoop().catch((error) => {
@@ -355,7 +366,8 @@ export class TwitterPostClient {
                     },
                 },
                 {
-                    twitterUserName: this.client.profile.username
+                    twitterUserName: this.client.profile.username,
+                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
                 }
             );
 
@@ -366,7 +378,7 @@ export class TwitterPostClient {
                     twitterPostTemplate,
             });
 
-            elizaLogger.debug("generate post prompt:\n" + context);
+            elizaLogger.log("generate post prompt:\n" + context);
 
             const newTweetContent = await generateText({
                 runtime: this.runtime,
@@ -588,6 +600,7 @@ export class TwitterPostClient {
                             source: "twitter",
                             authorUsername: tweet.username,
                             currentTweet: `ID: ${tweet.id}\nFrom: ${tweet.name} (@${tweet.username})\nText: ${tweet.text}`,
+                            maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
                         }
                     );
 
@@ -817,6 +830,7 @@ export class TwitterPostClient {
                                         ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
                                         : "",
                                 quotedContent,
+                                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
                             }
                         );
 
@@ -1052,6 +1066,7 @@ export class TwitterPostClient {
                             ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
                             : "",
                     quotedContent,
+                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
                 }
             );
 

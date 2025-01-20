@@ -1,5 +1,6 @@
 import { execute, executeTransaction } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
+import fromEnv from '../../config/fromEnv.ts';
 
 export const getRecentTweets = async (tick: string, agentUsername: string) => {
     let sql = `SELECT t.id as dbId, t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 
@@ -19,6 +20,7 @@ export const getRecentTweets = async (tick: string, agentUsername: string) => {
 }
 
 export const updateLastHandledAgentTweetId = async (tick: string, dbId: number | string) => {
+    if (fromEnv.TWITTER_DRY_RUN === 'true') return;
     let sql = `UPDATE agent SET last_handled_tweet_id = ? WHERE tick = ?`;
     await execute(sql, [dbId, tick]);
 }
@@ -38,6 +40,7 @@ export const getRecentReplys = async (agentName: string) => {
 }
 
 export const newLikeAction = async (twitterId: string, tweetId: string) => {
+    if (fromEnv.TWITTER_DRY_RUN === 'true') return;
     let sql = `
         INSERT INTO relation_like (twitter_id, tweet_id) 
         SELECT ?, ?
@@ -49,6 +52,7 @@ export const newLikeAction = async (twitterId: string, tweetId: string) => {
 }
 
 export const newRetweetAction = async (twitterId: string, tweetId: string) => {
+    if (fromEnv.TWITTER_DRY_RUN === 'true') return;
     let sql = `
         INSERT INTO relation_retweet (twitter_id, tweet_id) 
         SELECT ?, ?
@@ -67,6 +71,7 @@ export const getTweetCurationById = async (tweetId: string) => {
 }
 
 export const newCurate = async (tweetId: string, twitterId: string, tick: string, vp: number) => {
+    if (fromEnv.TWITTER_DRY_RUN === 'true') return;
     let sql = `CALL new_curate(?,?,?,?,@isCuration);
                 SELECT @isCuration;`;
     const res: any = await execute(sql, [tweetId, twitterId, tick, vp])

@@ -28,7 +28,7 @@ import {
 import DeEvoAgent from "./DeEvoAgent.ts";
 
 import { bootstrapPlugin } from "@elizaos/plugin-bootstrap";
-import { evmPlugin } from "@elizaos/plugin-evm";
+// import { evmPlugin } from "@elizaos/plugin-evm";
 import { solanaPlugin } from "@elizaos/plugin-solana";
 
 import Database from "better-sqlite3";
@@ -476,8 +476,6 @@ export async function createAgent(
         character,
         // character.plugins are handled when clients are added
         plugins: [
-            evmPlugin,
-            solanaPlugin,
             bootstrapPlugin
         ].filter(Boolean),
         providers: [userRelatedProvider],
@@ -563,7 +561,7 @@ async function startAgent(
             IDatabaseCacheAdapter;
 
         await db.init();
-
+        
         const cache = initializeCache(
             process.env.CACHE_STORE ?? CacheStore.DATABASE,
             character,
@@ -591,11 +589,11 @@ async function startAgent(
 
         return runtime;
     } catch (error) {
+        console.trace(error)
         elizaLogger.error(
             `Error starting agent for character ${character.name}:`,
             error
         );
-        elizaLogger.error(error);
         if (db) {
             await db.close();
         }
@@ -625,12 +623,14 @@ const checkPortAvailable = (port: number): Promise<boolean> => {
 const startAgents = async () => {
     let serverPort = parseInt(settings.SERVER_PORT || "3000");
     const args = parseArguments();
+    console.log(1, args)
     let charactersArg = args.characters || args.character;
     let characters = [defaultCharacter];
 
     if (charactersArg) {
         characters = await loadCharacters(charactersArg);
     }
+    console.log(2, charactersArg, characters)
 
     try {
         for (const character of characters) {
