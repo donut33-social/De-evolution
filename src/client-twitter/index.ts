@@ -23,7 +23,7 @@ class TwitterManager {
         this.post = new TwitterPostClient(this.client, runtime);
 
         // Mentions and interactions
-        // this.interaction = new TwitterInteractionClient(this.client, runtime);
+        this.interaction = new TwitterInteractionClient(this.client, runtime);
     }
 }
 
@@ -43,7 +43,7 @@ export const TwitterClientInterface: Client = {
         await manager.post.start();
 
         // Start interactions (mentions, replies)
-        // await manager.interaction.start();
+        await manager.interaction.start();
 
         return manager;
     },

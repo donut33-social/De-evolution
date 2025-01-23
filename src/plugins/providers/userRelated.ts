@@ -29,7 +29,7 @@ export const userRelatedProvider: Provider = {
             }
 
             // provider user cureation vp and op
-            if (message.content.action === 'curate') {
+            if (message.content?.action?.toLowerCase() === 'curate') {
                 const { vp, op } = await getVPOP(runtime, userInfo.twitterId);
                 
                 result += `@${state.authorUsername} has ${vp} VP and ${op} OP.`;

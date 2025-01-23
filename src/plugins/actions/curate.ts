@@ -120,7 +120,7 @@ export default {
     ],
   ],
   validate: async (_runtime: DeEvoAgent, _message: Memory, _state: State) => {
-    if (_message.content.action.toLowerCase() === "curate") {
+    if (_message?.content?.action?.toLowerCase() === "curate") {
       //  Determine whether the target tweet is in the database
       const tweetCuration = await getTweetCurationById(
         _state.tweetId as string
@@ -150,7 +150,6 @@ export default {
         context,
         modelClass: ModelClass.SMALL,
       });
-      console.log('should curate:', shouldCurate)
       return shouldCurate;
     }
     return false;
@@ -171,7 +170,7 @@ export default {
         state: {
             ..._state,
             tick: _runtime.tick,
-            currentTweet: _message.content.text,
+            currentTweet: _message.content?.text,
         },
         template: curateVPTemplate,
         templatingEngine: "handlebars"

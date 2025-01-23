@@ -80,6 +80,7 @@ For other users:
 IMPORTANT:
 - {{agentName}} (aka @{{twitterUserName}}) is particularly sensitive about being annoying, so if there is any doubt, it is better to IGNORE than to RESPOND.
 - For users not in the priority list, {{agentName}} (@{{twitterUserName}}) should err on the side of IGNORE rather than RESPOND if in doubt.
+- If users always post tweet mentioned {{agentName}}, {{agentName}} should IGNORE them.
 
 Recent Posts:
 {{recentPosts}}
@@ -97,6 +98,7 @@ export class TwitterInteractionClient {
     client: ClientBase;
     runtime: IAgentRuntime;
     private isDryRun: boolean;
+    isProcessing: boolean = false;
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
@@ -105,10 +107,13 @@ export class TwitterInteractionClient {
 
     async start() {
         const handleTwitterInteractionsLoop = () => {
-            this.handleTwitterInteractions();
+            if (!this.isProcessing) {
+                this.isProcessing = true;
+                this.handleTwitterInteractions();
+            }
             setTimeout(
                 handleTwitterInteractionsLoop,
-                // Defaults to 2 minutes
+                // Defaults to 3 minutes
                 this.client.twitterConfig.TWITTER_POLL_INTERVAL * 1000
             );
         };
@@ -281,6 +286,8 @@ export class TwitterInteractionClient {
                         agentId: this.runtime.agentId,
                         userId: userIdUUID,
                         roomId,
+                        source: 'twitter',
+                        authorUsername: tweet.username,
                     };
 
                     await this.handleTweet({
@@ -301,6 +308,7 @@ export class TwitterInteractionClient {
         } catch (error) {
             elizaLogger.error("Error handling Twitter interactions:", error);
         }
+        this.isProcessing = false;
     }
 
     private async handleTweet({
@@ -350,7 +358,7 @@ export class TwitterInteractionClient {
 
         const imageDescriptionsArray = [];
         try{
-            elizaLogger.debug('Getting images');
+            elizaLogger.debug('Getting images', tweet.photos);
             for (const photo of tweet.photos) {
                 elizaLogger.debug(photo.url);
                 const description = await this.runtime
@@ -361,13 +369,9 @@ export class TwitterInteractionClient {
                 imageDescriptionsArray.push(description);
             }
         } catch (error) {
-    // Handle the error
-    elizaLogger.error("Error Occured during describing image: ", error);
-}
-
-
-
-
+            // Handle the error
+            elizaLogger.error("Error Occured during describing image: ", error);
+        }
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
             twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
@@ -375,9 +379,9 @@ export class TwitterInteractionClient {
             formattedConversation,
             imageDescriptions: imageDescriptionsArray.length > 0
             ? `\nImages in Tweet:\n${imageDescriptionsArray.map((desc, i) =>
-              `Image ${i + 1}: Title: ${desc.title}\nDescription: ${desc.description}`).join("\n\n")}`:""
+            `Image ${i + 1}: Title: ${desc.title}\nDescription: ${desc.description}`).join("\n\n")}`:""
         });
-
+        
         // check if the tweet exists, save if it doesn't
         const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
         const tweetExists =
@@ -413,15 +417,15 @@ export class TwitterInteractionClient {
         const validTargetUsersStr =
             this.client.twitterConfig.TWITTER_TARGET_USERS.join(",");
 
-        const shouldRespondContext = composeContext({
-            state,
-            template:
-                this.runtime.character.templates
-                    ?.twitterShouldRespondTemplate ||
-                this.runtime.character?.templates?.shouldRespondTemplate ||
-                twitterShouldRespondTemplate(validTargetUsersStr),
-        });
-
+            const shouldRespondContext = composeContext({
+                    state,
+                    template:
+                        this.runtime.character.templates
+                            ?.twitterShouldRespondTemplate ||
+                        this.runtime.character?.templates?.shouldRespondTemplate ||
+                        twitterShouldRespondTemplate(validTargetUsersStr),
+                });
+                
         const shouldRespond = await generateShouldRespond({
             runtime: this.runtime,
             context: shouldRespondContext,
@@ -442,7 +446,7 @@ export class TwitterInteractionClient {
                 this.runtime.character?.templates?.messageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
-        elizaLogger.debug("Interactions prompt:\n" + context);
+        elizaLogger.log("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -512,7 +516,7 @@ export class TwitterInteractionClient {
                         `twitter/tweet_generation_${tweet.id}.txt`,
                         responseInfo
                     );
-                    await wait();
+                    await wait(180000, 300000);
                 } catch (error) {
                     elizaLogger.error(`Error sending response tweet: ${error}`);
                 }

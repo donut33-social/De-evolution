@@ -2,9 +2,9 @@ import { execute } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
 
 export const getCharacter = async (agentName: string) => {
-    let sql = `SELECT twitter_id as twitterId, name, tick, bios, lores, topics, adjectives, messageExamples, knowledge,
-        style_all ass styleAll, style_chat as styleChat, style_post as stylePost
-     FROM agent WHERE agent_name = ? LIMIT 1`;
+    let sql = `SELECT twitter_id as twitterId, name, tick, bios, lores, topics, adjectives, messageExamples, knowledges,
+        style_all as styleAll, style_chat as styleChat, style_post as stylePost
+     FROM agent WHERE name = ? LIMIT 1`;
     let result = await execute(sql, [agentName]);
     return emptyOrRow(result);
 }
@@ -26,7 +26,7 @@ export const getProfileByTwitterUsername = async (twitterUsername: string) => {
 }
 
 export const getProfileByAgentName = async (agentName: string) => {
-    let sql = `SELECT a.twitter_id as twitterId, a.twitter_username as username, ag.name, a.eth_addr as ethAddr,
+    let sql = `SELECT a.twitter_id as twitterId, a.twitter_username as username, ag.name, a.eth_addr as ethAddr, a.sol_addr as solAddr,
      a.followers as followersCount, a.followings as followingCount, a.create_at as createdAt,
      ag.password, ag.email, ag.secret_2fa as secret2fa, ag.tick, c.token as contract
      FROM account as a 

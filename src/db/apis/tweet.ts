@@ -34,7 +34,7 @@ export const getRecentReplys = async (agentName: string) => {
     FROM relation_reply as r
     LEFT JOIN account as a ON a.twitter_id = r.twitter_id
     LEFT JOIN agent as ag ON ag.tick = r.tick
-    WHERE r.id > ag.last_handled_reply_id AND ag.agent_name = ?`;
+    WHERE r.id > ag.last_handled_reply_id AND ag.name = ?`;
     let result = await execute(sql, [agentName]);
     return emptyOrRows(result);
 }
