@@ -10,4 +10,4 @@ services:
       - ./data:/app/data
       - ./characters:/app/src/characters
     working_dir: /app
-    command: pnpm start --character=src/characters/Slime.character.json
+    command: ["pnpm", "start", "--character=src/characters/Slime.character.json"]
