@@ -6,9 +6,10 @@ import {
 } from "@elizaos/core";
 import { getCharacter, getProfileByAgentName } from "./db/apis/agent.ts";
 import { wait } from "./index.ts";
+import { sleep2 } from "./utils/helper.ts";
 
 class DeEvoAgent extends AgentRuntime {
-    updateCharacterInterval: NodeJS.Timeout;
+    isUpdating: boolean = true;
     ethAddress?: string | undefined;
     solAddress?: string | undefined;
     contract: string;   // community token contract
@@ -20,9 +21,9 @@ class DeEvoAgent extends AgentRuntime {
     pollingUpdateCharacter() {
         this.updateCharacter();
         return new Promise(async (resolve, reject) => {
-            while(true) {
+            while(this.isUpdating) {
                 await this.updateCharacter();
-                await wait(360000, 360000);
+                await sleep2(360000, () => !this.isUpdating);
             }
         });
     }
@@ -42,14 +43,14 @@ class DeEvoAgent extends AgentRuntime {
     }
     override async stop() {
         elizaLogger.info("De evolution agent stopped");
-        clearInterval(this.updateCharacterInterval);
+        this.isUpdating = false;
         await super.stop();
     }
 
     async updateCharacter() {
         try {
             const character = await getCharacter(this.character.name);
-            if (!character) {
+            if (Object.keys(character).length == 0) {
                 elizaLogger.error(`Character ${this.character.name} not found`);
                 return;
             }

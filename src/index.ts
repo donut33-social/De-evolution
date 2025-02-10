@@ -43,7 +43,6 @@ import yargs from "yargs";
 
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
-
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
         Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
@@ -633,7 +632,7 @@ const startAgents = async () => {
     if (charactersArg) {
         characters = await loadCharacters(charactersArg);
     }
-    console.log(2, charactersArg, characters)
+    console.log(2, charactersArg)
 
     try {
         for (const character of characters) {
@@ -644,12 +643,12 @@ const startAgents = async () => {
     }
 
     // Find available port
-    while (!(await checkPortAvailable(serverPort))) {
-        elizaLogger.warn(
-            `Port ${serverPort} is in use, trying ${serverPort + 1}`
-        );
-        serverPort++;
-    }
+    // while (!(await checkPortAvailable(serverPort))) {
+    //     elizaLogger.warn(
+    //         `Port ${serverPort} is in use, trying ${serverPort + 1}`
+    //     );
+    //     serverPort++;
+    // }
 
     // upload some agent functionality into directClient
     // directClient.startAgent = async (character) => {

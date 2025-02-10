@@ -1,3 +1,115 @@
+import {
+  secp256k1
+} from "./chunk-4L6P6TY5.js";
+import {
+  AbiDecodingDataSizeTooSmallError,
+  AbiDecodingZeroDataError,
+  AbiEventNotFoundError,
+  AbiEventSignatureEmptyTopicsError,
+  AbiEventSignatureNotFoundError,
+  BaseError,
+  BytesSizeMismatchError,
+  CallExecutionError,
+  ChainDisconnectedError,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  DecodeLogDataMismatch,
+  DecodeLogTopicsMismatch,
+  Hash,
+  HttpRequestError,
+  InternalRpcError,
+  InvalidAddressError,
+  InvalidInputRpcError,
+  InvalidParamsRpcError,
+  InvalidRequestRpcError,
+  InvalidSerializableTransactionError,
+  JsonRpcVersionUnsupportedError,
+  LimitExceededRpcError,
+  LruMap,
+  MethodNotFoundRpcError,
+  MethodNotSupportedRpcError,
+  ParseRpcError,
+  PositionOutOfBoundsError,
+  ProviderDisconnectedError,
+  RawContractError,
+  ResourceNotFoundRpcError,
+  ResourceUnavailableRpcError,
+  RpcRequestError,
+  SwitchChainError,
+  TimeoutError,
+  TransactionNotFoundError,
+  TransactionReceiptNotFoundError,
+  TransactionRejectedRpcError,
+  UnauthorizedProviderError,
+  UnknownNodeError,
+  UnknownRpcError,
+  UnsupportedProviderMethodError,
+  UserRejectedRequestError,
+  WaitForTransactionReceiptTimeoutError,
+  addressResolverAbi,
+  aexists,
+  aoutput,
+  assertRequest,
+  bytesRegex,
+  bytesToHex,
+  call,
+  checksumAddress,
+  concat,
+  concatHex,
+  createBatchScheduler,
+  createCursor,
+  createView,
+  decodeAbiParameters,
+  decodeFunctionResult,
+  encodeAbiParameters,
+  encodeDeployData,
+  encodeFunctionData,
+  extract,
+  formatAbiItem,
+  formatEther,
+  formatGwei,
+  formatTransactionRequest,
+  getAbiItem,
+  getAddress,
+  getChainContractAddress,
+  getNodeError,
+  hexToBigInt,
+  hexToBool,
+  hexToBytes,
+  hexToNumber,
+  integerRegex,
+  isAddress,
+  isAddressEqual,
+  isHex,
+  keccak256,
+  multicall3Abi,
+  numberToHex,
+  panicReasons,
+  parseAccount,
+  prettyPrint,
+  rotr,
+  serializeStateOverride,
+  size,
+  sliceHex,
+  stringToBytes,
+  stringToHex,
+  stringify,
+  textResolverAbi,
+  toBytes,
+  toBytes2,
+  toEventSelector,
+  toHex,
+  trim,
+  universalResolverResolveAbi,
+  universalResolverReverseAbi,
+  universalSignatureValidatorAbi,
+  universalSignatureValidatorByteCode,
+  withResolvers,
+  wrapConstructor
+} from "./chunk-BEDRBX3Q.js";
+import "./chunk-PR4QN5HX.js";
+
 // src/config.ts
 import dotenv from "dotenv";
 import path from "path";
@@ -145,228 +257,255 @@ var CircuitBreaker = class {
 };
 
 // src/logger.ts
-var ElizaLogger = class {
-  constructor() {
-    this.isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
-    this.verbose = this.isNode ? process.env.VERBOSE === "true" : false;
-    console.log(`[ElizaLogger] Initializing with:
-            isNode: ${this.isNode}
-            verbose: ${this.verbose}
-            VERBOSE env: ${process.env.VERBOSE}
-            NODE_ENV: ${process.env.NODE_ENV}
-        `);
+import pino from "pino";
+import pretty from "pino-pretty";
+
+// src/parsing.ts
+var jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
+var messageCompletionFooter = `
+Response format should be formatted in a valid JSON block like this:
+\`\`\`json
+{ "user": "{{agentName}}", "text": "<string>", "action": "<string>" }
+\`\`\`
+
+The \u201Caction\u201D field should be one of the options in [Available Actions] and the "text" field should be the response you want to send.
+`;
+var shouldRespondFooter = `The available options are [RESPOND], [IGNORE], or [STOP]. Choose the most appropriate option.
+If {{agentName}} is talking too much, you can choose [IGNORE]
+
+Your response must include one of the options.`;
+var parseShouldRespondFromText = (text) => {
+  const match = text.split("\n")[0].trim().replace("[", "").toUpperCase().replace("]", "").match(/^(RESPOND|IGNORE|STOP)$/i);
+  return match ? match[0].toUpperCase() : text.includes("RESPOND") ? "RESPOND" : text.includes("IGNORE") ? "IGNORE" : text.includes("STOP") ? "STOP" : null;
+};
+var booleanFooter = `Respond with only a YES or a NO.`;
+var parseBooleanFromText = (text) => {
+  if (!text) return null;
+  const affirmative = ["YES", "Y", "TRUE", "T", "1", "ON", "ENABLE"];
+  const negative = ["NO", "N", "FALSE", "F", "0", "OFF", "DISABLE"];
+  const normalizedText = text.trim().toUpperCase();
+  if (affirmative.includes(normalizedText)) {
+    return true;
+  } else if (negative.includes(normalizedText)) {
+    return false;
   }
-  isNode;
-  verbose = false;
-  closeByNewLine = true;
-  useIcons = true;
-  logsTitle = "LOGS";
-  warningsTitle = "WARNINGS";
-  errorsTitle = "ERRORS";
-  informationsTitle = "INFORMATIONS";
-  successesTitle = "SUCCESS";
-  debugsTitle = "DEBUG";
-  assertsTitle = "ASSERT";
-  #getColor(foregroundColor = "", backgroundColor = "") {
-    if (!this.isNode) {
-      const colors = {
-        black: "#000000",
-        red: "#ff0000",
-        green: "#00ff00",
-        yellow: "#ffff00",
-        blue: "#0000ff",
-        magenta: "#ff00ff",
-        cyan: "#00ffff",
-        white: "#ffffff"
-      };
-      const fg = colors[foregroundColor.toLowerCase()] || colors.white;
-      const bg = colors[backgroundColor.toLowerCase()] || "transparent";
-      return `color: ${fg}; background: ${bg};`;
-    }
-    let fgc = "\x1B[37m";
-    switch (foregroundColor.trim().toLowerCase()) {
-      case "black":
-        fgc = "\x1B[30m";
-        break;
-      case "red":
-        fgc = "\x1B[31m";
-        break;
-      case "green":
-        fgc = "\x1B[32m";
-        break;
-      case "yellow":
-        fgc = "\x1B[33m";
-        break;
-      case "blue":
-        fgc = "\x1B[34m";
-        break;
-      case "magenta":
-        fgc = "\x1B[35m";
-        break;
-      case "cyan":
-        fgc = "\x1B[36m";
-        break;
-      case "white":
-        fgc = "\x1B[37m";
-        break;
-    }
-    let bgc = "";
-    switch (backgroundColor.trim().toLowerCase()) {
-      case "black":
-        bgc = "\x1B[40m";
-        break;
-      case "red":
-        bgc = "\x1B[44m";
-        break;
-      case "green":
-        bgc = "\x1B[44m";
-        break;
-      case "yellow":
-        bgc = "\x1B[43m";
-        break;
-      case "blue":
-        bgc = "\x1B[44m";
-        break;
-      case "magenta":
-        bgc = "\x1B[45m";
-        break;
-      case "cyan":
-        bgc = "\x1B[46m";
-        break;
-      case "white":
-        bgc = "\x1B[47m";
-        break;
-    }
-    return `${fgc}${bgc}`;
-  }
-  #getColorReset() {
-    return this.isNode ? "\x1B[0m" : "";
-  }
-  clear() {
-    console.clear();
-  }
-  print(foregroundColor = "white", backgroundColor = "black", ...strings) {
-    const processedStrings = strings.map((item) => {
-      if (typeof item === "object") {
-        return JSON.stringify(
-          item,
-          (key, value) => typeof value === "bigint" ? value.toString() : value
-        );
-      }
-      return item;
-    });
-    if (this.isNode) {
-      const c = this.#getColor(foregroundColor, backgroundColor);
-      console.log(c, processedStrings.join(""), this.#getColorReset());
-    } else {
-      const style = this.#getColor(foregroundColor, backgroundColor);
-      console.log(`%c${processedStrings.join("")}`, style);
-    }
-    if (this.closeByNewLine) console.log("");
-  }
-  #logWithStyle(strings, options) {
-    const { fg, bg, icon, groupTitle } = options;
-    if (strings.length > 1) {
-      if (this.isNode) {
-        const c = this.#getColor(fg, bg);
-        console.group(c, (this.useIcons ? icon : "") + groupTitle);
-      } else {
-        const style = this.#getColor(fg, bg);
-        console.group(
-          `%c${this.useIcons ? icon : ""}${groupTitle}`,
-          style
-        );
-      }
-      const nl = this.closeByNewLine;
-      this.closeByNewLine = false;
-      strings.forEach((item) => {
-        this.print(fg, bg, item);
-      });
-      this.closeByNewLine = nl;
-      console.groupEnd();
-      if (nl) console.log();
-    } else {
-      this.print(
-        fg,
-        bg,
-        strings.map((item) => {
-          return `${this.useIcons ? `${icon} ` : ""}${item}`;
-        })
+  return null;
+};
+var stringArrayFooter = `Respond with a JSON array containing the values in a valid JSON block formatted for markdown with this structure:
+\`\`\`json
+[
+  'value',
+  'value'
+]
+\`\`\`
+
+Your response must include the valid JSON block.`;
+function parseJsonArrayFromText(text) {
+  let jsonData = null;
+  const jsonBlockMatch = text.match(jsonBlockPattern);
+  if (jsonBlockMatch) {
+    try {
+      const normalizedJson = jsonBlockMatch[1].replace(
+        /(?<!\\)'([^']*)'(?=\s*[,}\]])/g,
+        '"$1"'
       );
+      jsonData = JSON.parse(normalizedJson);
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      console.error("Failed parsing text:", jsonBlockMatch[1]);
     }
   }
-  log(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "white",
-      bg: "",
-      icon: "\u25CE",
-      groupTitle: ` ${this.logsTitle}`
-    });
-  }
-  warn(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "yellow",
-      bg: "",
-      icon: "\u26A0",
-      groupTitle: ` ${this.warningsTitle}`
-    });
-  }
-  error(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "red",
-      bg: "",
-      icon: "\u26D4",
-      groupTitle: ` ${this.errorsTitle}`
-    });
-  }
-  info(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "blue",
-      bg: "",
-      icon: "\u2139",
-      groupTitle: ` ${this.informationsTitle}`
-    });
-  }
-  debug(...strings) {
-    if (!this.verbose) {
-      return;
+  if (!jsonData) {
+    const arrayPattern = /\[\s*(['"])(.*?)\1\s*\]/;
+    const arrayMatch = text.match(arrayPattern);
+    if (arrayMatch) {
+      try {
+        const normalizedJson = arrayMatch[0].replace(
+          /(?<!\\)'([^']*)'(?=\s*[,}\]])/g,
+          '"$1"'
+        );
+        jsonData = JSON.parse(normalizedJson);
+      } catch (e) {
+        console.error("Error parsing JSON:", e);
+        console.error("Failed parsing text:", arrayMatch[0]);
+      }
     }
-    this.#logWithStyle(strings, {
-      fg: "magenta",
-      bg: "",
-      icon: "\u1367",
-      groupTitle: ` ${this.debugsTitle}`
+  }
+  if (Array.isArray(jsonData)) {
+    return jsonData;
+  }
+  return null;
+}
+function parseJSONObjectFromText(text) {
+  let jsonData = null;
+  const jsonBlockMatch = text.match(jsonBlockPattern);
+  if (jsonBlockMatch) {
+    const parsingText = normalizeJsonString(jsonBlockMatch[1]);
+    try {
+      jsonData = JSON.parse(parsingText);
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      console.error("Text is not JSON", text);
+      return extractAttributes(parsingText);
+    }
+  } else {
+    const objectPattern = /{[\s\S]*?}/;
+    const objectMatch = text.match(objectPattern);
+    if (objectMatch) {
+      const parsingText = normalizeJsonString(objectMatch[0]);
+      try {
+        jsonData = JSON.parse(parsingText);
+      } catch (e) {
+        console.error("Error parsing JSON:", e);
+        console.error("Text is not JSON", text);
+        return extractAttributes(parsingText);
+      }
+    }
+  }
+  if (typeof jsonData === "object" && jsonData !== null && !Array.isArray(jsonData)) {
+    return jsonData;
+  } else if (typeof jsonData === "object" && Array.isArray(jsonData)) {
+    return parseJsonArrayFromText(text);
+  } else {
+    return null;
+  }
+}
+function extractAttributes(response, attributesToExtract) {
+  const attributes = {};
+  if (!attributesToExtract || attributesToExtract.length === 0) {
+    const matches = response.matchAll(/"([^"]+)"\s*:\s*"([^"]*)"/g);
+    for (const match of matches) {
+      attributes[match[1]] = match[2];
+    }
+  } else {
+    attributesToExtract.forEach((attribute) => {
+      const match = response.match(
+        new RegExp(`"${attribute}"\\s*:\\s*"([^"]*)"`, "i")
+      );
+      if (match) {
+        attributes[attribute] = match[1];
+      }
     });
   }
-  success(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "green",
-      bg: "",
-      icon: "\u2713",
-      groupTitle: ` ${this.successesTitle}`
-    });
+  return attributes;
+}
+var normalizeJsonString = (str) => {
+  str = str.replace(/\{\s+/, "{").replace(/\s+\}/, "}").trim();
+  str = str.replace(
+    /("[\w\d_-]+")\s*: \s*(?!"|\[)([\s\S]+?)(?=(,\s*"|\}$))/g,
+    '$1: "$2"'
+  );
+  str = str.replace(
+    /"([^"]+)"\s*:\s*'([^']*)'/g,
+    (_, key, value) => `"${key}": "${value}"`
+  );
+  str = str.replace(/("[\w\d_-]+")\s*:\s*([A-Za-z_]+)(?!["\w])/g, '$1: "$2"');
+  str = str.replace(/(?:"')|(?:'")/g, '"');
+  return str;
+};
+function cleanJsonResponse(response) {
+  return response.replace(/```json\s*/g, "").replace(/```\s*/g, "").replace(/(\r\n|\n|\r)/g, "").trim();
+}
+var postActionResponseFooter = `Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
+var parseActionResponseFromText = (text) => {
+  const actions = {
+    like: false,
+    retweet: false,
+    quote: false,
+    reply: false
+  };
+  const likePattern = /\[LIKE\]/i;
+  const retweetPattern = /\[RETWEET\]/i;
+  const quotePattern = /\[QUOTE\]/i;
+  const replyPattern = /\[REPLY\]/i;
+  actions.like = likePattern.test(text);
+  actions.retweet = retweetPattern.test(text);
+  actions.quote = quotePattern.test(text);
+  actions.reply = replyPattern.test(text);
+  const lines = text.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "[LIKE]") actions.like = true;
+    if (trimmed === "[RETWEET]") actions.retweet = true;
+    if (trimmed === "[QUOTE]") actions.quote = true;
+    if (trimmed === "[REPLY]") actions.reply = true;
   }
-  assert(...strings) {
-    this.#logWithStyle(strings, {
-      fg: "cyan",
-      bg: "",
-      icon: "!",
-      groupTitle: ` ${this.assertsTitle}`
-    });
+  return { actions };
+};
+function truncateToCompleteSentence(text, maxLength) {
+  if (text.length <= maxLength) {
+    return text;
   }
-  progress(message) {
-    if (this.isNode) {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write(message);
-    } else {
-      console.log(message);
+  const lastPeriodIndex = text.lastIndexOf(".", maxLength - 1);
+  if (lastPeriodIndex !== -1) {
+    const truncatedAtPeriod = text.slice(0, lastPeriodIndex + 1).trim();
+    if (truncatedAtPeriod.length > 0) {
+      return truncatedAtPeriod;
+    }
+  }
+  const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 1);
+  if (lastSpaceIndex !== -1) {
+    const truncatedAtSpace = text.slice(0, lastSpaceIndex).trim();
+    if (truncatedAtSpace.length > 0) {
+      return truncatedAtSpace + "...";
+    }
+  }
+  const hardTruncated = text.slice(0, maxLength - 3).trim();
+  return hardTruncated + "...";
+}
+
+// src/logger.ts
+var customLevels = {
+  fatal: 60,
+  error: 50,
+  warn: 40,
+  info: 30,
+  log: 29,
+  progress: 28,
+  success: 27,
+  debug: 20,
+  trace: 10
+};
+var raw = parseBooleanFromText(process?.env?.LOG_JSON_FORMAT) || false;
+var createStream = () => {
+  if (raw) {
+    return void 0;
+  }
+  return pretty({
+    colorize: true,
+    translateTime: "yyyy-mm-dd HH:MM:ss",
+    ignore: "pid,hostname"
+  });
+};
+var defaultLevel = process?.env?.DEFAULT_LOG_LEVEL || "info";
+var options = {
+  level: defaultLevel,
+  customLevels,
+  hooks: {
+    logMethod(inputArgs, method) {
+      const [arg1, ...rest] = inputArgs;
+      if (typeof arg1 === "object") {
+        const messageParts = rest.map(
+          (arg) => typeof arg === "string" ? arg : JSON.stringify(arg)
+        );
+        const message = messageParts.join(" ");
+        method.apply(this, [arg1, message]);
+      } else {
+        const context = {};
+        const messageParts = [arg1, ...rest].map(
+          (arg) => typeof arg === "string" ? arg : arg
+        );
+        const message = messageParts.filter((part) => typeof part === "string").join(" ");
+        const jsonParts = messageParts.filter(
+          (part) => typeof part === "object"
+        );
+        Object.assign(context, ...jsonParts);
+        method.apply(this, [context, message]);
+      }
     }
   }
 };
-var elizaLogger = new ElizaLogger();
-elizaLogger.closeByNewLine = true;
-elizaLogger.useIcons = true;
+var elizaLogger = pino(options, createStream());
 var logger_default = elizaLogger;
 
 // src/database.ts
@@ -443,6 +582,7 @@ var ModelProviderName = /* @__PURE__ */ ((ModelProviderName2) => {
   ModelProviderName2["LLAMACLOUD"] = "llama_cloud";
   ModelProviderName2["TOGETHER"] = "together";
   ModelProviderName2["LLAMALOCAL"] = "llama_local";
+  ModelProviderName2["LMSTUDIO"] = "lmstudio";
   ModelProviderName2["GOOGLE"] = "google";
   ModelProviderName2["MISTRAL"] = "mistral";
   ModelProviderName2["CLAUDE_VERTEX"] = "claude_vertex";
@@ -458,24 +598,33 @@ var ModelProviderName = /* @__PURE__ */ ((ModelProviderName2) => {
   ModelProviderName2["NANOGPT"] = "nanogpt";
   ModelProviderName2["HYPERBOLIC"] = "hyperbolic";
   ModelProviderName2["VENICE"] = "venice";
+  ModelProviderName2["NVIDIA"] = "nvidia";
   ModelProviderName2["NINETEEN_AI"] = "nineteen_ai";
   ModelProviderName2["AKASH_CHAT_API"] = "akash_chat_api";
   ModelProviderName2["LIVEPEER"] = "livepeer";
   ModelProviderName2["LETZAI"] = "letzai";
   ModelProviderName2["DEEPSEEK"] = "deepseek";
   ModelProviderName2["INFERA"] = "infera";
+  ModelProviderName2["BEDROCK"] = "bedrock";
+  ModelProviderName2["ATOMA"] = "atoma";
   return ModelProviderName2;
 })(ModelProviderName || {});
 var Clients = /* @__PURE__ */ ((Clients2) => {
+  Clients2["ALEXA"] = "alexa";
   Clients2["DISCORD"] = "discord";
   Clients2["DIRECT"] = "direct";
   Clients2["TWITTER"] = "twitter";
   Clients2["TELEGRAM"] = "telegram";
+  Clients2["TELEGRAM_ACCOUNT"] = "telegram-account";
   Clients2["FARCASTER"] = "farcaster";
   Clients2["LENS"] = "lens";
   Clients2["AUTO"] = "auto";
   Clients2["SLACK"] = "slack";
   Clients2["GITHUB"] = "github";
+  Clients2["INSTAGRAM"] = "instagram";
+  Clients2["SIMSAI"] = "simsai";
+  Clients2["XMTP"] = "xmtp";
+  Clients2["DEVA"] = "deva";
   return Clients2;
 })(Clients || {});
 var CacheStore = /* @__PURE__ */ ((CacheStore2) => {
@@ -511,22 +660,25 @@ var IrysDataType = /* @__PURE__ */ ((IrysDataType2) => {
   IrysDataType2["OTHER"] = "OTHER";
   return IrysDataType2;
 })(IrysDataType || {});
-var ServiceType = /* @__PURE__ */ ((ServiceType3) => {
-  ServiceType3["IMAGE_DESCRIPTION"] = "image_description";
-  ServiceType3["TRANSCRIPTION"] = "transcription";
-  ServiceType3["VIDEO"] = "video";
-  ServiceType3["TEXT_GENERATION"] = "text_generation";
-  ServiceType3["BROWSER"] = "browser";
-  ServiceType3["SPEECH_GENERATION"] = "speech_generation";
-  ServiceType3["PDF"] = "pdf";
-  ServiceType3["INTIFACE"] = "intiface";
-  ServiceType3["AWS_S3"] = "aws_s3";
-  ServiceType3["BUTTPLUG"] = "buttplug";
-  ServiceType3["SLACK"] = "slack";
-  ServiceType3["IRYS"] = "irys";
-  ServiceType3["TEE_LOG"] = "tee_log";
-  ServiceType3["GOPLUS_SECURITY"] = "goplus_security";
-  return ServiceType3;
+var ServiceType = /* @__PURE__ */ ((ServiceType2) => {
+  ServiceType2["IMAGE_DESCRIPTION"] = "image_description";
+  ServiceType2["TRANSCRIPTION"] = "transcription";
+  ServiceType2["VIDEO"] = "video";
+  ServiceType2["TEXT_GENERATION"] = "text_generation";
+  ServiceType2["BROWSER"] = "browser";
+  ServiceType2["SPEECH_GENERATION"] = "speech_generation";
+  ServiceType2["PDF"] = "pdf";
+  ServiceType2["INTIFACE"] = "intiface";
+  ServiceType2["AWS_S3"] = "aws_s3";
+  ServiceType2["BUTTPLUG"] = "buttplug";
+  ServiceType2["SLACK"] = "slack";
+  ServiceType2["VERIFIABLE_LOGGING"] = "verifiable_logging";
+  ServiceType2["IRYS"] = "irys";
+  ServiceType2["TEE_LOG"] = "tee_log";
+  ServiceType2["GOPLUS_SECURITY"] = "goplus_security";
+  ServiceType2["WEB_SEARCH"] = "web_search";
+  ServiceType2["EMAIL_AUTOMATION"] = "email_automation";
+  return ServiceType2;
 })(ServiceType || {});
 var LoggingLevel = /* @__PURE__ */ ((LoggingLevel2) => {
   LoggingLevel2["DEBUG"] = "debug";
@@ -556,6 +708,15 @@ var ActionTimelineType = /* @__PURE__ */ ((ActionTimelineType2) => {
   ActionTimelineType2["Following"] = "following";
   return ActionTimelineType2;
 })(ActionTimelineType || {});
+var KnowledgeScope = /* @__PURE__ */ ((KnowledgeScope2) => {
+  KnowledgeScope2["SHARED"] = "shared";
+  KnowledgeScope2["PRIVATE"] = "private";
+  return KnowledgeScope2;
+})(KnowledgeScope || {});
+var CacheKeyPrefix = /* @__PURE__ */ ((CacheKeyPrefix2) => {
+  CacheKeyPrefix2["KNOWLEDGE"] = "knowledge";
+  return CacheKeyPrefix2;
+})(CacheKeyPrefix || {});
 
 // src/defaultCharacter.ts
 var defaultCharacter = {
@@ -1486,6 +1647,35 @@ var models = {
       }
     }
   },
+  ["lmstudio" /* LMSTUDIO */]: {
+    endpoint: settings_default.LMSTUDIO_SERVER_URL || "http://localhost:1234/v1",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_LMSTUDIO_MODEL || settings_default.LMSTUDIO_MODEL || "hermes-3-llama-3.1-8b",
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_LMSTUDIO_MODEL || settings_default.LMSTUDIO_MODEL || "hermes-3-llama-3.1-8b",
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_LMSTUDIO_MODEL || settings_default.LMSTUDIO_MODEL || "hermes-3-llama-3.1-8b",
+        stop: ["<|eot_id|>", "<|eom_id|>"],
+        maxInputTokens: 32768,
+        maxOutputTokens: 8192,
+        repetition_penalty: 0.4,
+        temperature: 0.7
+      }
+    }
+  },
   ["google" /* GOOGLE */]: {
     endpoint: "https://generativelanguage.googleapis.com",
     model: {
@@ -1930,6 +2120,32 @@ var models = {
       }
     }
   },
+  ["nvidia" /* NVIDIA */]: {
+    endpoint: "https://integrate.api.nvidia.com/v1",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_NVIDIA_MODEL || "meta/llama-3.2-3b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_NVIDIA_MODEL || "meta/llama-3.3-70b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_NVIDIA_MODEL || "meta/llama-3.1-405b-instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.6
+      }
+    }
+  },
   ["nineteen_ai" /* NINETEEN_AI */]: {
     endpoint: "https://api.nineteen.ai/v1",
     model: {
@@ -1986,10 +2202,31 @@ var models = {
     }
   },
   ["livepeer" /* LIVEPEER */]: {
-    // livepeer endpoint is handled from the sdk
+    endpoint: settings_default.LIVEPEER_GATEWAY_URL,
     model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_LIVEPEER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        stop: [],
+        maxInputTokens: 8e3,
+        maxOutputTokens: 8192,
+        temperature: 0
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_LIVEPEER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        stop: [],
+        maxInputTokens: 8e3,
+        maxOutputTokens: 8192,
+        temperature: 0
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_LIVEPEER_MODEL || "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        stop: [],
+        maxInputTokens: 8e3,
+        maxOutputTokens: 8192,
+        temperature: 0
+      },
       ["image" /* IMAGE */]: {
-        name: settings_default.LIVEPEER_IMAGE_MODEL || "ByteDance/SDXL-Lightning"
+        name: settings_default.IMAGE_LIVEPEER_MODEL || "ByteDance/SDXL-Lightning"
       }
     }
   },
@@ -2001,21 +2238,21 @@ var models = {
         stop: [],
         maxInputTokens: 128e3,
         maxOutputTokens: 8192,
-        temperature: 0.6
+        temperature: 0
       },
       ["medium" /* MEDIUM */]: {
         name: settings_default.MEDIUM_INFERA_MODEL || "mistral-nemo:latest",
         stop: [],
         maxInputTokens: 128e3,
         maxOutputTokens: 8192,
-        temperature: 0.6
+        temperature: 0
       },
       ["large" /* LARGE */]: {
         name: settings_default.LARGE_INFERA_MODEL || "mistral-small:latest",
         stop: [],
         maxInputTokens: 128e3,
         maxOutputTokens: 8192,
-        temperature: 0.6
+        temperature: 0
       }
     }
   },
@@ -2047,6 +2284,69 @@ var models = {
         maxOutputTokens: 8192,
         frequency_penalty: 0,
         presence_penalty: 0,
+        temperature: 0.7
+      }
+    }
+  },
+  ["bedrock" /* BEDROCK */]: {
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_BEDROCK_MODEL || "amazon.nova-micro-v1:0",
+        maxInputTokens: 128e3,
+        maxOutputTokens: 5120,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6,
+        stop: []
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_BEDROCK_MODEL || "amazon.nova-lite-v1:0",
+        maxInputTokens: 128e3,
+        maxOutputTokens: 5120,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6,
+        stop: []
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_BEDROCK_MODEL || "amazon.nova-pro-v1:0",
+        maxInputTokens: 128e3,
+        maxOutputTokens: 5120,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        temperature: 0.6,
+        stop: []
+      },
+      ["embedding" /* EMBEDDING */]: {
+        name: settings_default.EMBEDDING_BEDROCK_MODEL || "amazon.titan-embed-text-v1"
+      },
+      ["image" /* IMAGE */]: {
+        name: settings_default.IMAGE_BEDROCK_MODEL || "amazon.nova-canvas-v1:0"
+      }
+    }
+  },
+  ["atoma" /* ATOMA */]: {
+    endpoint: settings_default.ATOMA_API_URL || "https://api.atoma.network/v1",
+    model: {
+      ["small" /* SMALL */]: {
+        name: settings_default.SMALL_ATOMA_MODEL || "meta-llama/Llama-3.3-70B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.7
+      },
+      ["medium" /* MEDIUM */]: {
+        name: settings_default.MEDIUM_ATOMA_MODEL || "meta-llama/Llama-3.3-70B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
+        temperature: 0.7
+      },
+      ["large" /* LARGE */]: {
+        name: settings_default.LARGE_ATOMA_MODEL || "meta-llama/Llama-3.3-70B-Instruct",
+        stop: [],
+        maxInputTokens: 128e3,
+        maxOutputTokens: 8192,
         temperature: 0.7
       }
     }
@@ -2142,12 +2442,6 @@ var LocalEmbeddingModelManager = class _LocalEmbeddingModelManager {
     }
     try {
       const embedding = await this.model.queryEmbed(input);
-      logger_default.debug("Raw embedding from BGE:", {
-        type: typeof embedding,
-        isArray: Array.isArray(embedding),
-        dimensions: Array.isArray(embedding) ? embedding.length : "not an array",
-        sample: Array.isArray(embedding) ? embedding.slice(0, 5) : embedding
-      });
       return this.processEmbedding(embedding);
     } catch (error) {
       logger_default.error("Embedding generation failed:", error);
@@ -2209,21 +2503,21 @@ var getEmbeddingConfig = () => ({
   model: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("openai" /* OPENAI */).name : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("ollama" /* OLLAMA */).name : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("gaianet" /* GAIANET */).name : settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true" ? getEmbeddingModelSettings("heurist" /* HEURIST */).name : "BGE-small-en-v1.5",
   provider: settings_default.USE_OPENAI_EMBEDDING?.toLowerCase() === "true" ? "OpenAI" : settings_default.USE_OLLAMA_EMBEDDING?.toLowerCase() === "true" ? "Ollama" : settings_default.USE_GAIANET_EMBEDDING?.toLowerCase() === "true" ? "GaiaNet" : settings_default.USE_HEURIST_EMBEDDING?.toLowerCase() === "true" ? "Heurist" : "BGE"
 });
-async function getRemoteEmbedding(input, options) {
-  const baseEndpoint = options.endpoint.endsWith("/v1") ? options.endpoint : `${options.endpoint}${options.isOllama ? "/v1" : ""}`;
+async function getRemoteEmbedding(input, options2) {
+  const baseEndpoint = options2.endpoint.endsWith("/v1") ? options2.endpoint : `${options2.endpoint}${options2.isOllama ? "/v1" : ""}`;
   const fullUrl = `${baseEndpoint}/embeddings`;
   const requestOptions = {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...options.apiKey ? {
-        Authorization: `Bearer ${options.apiKey}`
+      ...options2.apiKey ? {
+        Authorization: `Bearer ${options2.apiKey}`
       } : {}
     },
     body: JSON.stringify({
       input,
-      model: options.model,
-      dimensions: options.dimensions || options.length || getEmbeddingConfig().dimensions
+      model: options2.model,
+      dimensions: options2.dimensions || options2.length || getEmbeddingConfig().dimensions
       // Prefer dimensions, fallback to length
     })
   };
@@ -2363,151 +2657,6 @@ async function embed(runtime, input) {
 
 // src/evaluators.ts
 import { names as names3, uniqueNamesGenerator as uniqueNamesGenerator3 } from "unique-names-generator";
-
-// src/parsing.ts
-var jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
-var messageCompletionFooter = `
-Response format should be formatted in a JSON block like this:
-\`\`\`json
-{ "user": "{{agentName}}", "text": "string", "action": "string" }
-\`\`\``;
-var shouldRespondFooter = `The available options are [RESPOND], [IGNORE], or [STOP]. Choose the most appropriate option.
-If {{agentName}} is talking too much, you can choose [IGNORE]
-
-Your response must include one of the options.`;
-var parseShouldRespondFromText = (text) => {
-  const match = text.split("\n")[0].trim().replace("[", "").toUpperCase().replace("]", "").match(/^(RESPOND|IGNORE|STOP)$/i);
-  return match ? match[0].toUpperCase() : text.includes("RESPOND") ? "RESPOND" : text.includes("IGNORE") ? "IGNORE" : text.includes("STOP") ? "STOP" : null;
-};
-var booleanFooter = `Respond with only a YES or a NO.`;
-var parseBooleanFromText = (text) => {
-  if (!text) return null;
-  const affirmative = ["YES", "Y", "TRUE", "T", "1", "ON", "ENABLE"];
-  const negative = ["NO", "N", "FALSE", "F", "0", "OFF", "DISABLE"];
-  const normalizedText = text.trim().toUpperCase();
-  if (affirmative.includes(normalizedText)) {
-    return true;
-  } else if (negative.includes(normalizedText)) {
-    return false;
-  }
-  return null;
-};
-var stringArrayFooter = `Respond with a JSON array containing the values in a JSON block formatted for markdown with this structure:
-\`\`\`json
-[
-  'value',
-  'value'
-]
-\`\`\`
-
-Your response must include the JSON block.`;
-function parseJsonArrayFromText(text) {
-  let jsonData = null;
-  const jsonBlockMatch = text.match(jsonBlockPattern);
-  if (jsonBlockMatch) {
-    try {
-      const normalizedJson = jsonBlockMatch[1].replace(/'/g, '"');
-      jsonData = JSON.parse(normalizedJson);
-    } catch (e) {
-      console.error("Error parsing JSON:", e);
-    }
-  }
-  if (!jsonData) {
-    const arrayPattern = /\[\s*['"][^'"]*['"]\s*\]/;
-    const arrayMatch = text.match(arrayPattern);
-    if (arrayMatch) {
-      try {
-        const normalizedJson = arrayMatch[0].replace(/'/g, '"');
-        jsonData = JSON.parse(normalizedJson);
-      } catch (e) {
-        console.error("Error parsing JSON:", e);
-      }
-    }
-  }
-  if (Array.isArray(jsonData)) {
-    return jsonData;
-  }
-  return null;
-}
-function parseJSONObjectFromText(text) {
-  let jsonData = null;
-  const jsonBlockMatch = text.match(jsonBlockPattern);
-  if (jsonBlockMatch) {
-    try {
-      jsonData = JSON.parse(jsonBlockMatch[1]);
-    } catch (e) {
-      console.error("Error parsing JSON:", e);
-      return null;
-    }
-  } else {
-    const objectPattern = /{[\s\S]*?}/;
-    const objectMatch = text.match(objectPattern);
-    if (objectMatch) {
-      try {
-        jsonData = JSON.parse(objectMatch[0]);
-      } catch (e) {
-        console.error("Error parsing JSON:", e);
-        return null;
-      }
-    }
-  }
-  if (typeof jsonData === "object" && jsonData !== null && !Array.isArray(jsonData)) {
-    return jsonData;
-  } else if (typeof jsonData === "object" && Array.isArray(jsonData)) {
-    return parseJsonArrayFromText(text);
-  } else {
-    return null;
-  }
-}
-var postActionResponseFooter = `Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
-var parseActionResponseFromText = (text) => {
-  const actions = {
-    like: false,
-    retweet: false,
-    quote: false,
-    reply: false
-  };
-  const likePattern = /\[LIKE\]/i;
-  const retweetPattern = /\[RETWEET\]/i;
-  const quotePattern = /\[QUOTE\]/i;
-  const replyPattern = /\[REPLY\]/i;
-  actions.like = likePattern.test(text);
-  actions.retweet = retweetPattern.test(text);
-  actions.quote = quotePattern.test(text);
-  actions.reply = replyPattern.test(text);
-  const lines = text.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === "[LIKE]") actions.like = true;
-    if (trimmed === "[RETWEET]") actions.retweet = true;
-    if (trimmed === "[QUOTE]") actions.quote = true;
-    if (trimmed === "[REPLY]") actions.reply = true;
-  }
-  return { actions };
-};
-function truncateToCompleteSentence(text, maxLength) {
-  if (text.length <= maxLength) {
-    return text;
-  }
-  const lastPeriodIndex = text.lastIndexOf(".", maxLength - 1);
-  if (lastPeriodIndex !== -1) {
-    const truncatedAtPeriod = text.slice(0, lastPeriodIndex + 1).trim();
-    if (truncatedAtPeriod.length > 0) {
-      return truncatedAtPeriod;
-    }
-  }
-  const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 1);
-  if (lastSpaceIndex !== -1) {
-    const truncatedAtSpace = text.slice(0, lastSpaceIndex).trim();
-    if (truncatedAtSpace.length > 0) {
-      return truncatedAtSpace + "...";
-    }
-  }
-  const hardTruncated = text.slice(0, maxLength - 3).trim();
-  return hardTruncated + "...";
-}
-
-// src/evaluators.ts
 var evaluationTemplate = `TASK: Based on the conversation and conditions, determine which evaluation functions are appropriate to call.
 Examples:
 {{evaluatorExamples}}
@@ -2540,8 +2689,8 @@ function formatEvaluatorExamples(evaluators) {
       );
       let formattedContext = example.context;
       let formattedOutcome = example.outcome;
-      exampleNames.forEach((name, index) => {
-        const placeholder = `{{user${index + 1}}}`;
+      exampleNames.forEach((name, index2) => {
+        const placeholder = `{{user${index2 + 1}}}`;
         formattedContext = formattedContext.replaceAll(
           placeholder,
           name
@@ -2553,8 +2702,8 @@ function formatEvaluatorExamples(evaluators) {
       });
       const formattedMessages = example.messages.map((message) => {
         let messageString = `${message.user}: ${message.content.text}`;
-        exampleNames.forEach((name, index) => {
-          const placeholder = `{{user${index + 1}}}`;
+        exampleNames.forEach((name, index2) => {
+          const placeholder = `{{user${index2 + 1}}}`;
           messageString = messageString.replaceAll(
             placeholder,
             name
@@ -2576,7 +2725,7 @@ ${formattedOutcome}`;
 function formatEvaluatorExampleDescriptions(evaluators) {
   return evaluators.map(
     (evaluator) => evaluator.examples.map(
-      (_example, index) => `${evaluator.name} Example ${index + 1}: ${evaluator.description}`
+      (_example, index2) => `${evaluator.name} Example ${index2 + 1}: ${evaluator.description}`
     ).join("\n")
   ).join("\n\n");
 }
@@ -2587,6 +2736,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
+import { bedrock } from "@ai-sdk/amazon-bedrock";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import {
   generateObject as aiGenerateObject,
@@ -2863,22 +3013,22 @@ var __webpack_modules__ = {
         ["\\", "\\"]
         // Backslash
       ]);
-      function preprocess2(template, options = {}) {
+      function preprocess2(template, options2 = {}) {
         if (template.endsWith("\n")) {
           template = template.slice(0, -1);
         }
         template = template.replace(/{#.*?#}/gs, "{##}");
-        if (options.lstrip_blocks) {
+        if (options2.lstrip_blocks) {
           template = template.replace(/^[ \t]*({[#%])/gm, "$1");
         }
-        if (options.trim_blocks) {
+        if (options2.trim_blocks) {
           template = template.replace(/([#%]})\n/g, "$1");
         }
         return template.replace(/{##}/g, "").replace(/-%}\s*/g, "%}").replace(/\s*{%-/g, "{%").replace(/-}}\s*/g, "}}").replace(/\s*{{-/g, "{{");
       }
-      function tokenize(source, options = {}) {
+      function tokenize(source, options2 = {}) {
         const tokens = [];
-        const src = preprocess2(source, options);
+        const src = preprocess2(source, options2);
         let cursorPosition = 0;
         const consumeWhile = (predicate) => {
           let str = "";
@@ -4573,8 +4723,8 @@ var __webpack_modules__ = {
           }
         }
       };
-      const resolveBackendAndExecutionProviders = async (options) => {
-        const eps = options.executionProviders || [];
+      const resolveBackendAndExecutionProviders = async (options2) => {
+        const eps = options2.executionProviders || [];
         const backendHints = eps.map((i) => typeof i === "string" ? i : i.name);
         const backendNames = backendHints.length === 0 ? backendsSortedByPriority : backendHints;
         let backend;
@@ -4604,7 +4754,7 @@ var __webpack_modules__ = {
         const filteredEps = eps.filter((i) => availableBackendNames.has(typeof i === "string" ? i : i.name));
         return [
           backend,
-          new Proxy(options, {
+          new Proxy(options2, {
             get: (target, prop) => {
               if (prop === "executionProviders") {
                 return filteredEps;
@@ -4831,7 +4981,7 @@ var __webpack_modules__ = {
         async run(feeds, arg1, arg2) {
           (0, _trace_js__WEBPACK_IMPORTED_MODULE_2__.TRACE_FUNC_BEGIN)();
           const fetches = {};
-          let options = {};
+          let options2 = {};
           if (typeof feeds !== "object" || feeds === null || feeds instanceof _tensor_js__WEBPACK_IMPORTED_MODULE_1__.Tensor || Array.isArray(feeds)) {
             throw new TypeError("'feeds' must be an object that use input names as keys and OnnxValue as corresponding values.");
           }
@@ -4858,7 +5008,7 @@ var __webpack_modules__ = {
                 fetches[name] = null;
               }
               if (typeof arg2 === "object" && arg2 !== null) {
-                options = arg2;
+                options2 = arg2;
               } else if (typeof arg2 !== "undefined") {
                 throw new TypeError("'options' must be an object.");
               }
@@ -4877,12 +5027,12 @@ var __webpack_modules__ = {
               }
               if (isFetches) {
                 if (typeof arg2 === "object" && arg2 !== null) {
-                  options = arg2;
+                  options2 = arg2;
                 } else if (typeof arg2 !== "undefined") {
                   throw new TypeError("'options' must be an object.");
                 }
               } else {
-                options = arg1;
+                options2 = arg1;
               }
             }
           } else if (typeof arg1 !== "undefined") {
@@ -4898,7 +5048,7 @@ var __webpack_modules__ = {
               fetches[name] = null;
             }
           }
-          const results = await this.handler.run(feeds, fetches, options);
+          const results = await this.handler.run(feeds, fetches, options2);
           const returnValue = {};
           for (const key in results) {
             if (Object.hasOwnProperty.call(results, key)) {
@@ -4919,34 +5069,34 @@ var __webpack_modules__ = {
         static async create(arg0, arg1, arg2, arg3) {
           (0, _trace_js__WEBPACK_IMPORTED_MODULE_2__.TRACE_FUNC_BEGIN)();
           let filePathOrUint8Array;
-          let options = {};
+          let options2 = {};
           if (typeof arg0 === "string") {
             filePathOrUint8Array = arg0;
             if (typeof arg1 === "object" && arg1 !== null) {
-              options = arg1;
+              options2 = arg1;
             } else if (typeof arg1 !== "undefined") {
               throw new TypeError("'options' must be an object.");
             }
           } else if (arg0 instanceof Uint8Array) {
             filePathOrUint8Array = arg0;
             if (typeof arg1 === "object" && arg1 !== null) {
-              options = arg1;
+              options2 = arg1;
             } else if (typeof arg1 !== "undefined") {
               throw new TypeError("'options' must be an object.");
             }
           } else if (arg0 instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && arg0 instanceof SharedArrayBuffer) {
-            const buffer = arg0;
+            const buffer2 = arg0;
             let byteOffset = 0;
             let byteLength = arg0.byteLength;
             if (typeof arg1 === "object" && arg1 !== null) {
-              options = arg1;
+              options2 = arg1;
             } else if (typeof arg1 === "number") {
               byteOffset = arg1;
               if (!Number.isSafeInteger(byteOffset)) {
                 throw new RangeError("'byteOffset' must be an integer.");
               }
-              if (byteOffset < 0 || byteOffset >= buffer.byteLength) {
-                throw new RangeError(`'byteOffset' is out of range [0, ${buffer.byteLength}).`);
+              if (byteOffset < 0 || byteOffset >= buffer2.byteLength) {
+                throw new RangeError(`'byteOffset' is out of range [0, ${buffer2.byteLength}).`);
               }
               byteLength = arg0.byteLength - byteOffset;
               if (typeof arg2 === "number") {
@@ -4954,11 +5104,11 @@ var __webpack_modules__ = {
                 if (!Number.isSafeInteger(byteLength)) {
                   throw new RangeError("'byteLength' must be an integer.");
                 }
-                if (byteLength <= 0 || byteOffset + byteLength > buffer.byteLength) {
-                  throw new RangeError(`'byteLength' is out of range (0, ${buffer.byteLength - byteOffset}].`);
+                if (byteLength <= 0 || byteOffset + byteLength > buffer2.byteLength) {
+                  throw new RangeError(`'byteLength' is out of range (0, ${buffer2.byteLength - byteOffset}].`);
                 }
                 if (typeof arg3 === "object" && arg3 !== null) {
-                  options = arg3;
+                  options2 = arg3;
                 } else if (typeof arg3 !== "undefined") {
                   throw new TypeError("'options' must be an object.");
                 }
@@ -4968,11 +5118,11 @@ var __webpack_modules__ = {
             } else if (typeof arg1 !== "undefined") {
               throw new TypeError("'options' must be an object.");
             }
-            filePathOrUint8Array = new Uint8Array(buffer, byteOffset, byteLength);
+            filePathOrUint8Array = new Uint8Array(buffer2, byteOffset, byteLength);
           } else {
             throw new TypeError("Unexpected argument[0]: must be 'path' or 'buffer'.");
           }
-          const [backend, optionsWithValidatedEPs] = await (0, _backend_impl_js__WEBPACK_IMPORTED_MODULE_0__.resolveBackendAndExecutionProviders)(options);
+          const [backend, optionsWithValidatedEPs] = await (0, _backend_impl_js__WEBPACK_IMPORTED_MODULE_0__.resolveBackendAndExecutionProviders)(options2);
           const handler = await backend.createInferenceSessionHandler(filePathOrUint8Array, optionsWithValidatedEPs);
           (0, _trace_js__WEBPACK_IMPORTED_MODULE_2__.TRACE_FUNC_END)();
           return new InferenceSession(handler);
@@ -5056,7 +5206,7 @@ var __webpack_modules__ = {
         )
         /* harmony export */
       });
-      const tensorToDataURL = (tensor, options) => {
+      const tensorToDataURL = (tensor, options2) => {
         const canvas = typeof document !== "undefined" ? document.createElement("canvas") : new OffscreenCanvas(1, 1);
         canvas.width = tensor.dims[3];
         canvas.height = tensor.dims[2];
@@ -5064,15 +5214,15 @@ var __webpack_modules__ = {
         if (pixels2DContext != null) {
           let width;
           let height;
-          if (options?.tensorLayout !== void 0 && options.tensorLayout === "NHWC") {
+          if (options2?.tensorLayout !== void 0 && options2.tensorLayout === "NHWC") {
             width = tensor.dims[2];
             height = tensor.dims[3];
           } else {
             width = tensor.dims[3];
             height = tensor.dims[2];
           }
-          const inputformat = options?.format !== void 0 ? options.format : "RGB";
-          const norm = options?.norm;
+          const inputformat = options2?.format !== void 0 ? options2.format : "RGB";
+          const norm = options2?.norm;
           let normMean;
           let normBias;
           if (norm === void 0 || norm.mean === void 0) {
@@ -5134,14 +5284,14 @@ var __webpack_modules__ = {
           throw new Error("Can not access image data");
         }
       };
-      const tensorToImageData = (tensor, options) => {
+      const tensorToImageData = (tensor, options2) => {
         const pixels2DContext = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : new OffscreenCanvas(1, 1).getContext("2d");
         let image;
         if (pixels2DContext != null) {
           let width;
           let height;
           let channels;
-          if (options?.tensorLayout !== void 0 && options.tensorLayout === "NHWC") {
+          if (options2?.tensorLayout !== void 0 && options2.tensorLayout === "NHWC") {
             width = tensor.dims[2];
             height = tensor.dims[1];
             channels = tensor.dims[3];
@@ -5150,8 +5300,8 @@ var __webpack_modules__ = {
             height = tensor.dims[2];
             channels = tensor.dims[1];
           }
-          const inputformat = options !== void 0 ? options.format !== void 0 ? options.format : "RGB" : "RGB";
-          const norm = options?.norm;
+          const inputformat = options2 !== void 0 ? options2.format !== void 0 ? options2.format : "RGB" : "RGB";
+          const norm = options2?.norm;
           let normMean;
           let normBias;
           if (norm === void 0 || norm.mean === void 0) {
@@ -5179,8 +5329,8 @@ var __webpack_modules__ = {
             }
           }
           const stride = height * width;
-          if (options !== void 0) {
-            if (options.format !== void 0 && (channels === 4 && options.format !== "RGBA") || channels === 3 && (options.format !== "RGB" && options.format !== "BGR")) {
+          if (options2 !== void 0) {
+            if (options2.format !== void 0 && (channels === 4 && options2.format !== "RGBA") || channels === 3 && (options2.format !== "RGB" && options2.format !== "BGR")) {
               throw new Error("Tensor format doesn't match input tensor dims");
             }
           }
@@ -5265,18 +5415,18 @@ var __webpack_modules__ = {
         /*! ./tensor-impl.js */
         "./node_modules/onnxruntime-common/dist/esm/tensor-impl.js"
       );
-      const bufferToTensor = (buffer, options) => {
-        if (buffer === void 0) {
+      const bufferToTensor = (buffer2, options2) => {
+        if (buffer2 === void 0) {
           throw new Error("Image buffer must be defined");
         }
-        if (options.height === void 0 || options.width === void 0) {
+        if (options2.height === void 0 || options2.width === void 0) {
           throw new Error("Image height and width must be defined");
         }
-        if (options.tensorLayout === "NHWC") {
+        if (options2.tensorLayout === "NHWC") {
           throw new Error("NHWC Tensor layout is not supported yet");
         }
-        const { height, width } = options;
-        const norm = options.norm ?? { mean: 255, bias: 0 };
+        const { height, width } = options2;
+        const norm = options2.norm ?? { mean: 255, bias: 0 };
         let normMean;
         let normBias;
         if (typeof norm.mean === "number") {
@@ -5289,8 +5439,8 @@ var __webpack_modules__ = {
         } else {
           normBias = [norm.bias[0], norm.bias[1], norm.bias[2], norm.bias[3] ?? 0];
         }
-        const inputformat = options.format !== void 0 ? options.format : "RGBA";
-        const outputformat = options.tensorFormat !== void 0 ? options.tensorFormat !== void 0 ? options.tensorFormat : "RGB" : "RGB";
+        const inputformat = options2.format !== void 0 ? options2.format : "RGBA";
+        const outputformat = options2.tensorFormat !== void 0 ? options2.tensorFormat !== void 0 ? options2.tensorFormat : "RGB" : "RGB";
         const stride = height * width;
         const float32Data = outputformat === "RGBA" ? new Float32Array(stride * 4) : new Float32Array(stride * 3);
         let step = 4, rImagePointer = 0, gImagePointer = 1, bImagePointer = 2, aImagePointer = 3;
@@ -5314,23 +5464,23 @@ var __webpack_modules__ = {
           rTensorPointer = stride * 2;
         }
         for (let i = 0; i < stride; i++, rImagePointer += step, bImagePointer += step, gImagePointer += step, aImagePointer += step) {
-          float32Data[rTensorPointer++] = (buffer[rImagePointer] + normBias[0]) / normMean[0];
-          float32Data[gTensorPointer++] = (buffer[gImagePointer] + normBias[1]) / normMean[1];
-          float32Data[bTensorPointer++] = (buffer[bImagePointer] + normBias[2]) / normMean[2];
+          float32Data[rTensorPointer++] = (buffer2[rImagePointer] + normBias[0]) / normMean[0];
+          float32Data[gTensorPointer++] = (buffer2[gImagePointer] + normBias[1]) / normMean[1];
+          float32Data[bTensorPointer++] = (buffer2[bImagePointer] + normBias[2]) / normMean[2];
           if (aTensorPointer !== -1 && aImagePointer !== -1) {
-            float32Data[aTensorPointer++] = (buffer[aImagePointer] + normBias[3]) / normMean[3];
+            float32Data[aTensorPointer++] = (buffer2[aImagePointer] + normBias[3]) / normMean[3];
           }
         }
         const outputTensor = outputformat === "RGBA" ? new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor("float32", float32Data, [1, 4, height, width]) : new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor("float32", float32Data, [1, 3, height, width]);
         return outputTensor;
       };
-      const tensorFromImage = async (image, options) => {
+      const tensorFromImage = async (image, options2) => {
         const isHTMLImageEle = typeof HTMLImageElement !== "undefined" && image instanceof HTMLImageElement;
         const isImageDataEle = typeof ImageData !== "undefined" && image instanceof ImageData;
         const isImageBitmap = typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap;
         const isString = typeof image === "string";
         let data;
-        let bufferToTensorOptions = options ?? {};
+        let bufferToTensorOptions = options2 ?? {};
         const createCanvas = () => {
           if (typeof document !== "undefined") {
             return document.createElement("canvas");
@@ -5357,13 +5507,13 @@ var __webpack_modules__ = {
           if (pixels2DContext != null) {
             let height = image.height;
             let width = image.width;
-            if (options !== void 0 && options.resizedHeight !== void 0 && options.resizedWidth !== void 0) {
-              height = options.resizedHeight;
-              width = options.resizedWidth;
+            if (options2 !== void 0 && options2.resizedHeight !== void 0 && options2.resizedWidth !== void 0) {
+              height = options2.resizedHeight;
+              width = options2.resizedWidth;
             }
-            if (options !== void 0) {
-              bufferToTensorOptions = options;
-              if (options.tensorFormat !== void 0) {
+            if (options2 !== void 0) {
+              bufferToTensorOptions = options2;
+              if (options2.tensorFormat !== void 0) {
                 throw new Error("Image input config format must be RGBA for HTMLImageElement");
               } else {
                 bufferToTensorOptions.tensorFormat = "RGBA";
@@ -5383,20 +5533,20 @@ var __webpack_modules__ = {
         } else if (isImageDataEle) {
           let height;
           let width;
-          if (options !== void 0 && options.resizedWidth !== void 0 && options.resizedHeight !== void 0) {
-            height = options.resizedHeight;
-            width = options.resizedWidth;
+          if (options2 !== void 0 && options2.resizedWidth !== void 0 && options2.resizedHeight !== void 0) {
+            height = options2.resizedHeight;
+            width = options2.resizedWidth;
           } else {
             height = image.height;
             width = image.width;
           }
-          if (options !== void 0) {
-            bufferToTensorOptions = options;
+          if (options2 !== void 0) {
+            bufferToTensorOptions = options2;
           }
           bufferToTensorOptions.format = "RGBA";
           bufferToTensorOptions.height = height;
           bufferToTensorOptions.width = width;
-          if (options !== void 0) {
+          if (options2 !== void 0) {
             const tempCanvas = createCanvas();
             tempCanvas.width = width;
             tempCanvas.height = height;
@@ -5411,7 +5561,7 @@ var __webpack_modules__ = {
             data = image.data;
           }
         } else if (isImageBitmap) {
-          if (options === void 0) {
+          if (options2 === void 0) {
             throw new Error("Please provide image config with format for Imagebitmap");
           }
           const canvas = createCanvas();
@@ -5458,16 +5608,16 @@ var __webpack_modules__ = {
           throw new Error("Input data provided is not supported - aborted tensor creation");
         }
       };
-      const tensorFromTexture = (texture, options) => {
-        const { width, height, download, dispose } = options;
+      const tensorFromTexture = (texture, options2) => {
+        const { width, height, download, dispose } = options2;
         const dims = [1, height, width, 4];
         return new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor({ location: "texture", type: "float32", texture, dims, download, dispose });
       };
-      const tensorFromGpuBuffer = (gpuBuffer, options) => {
-        const { dataType, dims, download, dispose } = options;
+      const tensorFromGpuBuffer = (gpuBuffer, options2) => {
+        const { dataType, dims, download, dispose } = options2;
         return new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor({ location: "gpu-buffer", type: dataType ?? "float32", gpuBuffer, dims, download, dispose });
       };
-      const tensorFromPinnedBuffer = (type, buffer, dims) => new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor({ location: "cpu-pinned", type, data: buffer, dims: dims ?? [buffer.length] });
+      const tensorFromPinnedBuffer = (type, buffer2, dims) => new _tensor_impl_js__WEBPACK_IMPORTED_MODULE_0__.Tensor({ location: "cpu-pinned", type, data: buffer2, dims: dims ?? [buffer2.length] });
     }
   ),
   /***/
@@ -5693,35 +5843,35 @@ var __webpack_modules__ = {
             this.cpuData = data;
             this.dataLocation = "cpu";
           }
-          const size = (0, _tensor_utils_impl_js__WEBPACK_IMPORTED_MODULE_3__.calculateSize)(dims);
-          if (this.cpuData && size !== this.cpuData.length) {
-            throw new Error(`Tensor's size(${size}) does not match data length(${this.cpuData.length}).`);
+          const size3 = (0, _tensor_utils_impl_js__WEBPACK_IMPORTED_MODULE_3__.calculateSize)(dims);
+          if (this.cpuData && size3 !== this.cpuData.length) {
+            throw new Error(`Tensor's size(${size3}) does not match data length(${this.cpuData.length}).`);
           }
           this.type = type;
           this.dims = dims;
-          this.size = size;
+          this.size = size3;
         }
         // #endregion
         // #region factory
-        static async fromImage(image, options) {
-          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromImage)(image, options);
+        static async fromImage(image, options2) {
+          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromImage)(image, options2);
         }
-        static fromTexture(texture, options) {
-          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromTexture)(texture, options);
+        static fromTexture(texture, options2) {
+          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromTexture)(texture, options2);
         }
-        static fromGpuBuffer(gpuBuffer, options) {
-          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromGpuBuffer)(gpuBuffer, options);
+        static fromGpuBuffer(gpuBuffer, options2) {
+          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromGpuBuffer)(gpuBuffer, options2);
         }
-        static fromPinnedBuffer(type, buffer, dims) {
-          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromPinnedBuffer)(type, buffer, dims);
+        static fromPinnedBuffer(type, buffer2, dims) {
+          return (0, _tensor_factory_impl_js__WEBPACK_IMPORTED_MODULE_1__.tensorFromPinnedBuffer)(type, buffer2, dims);
         }
         // #endregion
         // #region conversions
-        toDataURL(options) {
-          return (0, _tensor_conversion_impl_js__WEBPACK_IMPORTED_MODULE_0__.tensorToDataURL)(this, options);
+        toDataURL(options2) {
+          return (0, _tensor_conversion_impl_js__WEBPACK_IMPORTED_MODULE_0__.tensorToDataURL)(this, options2);
         }
-        toImageData(options) {
-          return (0, _tensor_conversion_impl_js__WEBPACK_IMPORTED_MODULE_0__.tensorToImageData)(this, options);
+        toImageData(options2) {
+          return (0, _tensor_conversion_impl_js__WEBPACK_IMPORTED_MODULE_0__.tensorToImageData)(this, options2);
         }
         // #endregion
         // #region properties
@@ -5842,7 +5992,7 @@ var __webpack_modules__ = {
         "./node_modules/onnxruntime-common/dist/esm/tensor-impl.js"
       );
       const calculateSize = (dims) => {
-        let size = 1;
+        let size3 = 1;
         for (let i = 0; i < dims.length; i++) {
           const dim = dims[i];
           if (typeof dim !== "number" || !Number.isSafeInteger(dim)) {
@@ -5851,9 +6001,9 @@ var __webpack_modules__ = {
           if (dim < 0) {
             throw new RangeError(`dims[${i}] must be a non-negative integer, got: ${dim}`);
           }
-          size *= dim;
+          size3 *= dim;
         }
-        return size;
+        return size3;
       };
       const tensorReshape = (tensor, dims) => {
         switch (tensor.location) {
@@ -6030,8 +6180,8 @@ var __webpack_modules__ = {
         static async create(trainingOptions, sessionOptions) {
           const evalModel = trainingOptions.evalModel || "";
           const optimizerModel = trainingOptions.optimizerModel || "";
-          const options = sessionOptions || {};
-          const [backend, optionsWithValidatedEPs] = await (0, _backend_impl_js__WEBPACK_IMPORTED_MODULE_0__.resolveBackendAndExecutionProviders)(options);
+          const options2 = sessionOptions || {};
+          const [backend, optionsWithValidatedEPs] = await (0, _backend_impl_js__WEBPACK_IMPORTED_MODULE_0__.resolveBackendAndExecutionProviders)(options2);
           if (backend.createTrainingSessionHandler) {
             const handler = await backend.createTrainingSessionHandler(trainingOptions.checkpointState, trainingOptions.trainModel, evalModel, optimizerModel, optionsWithValidatedEPs);
             return new TrainingSession(handler, !!trainingOptions.optimizerModel, !!trainingOptions.evalModel);
@@ -6054,7 +6204,7 @@ var __webpack_modules__ = {
          */
         typeNarrowingForRunStep(inputNames, outputNames, feeds, arg1, arg2) {
           const fetches = {};
-          let options = {};
+          let options2 = {};
           if (typeof feeds !== "object" || feeds === null || feeds instanceof _tensor_js__WEBPACK_IMPORTED_MODULE_1__.Tensor || Array.isArray(feeds)) {
             throw new TypeError("'feeds' must be an object that use input names as keys and OnnxValue as corresponding values.");
           }
@@ -6081,7 +6231,7 @@ var __webpack_modules__ = {
                 fetches[name] = null;
               }
               if (typeof arg2 === "object" && arg2 !== null) {
-                options = arg2;
+                options2 = arg2;
               } else if (typeof arg2 !== "undefined") {
                 throw new TypeError("'options' must be an object.");
               }
@@ -6100,12 +6250,12 @@ var __webpack_modules__ = {
               }
               if (isFetches) {
                 if (typeof arg2 === "object" && arg2 !== null) {
-                  options = arg2;
+                  options2 = arg2;
                 } else if (typeof arg2 !== "undefined") {
                   throw new TypeError("'options' must be an object.");
                 }
               } else {
-                options = arg1;
+                options2 = arg1;
               }
             }
           } else if (typeof arg1 !== "undefined") {
@@ -6121,7 +6271,7 @@ var __webpack_modules__ = {
               fetches[name] = null;
             }
           }
-          return [fetches, options];
+          return [fetches, options2];
         }
         /**
          * Helper method for runTrainStep and any other runStep methods. Takes the ReturnType result from the SessionHandler
@@ -6148,21 +6298,21 @@ var __webpack_modules__ = {
           await this.handler.lazyResetGrad();
         }
         async runTrainStep(feeds, arg1, arg2) {
-          const [fetches, options] = this.typeNarrowingForRunStep(this.trainingInputNames, this.trainingOutputNames, feeds, arg1, arg2);
-          const results = await this.handler.runTrainStep(feeds, fetches, options);
+          const [fetches, options2] = this.typeNarrowingForRunStep(this.trainingInputNames, this.trainingOutputNames, feeds, arg1, arg2);
+          const results = await this.handler.runTrainStep(feeds, fetches, options2);
           return this.convertHandlerReturnTypeToMapOfTensors(results);
         }
-        async runOptimizerStep(options) {
+        async runOptimizerStep(options2) {
           if (this.hasOptimizerModel) {
-            await this.handler.runOptimizerStep(options || {});
+            await this.handler.runOptimizerStep(options2 || {});
           } else {
             throw new Error("This TrainingSession has no OptimizerModel loaded.");
           }
         }
         async runEvalStep(feeds, arg1, arg2) {
           if (this.hasEvalModel) {
-            const [fetches, options] = this.typeNarrowingForRunStep(this.evalInputNames, this.evalOutputNames, feeds, arg1, arg2);
-            const results = await this.handler.runEvalStep(feeds, fetches, options);
+            const [fetches, options2] = this.typeNarrowingForRunStep(this.evalInputNames, this.evalOutputNames, feeds, arg1, arg2);
+            const results = await this.handler.runEvalStep(feeds, fetches, options2);
             return this.convertHandlerReturnTypeToMapOfTensors(results);
           } else {
             throw new Error("This TrainingSession has no EvalModel loaded.");
@@ -6356,11 +6506,11 @@ var __webpack_modules__ = {
         throw new Error(`Unsupported device: "${device}". Should be one of: ${supportedDevices.join(", ")}.`);
       }
       let wasmInitPromise = null;
-      async function createInferenceSession(buffer, session_options, session_config) {
+      async function createInferenceSession(buffer2, session_options, session_config) {
         if (wasmInitPromise) {
           await wasmInitPromise;
         }
-        const sessionPromise = InferenceSession.create(buffer, session_options);
+        const sessionPromise = InferenceSession.create(buffer2, session_options);
         wasmInitPromise ??= sessionPromise;
         const session = await sessionPromise;
         session.config = session_config;
@@ -6420,8 +6570,8 @@ var __webpack_modules__ = {
         /*! ./utils/hub.js */
         "./src/utils/hub.js"
       );
-      async function loadConfig(pretrained_model_name_or_path, options) {
-        return await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_1__.getModelJSON)(pretrained_model_name_or_path, "config.json", true, options);
+      async function loadConfig(pretrained_model_name_or_path, options2) {
+        return await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_1__.getModelJSON)(pretrained_model_name_or_path, "config.json", true, options2);
       }
       function getNormalizedConfig(config2) {
         const mapping = {};
@@ -7856,16 +8006,16 @@ var __webpack_modules__ = {
          * @param {number} index
          * @returns {Float32Array}
          */
-        getLogits(logits, index) {
+        getLogits(logits, index2) {
           let vocabSize = logits.dims.at(-1);
           let logs = (
             /** @type {Float32Array} */
             logits.data
           );
-          if (index === -1) {
+          if (index2 === -1) {
             logs = logs.slice(-vocabSize);
           } else {
-            let startIndex = index * vocabSize;
+            let startIndex = index2 * vocabSize;
             logs = logs.slice(startIndex, startIndex + vocabSize);
           }
           return logs;
@@ -10602,9 +10752,9 @@ var __webpack_modules__ = {
       const MODEL_TYPE_MAPPING = /* @__PURE__ */ new Map();
       const MODEL_NAME_TO_CLASS_MAPPING = /* @__PURE__ */ new Map();
       const MODEL_CLASS_TO_NAME_MAPPING = /* @__PURE__ */ new Map();
-      async function getSession(pretrained_model_name_or_path, fileName, options) {
-        const custom_config = options.config?.["transformers.js_config"] ?? {};
-        let device = options.device ?? custom_config.device;
+      async function getSession(pretrained_model_name_or_path, fileName, options2) {
+        const custom_config = options2.config?.["transformers.js_config"] ?? {};
+        let device = options2.device ?? custom_config.device;
         if (device && typeof device !== "string") {
           if (device.hasOwnProperty(fileName)) {
             device = device[fileName];
@@ -10618,7 +10768,7 @@ var __webpack_modules__ = {
           device ?? (_env_js__WEBPACK_IMPORTED_MODULE_13__.apis.IS_NODE_ENV ? "cpu" : "wasm")
         );
         const executionProviders = (0, _backends_onnx_js__WEBPACK_IMPORTED_MODULE_1__.deviceToExecutionProviders)(selectedDevice);
-        let dtype = options.dtype ?? custom_config.dtype;
+        let dtype = options2.dtype ?? custom_config.dtype;
         if (typeof dtype !== "string") {
           if (dtype && dtype.hasOwnProperty(fileName)) {
             dtype = dtype[fileName];
@@ -10645,8 +10795,8 @@ var __webpack_modules__ = {
           kv_cache_dtype
         };
         const suffix = _utils_dtypes_js__WEBPACK_IMPORTED_MODULE_2__.DEFAULT_DTYPE_SUFFIX_MAPPING[selectedDtype];
-        const modelFileName = `${options.subfolder ?? ""}/${fileName}${suffix}.onnx`;
-        const session_options = { ...options.session_options };
+        const modelFileName = `${options2.subfolder ?? ""}/${fileName}${suffix}.onnx`;
+        const session_options = { ...options2.session_options };
         session_options.executionProviders ??= executionProviders;
         const free_dimension_overrides = custom_config.free_dimension_overrides;
         if (free_dimension_overrides) {
@@ -10656,23 +10806,23 @@ var __webpack_modules__ = {
             'WebNN does not currently support dynamic shapes and requires `free_dimension_overrides` to be set in config.json as a field within "transformers.js_config". When `free_dimension_overrides` is not set, you may experience significant performance degradation.'
           );
         }
-        const bufferPromise = (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, modelFileName, true, options);
-        const use_external_data_format = options.use_external_data_format ?? custom_config.use_external_data_format;
+        const bufferPromise = (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, modelFileName, true, options2);
+        const use_external_data_format = options2.use_external_data_format ?? custom_config.use_external_data_format;
         let externalDataPromises = [];
         if (use_external_data_format && (use_external_data_format === true || typeof use_external_data_format === "object" && use_external_data_format.hasOwnProperty(fileName) && use_external_data_format[fileName] === true)) {
           if (_env_js__WEBPACK_IMPORTED_MODULE_13__.apis.IS_NODE_ENV) {
             throw new Error("External data format is not yet supported in Node.js");
           }
           const path5 = `${fileName}${suffix}.onnx_data`;
-          const fullPath = `${options.subfolder ?? ""}/${path5}`;
+          const fullPath = `${options2.subfolder ?? ""}/${path5}`;
           externalDataPromises.push(new Promise(async (resolve, reject) => {
-            const data = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, fullPath, true, options);
+            const data = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, fullPath, true, options2);
             resolve({ path: path5, data });
           }));
         } else if (session_options.externalData !== void 0) {
           externalDataPromises = session_options.externalData.map(async (ext) => {
             if (typeof ext.data === "string") {
-              const ext_buffer = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, ext.data, true, options);
+              const ext_buffer = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelFile)(pretrained_model_name_or_path, ext.data, true, options2);
               return { ...ext, data: ext_buffer };
             }
             return ext;
@@ -10682,7 +10832,7 @@ var __webpack_modules__ = {
           session_options.externalData = await Promise.all(externalDataPromises);
         }
         if (selectedDevice === "webgpu") {
-          const shapes = (0, _configs_js__WEBPACK_IMPORTED_MODULE_0__.getKeyValueShapes)(options.config, {
+          const shapes = (0, _configs_js__WEBPACK_IMPORTED_MODULE_0__.getKeyValueShapes)(options2.config, {
             prefix: "present"
           });
           if (Object.keys(shapes).length > 0 && !(0, _backends_onnx_js__WEBPACK_IMPORTED_MODULE_1__.isONNXProxy)()) {
@@ -10693,22 +10843,22 @@ var __webpack_modules__ = {
             session_options.preferredOutputLocation = preferredOutputLocation;
           }
         }
-        const buffer = await bufferPromise;
-        return { buffer, session_options, session_config };
+        const buffer2 = await bufferPromise;
+        return { buffer: buffer2, session_options, session_config };
       }
-      async function constructSessions(pretrained_model_name_or_path, names5, options) {
+      async function constructSessions(pretrained_model_name_or_path, names5, options2) {
         return Object.fromEntries(await Promise.all(
           Object.keys(names5).map(async (name) => {
-            const { buffer, session_options, session_config } = await getSession(pretrained_model_name_or_path, names5[name], options);
-            const session = await (0, _backends_onnx_js__WEBPACK_IMPORTED_MODULE_1__.createInferenceSession)(buffer, session_options, session_config);
+            const { buffer: buffer2, session_options, session_config } = await getSession(pretrained_model_name_or_path, names5[name], options2);
+            const session = await (0, _backends_onnx_js__WEBPACK_IMPORTED_MODULE_1__.createInferenceSession)(buffer2, session_options, session_config);
             return [name, session];
           })
         ));
       }
-      async function getOptionalConfigs(pretrained_model_name_or_path, names5, options) {
+      async function getOptionalConfigs(pretrained_model_name_or_path, names5, options2) {
         return Object.fromEntries(await Promise.all(
           Object.keys(names5).map(async (name) => {
-            const config2 = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelJSON)(pretrained_model_name_or_path, names5[name], false, options);
+            const config2 = await (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_5__.getModelJSON)(pretrained_model_name_or_path, names5[name], false, options2);
             return [name, config2];
           })
         ));
@@ -10884,12 +11034,12 @@ var __webpack_modules__ = {
           const start = i * seq_len;
           let sum = BigInt(0);
           for (let j = 0; j < seq_len; ++j) {
-            const index = start + j;
-            if (attention_mask.data[index] === 0n) {
-              data[index] = BigInt(1);
+            const index2 = start + j;
+            if (attention_mask.data[index2] === 0n) {
+              data[index2] = BigInt(1);
             } else {
-              data[index] = sum;
-              sum += attention_mask.data[index];
+              data[index2] = sum;
+              sum += attention_mask.data[index2];
             }
           }
         }
@@ -11032,7 +11182,7 @@ var __webpack_modules__ = {
           use_external_data_format = null,
           session_options = {}
         } = {}) {
-          let options = {
+          let options2 = {
             progress_callback,
             config: config2,
             cache_dir,
@@ -11047,40 +11197,40 @@ var __webpack_modules__ = {
           };
           const modelName = MODEL_CLASS_TO_NAME_MAPPING.get(this);
           const modelType = MODEL_TYPE_MAPPING.get(modelName);
-          config2 = options.config = await _configs_js__WEBPACK_IMPORTED_MODULE_0__.AutoConfig.from_pretrained(pretrained_model_name_or_path, options);
+          config2 = options2.config = await _configs_js__WEBPACK_IMPORTED_MODULE_0__.AutoConfig.from_pretrained(pretrained_model_name_or_path, options2);
           let info;
           if (modelType === MODEL_TYPES.DecoderOnly) {
             info = await Promise.all([
               constructSessions(pretrained_model_name_or_path, {
-                model: options.model_file_name ?? "model"
-              }, options),
+                model: options2.model_file_name ?? "model"
+              }, options2),
               getOptionalConfigs(pretrained_model_name_or_path, {
                 generation_config: "generation_config.json"
-              }, options)
+              }, options2)
             ]);
           } else if (modelType === MODEL_TYPES.Seq2Seq || modelType === MODEL_TYPES.Vision2Seq) {
             info = await Promise.all([
               constructSessions(pretrained_model_name_or_path, {
                 model: "encoder_model",
                 decoder_model_merged: "decoder_model_merged"
-              }, options),
+              }, options2),
               getOptionalConfigs(pretrained_model_name_or_path, {
                 generation_config: "generation_config.json"
-              }, options)
+              }, options2)
             ]);
           } else if (modelType === MODEL_TYPES.MaskGeneration) {
             info = await Promise.all([
               constructSessions(pretrained_model_name_or_path, {
                 model: "vision_encoder",
                 prompt_encoder_mask_decoder: "prompt_encoder_mask_decoder"
-              }, options)
+              }, options2)
             ]);
           } else if (modelType === MODEL_TYPES.EncoderDecoder) {
             info = await Promise.all([
               constructSessions(pretrained_model_name_or_path, {
                 model: "encoder_model",
                 decoder_model_merged: "decoder_model_merged"
-              }, options)
+              }, options2)
             ]);
           } else if (modelType === MODEL_TYPES.ImageTextToText) {
             const sessions = {
@@ -11092,10 +11242,10 @@ var __webpack_modules__ = {
               sessions["model"] = "encoder_model";
             }
             info = await Promise.all([
-              constructSessions(pretrained_model_name_or_path, sessions, options),
+              constructSessions(pretrained_model_name_or_path, sessions, options2),
               getOptionalConfigs(pretrained_model_name_or_path, {
                 generation_config: "generation_config.json"
-              }, options)
+              }, options2)
             ]);
           } else if (modelType === MODEL_TYPES.Musicgen) {
             info = await Promise.all([
@@ -11103,10 +11253,10 @@ var __webpack_modules__ = {
                 model: "text_encoder",
                 decoder_model_merged: "decoder_model_merged",
                 encodec_decode: "encodec_decode"
-              }, options),
+              }, options2),
               getOptionalConfigs(pretrained_model_name_or_path, {
                 generation_config: "generation_config.json"
-              }, options)
+              }, options2)
             ]);
           } else {
             if (modelType !== MODEL_TYPES.EncoderOnly) {
@@ -11114,8 +11264,8 @@ var __webpack_modules__ = {
             }
             info = await Promise.all([
               constructSessions(pretrained_model_name_or_path, {
-                model: options.model_file_name ?? "model"
-              }, options)
+                model: options2.model_file_name ?? "model"
+              }, options2)
             ]);
           }
           return new this(config2, ...info);
@@ -12678,22 +12828,22 @@ var __webpack_modules__ = {
           const stacked = [];
           const stacked_attention_mask = [];
           for (let i = 0; i < indexOfImage.length; ++i) {
-            const index = indexOfImage[i];
+            const index2 = indexOfImage[i];
             const e = inputs_embeds[i];
             const im = image_features[i];
             const am = attention_mask[i];
             stacked.push(
               (0, _utils_tensor_js__WEBPACK_IMPORTED_MODULE_9__.cat)([
-                e.slice([0, index]),
+                e.slice([0, index2]),
                 im,
-                e.slice([index + 1, e.dims[0]])
+                e.slice([index2 + 1, e.dims[0]])
               ], 0)
             );
             stacked_attention_mask.push(
               (0, _utils_tensor_js__WEBPACK_IMPORTED_MODULE_9__.cat)([
-                am.slice([0, index]),
+                am.slice([0, index2]),
                 (0, _utils_tensor_js__WEBPACK_IMPORTED_MODULE_9__.ones)([im.dims[0]]),
-                am.slice([index + 1, am.dims[0]])
+                am.slice([index2 + 1, am.dims[0]])
               ], 0)
             );
           }
@@ -12807,30 +12957,30 @@ var __webpack_modules__ = {
       }
       class CLIPTextModel extends CLIPPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "text_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "text_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class CLIPTextModelWithProjection extends CLIPPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "text_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "text_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class CLIPVisionModel extends CLIPPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "vision_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "vision_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class CLIPVisionModelWithProjection extends CLIPPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "vision_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "vision_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class SiglipPreTrainedModel extends PreTrainedModel {
@@ -12839,16 +12989,16 @@ var __webpack_modules__ = {
       }
       class SiglipTextModel extends SiglipPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "text_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "text_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class SiglipVisionModel extends CLIPPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "vision_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "vision_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class ChineseCLIPPreTrainedModel extends PreTrainedModel {
@@ -13767,16 +13917,16 @@ var __webpack_modules__ = {
       }
       class ClapTextModelWithProjection extends ClapPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "text_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "text_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class ClapAudioModelWithProjection extends ClapPreTrainedModel {
         /** @type {PreTrainedModel.from_pretrained} */
-        static async from_pretrained(pretrained_model_name_or_path, options = {}) {
-          options.model_file_name ??= "audio_model";
-          return super.from_pretrained(pretrained_model_name_or_path, options);
+        static async from_pretrained(pretrained_model_name_or_path, options2 = {}) {
+          options2.model_file_name ??= "audio_model";
+          return super.from_pretrained(pretrained_model_name_or_path, options2);
         }
       }
       class VitsPreTrainedModel extends PreTrainedModel {
@@ -13883,8 +14033,8 @@ var __webpack_modules__ = {
          * @param {import('./generation/parameters.js').GenerationFunctionParameters} options
          * @returns {Promise<ModelOutput|Tensor>} The output of the model, which can contain the generated token ids, attentions, and scores.
          */
-        async generate(options) {
-          const output_ids = await super.generate(options);
+        async generate(options2) {
+          const output_ids = await super.generate(options2);
           const audio_codes = this._apply_and_filter_by_delay_pattern_mask(
             /** @type {Tensor} */
             output_ids
@@ -13970,7 +14120,7 @@ var __webpack_modules__ = {
           use_external_data_format = null,
           session_options = {}
         } = {}) {
-          const options = {
+          const options2 = {
             progress_callback,
             config: config2,
             cache_dir,
@@ -13983,22 +14133,22 @@ var __webpack_modules__ = {
             use_external_data_format,
             session_options
           };
-          options.config = await _configs_js__WEBPACK_IMPORTED_MODULE_0__.AutoConfig.from_pretrained(pretrained_model_name_or_path, options);
+          options2.config = await _configs_js__WEBPACK_IMPORTED_MODULE_0__.AutoConfig.from_pretrained(pretrained_model_name_or_path, options2);
           if (!this.MODEL_CLASS_MAPPINGS) {
             throw new Error("`MODEL_CLASS_MAPPINGS` not implemented for this type of `AutoClass`: " + this.name);
           }
           for (const MODEL_CLASS_MAPPING of this.MODEL_CLASS_MAPPINGS) {
-            const modelInfo = MODEL_CLASS_MAPPING.get(options.config.model_type);
+            const modelInfo = MODEL_CLASS_MAPPING.get(options2.config.model_type);
             if (!modelInfo) {
               continue;
             }
-            return await modelInfo[1].from_pretrained(pretrained_model_name_or_path, options);
+            return await modelInfo[1].from_pretrained(pretrained_model_name_or_path, options2);
           }
           if (this.BASE_IF_FAIL) {
-            console.warn(`Unknown model class "${options.config.model_type}", attempting to construct from base class.`);
-            return await PreTrainedModel.from_pretrained(pretrained_model_name_or_path, options);
+            console.warn(`Unknown model class "${options2.config.model_type}", attempting to construct from base class.`);
+            return await PreTrainedModel.from_pretrained(pretrained_model_name_or_path, options2);
           } else {
-            throw Error(`Unsupported model type: ${options.config.model_type}`);
+            throw Error(`Unsupported model type: ${options2.config.model_type}`);
           }
         }
       }
@@ -15197,8 +15347,8 @@ var __webpack_modules__ = {
          * Create a new TextClassificationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {TextClassificationPipelineCallback} */
         async _call(texts, {
@@ -15246,8 +15396,8 @@ var __webpack_modules__ = {
          * Create a new TokenClassificationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {TokenClassificationPipelineCallback} */
         async _call(texts, {
@@ -15299,8 +15449,8 @@ var __webpack_modules__ = {
          * Create a new QuestionAnsweringPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {QuestionAnsweringPipelineCallback} */
         async _call(question, context, {
@@ -15338,9 +15488,9 @@ var __webpack_modules__ = {
             const end_scores = (0, _utils_maths_js__WEBPACK_IMPORTED_MODULE_5__.softmax)(end).map((x, i) => [x, i]);
             start_scores[0][0] = 0;
             end_scores[0][0] = 0;
-            const options = (0, _utils_core_js__WEBPACK_IMPORTED_MODULE_4__.product)(start_scores, end_scores).filter((x) => x[0][1] <= x[1][1]).map((x) => [x[0][1], x[1][1], x[0][0] * x[1][0]]).sort((a, b) => b[2] - a[2]);
-            for (let k = 0; k < Math.min(options.length, top_k); ++k) {
-              const [start2, end2, score] = options[k];
+            const options2 = (0, _utils_core_js__WEBPACK_IMPORTED_MODULE_4__.product)(start_scores, end_scores).filter((x) => x[0][1] <= x[1][1]).map((x) => [x[0][1], x[1][1], x[0][0] * x[1][0]]).sort((a, b) => b[2] - a[2]);
+            for (let k = 0; k < Math.min(options2.length, top_k); ++k) {
+              const [start2, end2, score] = options2[k];
               const answer_tokens = ids.slice(start2, end2 + 1);
               const answer = this.tokenizer.decode(answer_tokens, {
                 skip_special_tokens: true
@@ -15360,8 +15510,8 @@ var __webpack_modules__ = {
          * Create a new FillMaskPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {FillMaskPipelineCallback} */
         async _call(texts, {
@@ -15416,8 +15566,8 @@ var __webpack_modules__ = {
          * Create a new Text2TextGenerationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {Text2TextGenerationPipelineCallback} */
         async _call(texts, generate_kwargs = {}) {
@@ -15463,8 +15613,8 @@ var __webpack_modules__ = {
          * Create a new SummarizationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
       }
       class TranslationPipeline extends /** @type {new (options: TextPipelineConstructorArgs) => TranslationPipelineType} */
@@ -15476,8 +15626,8 @@ var __webpack_modules__ = {
          * Create a new TranslationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
       }
       function isChat(x) {
@@ -15489,8 +15639,8 @@ var __webpack_modules__ = {
          * Create a new TextGenerationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {TextGenerationPipelineCallback} */
         async _call(texts, generate_kwargs = {}) {
@@ -15571,8 +15721,8 @@ var __webpack_modules__ = {
          * Create a new ZeroShotClassificationPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
           this.label2id = Object.fromEntries(
             Object.entries(
               /** @type {any} */
@@ -15647,8 +15797,8 @@ var __webpack_modules__ = {
          * Create a new FeatureExtractionPipeline.
          * @param {TextPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {FeatureExtractionPipelineCallback} */
         async _call(texts, {
@@ -15692,8 +15842,8 @@ var __webpack_modules__ = {
          * Create a new ImageFeatureExtractionPipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ImageFeatureExtractionPipelineCallback} */
         async _call(images, {
@@ -15720,8 +15870,8 @@ var __webpack_modules__ = {
          * Create a new AudioClassificationPipeline.
          * @param {AudioPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {AudioClassificationPipelineCallback} */
         async _call(audio, {
@@ -15764,8 +15914,8 @@ var __webpack_modules__ = {
          * Create a new ZeroShotAudioClassificationPipeline.
          * @param {TextAudioPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ZeroShotAudioClassificationPipelineCallback} */
         async _call(audio, candidate_labels, {
@@ -15806,8 +15956,8 @@ var __webpack_modules__ = {
          * Create a new AutomaticSpeechRecognitionPipeline.
          * @param {TextAudioPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {AutomaticSpeechRecognitionPipelineCallback} */
         async _call(audio, kwargs = {}) {
@@ -15954,8 +16104,8 @@ var __webpack_modules__ = {
          * Create a new ImageToTextPipeline.
          * @param {TextImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ImageToTextPipelineCallback} */
         async _call(images, generate_kwargs = {}) {
@@ -15984,8 +16134,8 @@ var __webpack_modules__ = {
          * Create a new ImageClassificationPipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ImageClassificationPipelineCallback} */
         async _call(images, {
@@ -16025,8 +16175,8 @@ var __webpack_modules__ = {
          * Create a new ImageSegmentationPipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
           this.subtasks_mapping = {
             // Mapping of subtasks to their corresponding post-processing function names.
             panoptic: "post_process_panoptic_segmentation",
@@ -16118,8 +16268,8 @@ var __webpack_modules__ = {
          * Create a new ZeroShotImageClassificationPipeline.
          * @param {TextImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ZeroShotImageClassificationPipelineCallback} */
         async _call(images, candidate_labels, {
@@ -16156,8 +16306,8 @@ var __webpack_modules__ = {
          * Create a new ObjectDetectionPipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ObjectDetectionPipelineCallback} */
         async _call(images, {
@@ -16188,8 +16338,8 @@ var __webpack_modules__ = {
          * Create a new ZeroShotObjectDetectionPipeline.
          * @param {TextImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ZeroShotObjectDetectionPipelineCallback} */
         async _call(images, candidate_labels, {
@@ -16230,8 +16380,8 @@ var __webpack_modules__ = {
          * Create a new DocumentQuestionAnsweringPipeline.
          * @param {TextImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {DocumentQuestionAnsweringPipelineCallback} */
         async _call(image, question, generate_kwargs = {}) {
@@ -16268,9 +16418,9 @@ var __webpack_modules__ = {
          * Create a new TextToAudioPipeline.
          * @param {TextToAudioPipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
-          this.vocoder = options.vocoder ?? null;
+        constructor(options2) {
+          super(options2);
+          this.vocoder = options2.vocoder ?? null;
         }
         /** @type {TextToAudioPipelineCallback} */
         async _call(text_inputs, {
@@ -16331,8 +16481,8 @@ var __webpack_modules__ = {
          * Create a new ImageToImagePipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {ImageToImagePipelineCallback} */
         async _call(images) {
@@ -16353,8 +16503,8 @@ var __webpack_modules__ = {
          * Create a new DepthEstimationPipeline.
          * @param {ImagePipelineConstructorArgs} options An object used to instantiate the pipeline.
          */
-        constructor(options) {
-          super(options);
+        constructor(options2) {
+          super(options2);
         }
         /** @type {DepthEstimationPipelineCallback} */
         async _call(images) {
@@ -17116,15 +17266,15 @@ var __webpack_modules__ = {
               }
               indices.push(maxIndex);
             }
-            for (const index of indices) {
+            for (const index2 of indices) {
               let box = bbox[j].data;
               box = center_to_corners_format(box);
               if (target_size !== null) {
                 box = box.map((x, i2) => x * target_size[(i2 + 1) % 2]);
               }
               info.boxes.push(box);
-              info.classes.push(index);
-              info.scores.push(probs[index]);
+              info.classes.push(index2);
+              info.scores.push(probs[index2]);
             }
           }
           toReturn.push(info);
@@ -17150,21 +17300,21 @@ var __webpack_modules__ = {
             new Int32Array(height * width),
             [height, width]
           );
-          const buffer = data[0].data;
+          const buffer2 = data[0].data;
           const segmentation_data = segmentation.data;
           for (let j = 1; j < data.dims[0]; ++j) {
             const row = data[j].data;
             for (let k = 0; k < row.length; ++k) {
-              if (row[k] > buffer[k]) {
-                buffer[k] = row[k];
+              if (row[k] > buffer2[k]) {
+                buffer2[k] = row[k];
                 segmentation_data[k] = j;
               }
             }
           }
           const hasLabel = new Array(data.dims[0]);
           for (let j = 0; j < segmentation_data.length; ++j) {
-            const index = segmentation_data[j];
-            hasLabel[index] = index;
+            const index2 = segmentation_data[j];
+            hasLabel[index2] = index2;
           }
           const labels = hasLabel.filter((x) => x !== void 0);
           toReturn.push({ segmentation, labels });
@@ -17254,8 +17404,8 @@ var __webpack_modules__ = {
             continue;
           }
           ++current_segment_id;
-          for (const index of mask_k) {
-            segmentation_data[index] = current_segment_id;
+          for (const index2 of mask_k) {
+            segmentation_data[index2] = current_segment_id;
           }
           segments.push({
             id: current_segment_id,
@@ -17400,11 +17550,11 @@ var __webpack_modules__ = {
          * @param {string | 0 | 1 | 2 | 3 | 4 | 5} [resample=2] The resampling filter to use.
          * @returns {Promise<RawImage>} The resized image.
          */
-        async thumbnail(image, size, resample = 2) {
+        async thumbnail(image, size3, resample = 2) {
           const input_height = image.height;
           const input_width = image.width;
-          const output_height = size.height;
-          const output_width = size.width;
+          const output_height = size3.height;
+          const output_width = size3.width;
           let height = Math.min(input_height, output_height);
           let width = Math.min(input_width, output_width);
           if (height === input_height && width === input_width) {
@@ -17535,19 +17685,19 @@ var __webpack_modules__ = {
          * @param {any} size The size to use for resizing the image. 
          * @returns {[number, number]} The target (width, height) dimension of the output image after resizing.
          */
-        get_resize_output_image_size(image, size) {
+        get_resize_output_image_size(image, size3) {
           const [srcWidth, srcHeight] = image.size;
           let shortest_edge;
           let longest_edge;
           if (this.do_thumbnail) {
-            const { height, width } = size;
+            const { height, width } = size3;
             shortest_edge = Math.min(height, width);
-          } else if (Number.isInteger(size)) {
-            shortest_edge = size;
+          } else if (Number.isInteger(size3)) {
+            shortest_edge = size3;
             longest_edge = this.config.max_size ?? shortest_edge;
-          } else if (size !== void 0) {
-            shortest_edge = size.shortest_edge;
-            longest_edge = size.longest_edge;
+          } else if (size3 !== void 0) {
+            shortest_edge = size3.shortest_edge;
+            longest_edge = size3.longest_edge;
           }
           if (shortest_edge !== void 0 || longest_edge !== void 0) {
             const shortResizeFactor = shortest_edge === void 0 ? 1 : Math.max(shortest_edge / srcWidth, shortest_edge / srcHeight);
@@ -17560,9 +17710,9 @@ var __webpack_modules__ = {
               [finalWidth, finalHeight] = enforce_size_divisibility([finalWidth, finalHeight], this.size_divisibility);
             }
             return [finalWidth, finalHeight];
-          } else if (size !== void 0 && size.width !== void 0 && size.height !== void 0) {
-            let newWidth = size.width;
-            let newHeight = size.height;
+          } else if (size3 !== void 0 && size3.width !== void 0 && size3.height !== void 0) {
+            let newWidth = size3.width;
+            let newHeight = size3.height;
             if (this.config.keep_aspect_ratio && this.config.ensure_multiple_of) {
               let scale_height = newHeight / srcHeight;
               let scale_width = newWidth / srcWidth;
@@ -17578,7 +17728,7 @@ var __webpack_modules__ = {
           } else if (this.size_divisibility !== void 0) {
             return enforce_size_divisibility([srcWidth, srcHeight], this.size_divisibility);
           } else {
-            throw new Error(`Could not resize image due to unsupported \`this.size\` option in config: ${JSON.stringify(size)}`);
+            throw new Error(`Could not resize image due to unsupported \`this.size\` option in config: ${JSON.stringify(size3)}`);
           }
         }
         /**
@@ -17815,7 +17965,7 @@ var __webpack_modules__ = {
       class BeitFeatureExtractor extends ImageFeatureExtractor {
       }
       class DonutFeatureExtractor extends ImageFeatureExtractor {
-        pad_image(pixelData, imgDims, padSize, options = {}) {
+        pad_image(pixelData, imgDims, padSize, options2 = {}) {
           const [imageHeight, imageWidth, imageChannels] = imgDims;
           let image_mean = this.image_mean;
           if (!Array.isArray(this.image_mean)) {
@@ -17831,7 +17981,7 @@ var __webpack_modules__ = {
             // Since normalization is done after padding, we need to use certain constant values to ensure the same behaviour is observed.
             // For more information, see https://github.com/huggingface/transformers/blob/main/src/transformers/models/donut/image_processing_donut.py#L433-L451
             constant_values,
-            ...options
+            ...options2
           });
         }
       }
@@ -18065,7 +18215,7 @@ var __webpack_modules__ = {
         }
       }
       class Swin2SRImageProcessor extends ImageFeatureExtractor {
-        pad_image(pixelData, imgDims, padSize, options = {}) {
+        pad_image(pixelData, imgDims, padSize, options2 = {}) {
           const [imageHeight, imageWidth, imageChannels] = imgDims;
           return super.pad_image(pixelData, imgDims, {
             // NOTE: For Swin2SR models, the original python implementation adds padding even when the image's width/height is already
@@ -18077,7 +18227,7 @@ var __webpack_modules__ = {
             mode: "symmetric",
             center: false,
             constant_values: -1,
-            ...options
+            ...options2
           });
         }
       }
@@ -18316,8 +18466,8 @@ var __webpack_modules__ = {
               variance /= num_features - 1;
               const std = Math.sqrt(variance + 1e-7);
               for (let j = 0; j < num_features; ++j) {
-                const index = j * feature_size + i;
-                data[index] = (data[index] - mean) / std;
+                const index2 = j * feature_size + i;
+                data[index2] = (data[index2] - mean) / std;
               }
             }
           }
@@ -19335,13 +19485,13 @@ var __webpack_modules__ = {
         /*! ./utils/constants.js */
         "./src/utils/constants.js"
       );
-      async function loadTokenizer(pretrained_model_name_or_path, options) {
+      async function loadTokenizer(pretrained_model_name_or_path, options2) {
         const info = await Promise.all([
-          (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_2__.getModelJSON)(pretrained_model_name_or_path, "tokenizer.json", true, options),
-          (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_2__.getModelJSON)(pretrained_model_name_or_path, "tokenizer_config.json", true, options)
+          (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_2__.getModelJSON)(pretrained_model_name_or_path, "tokenizer.json", true, options2),
+          (0, _utils_hub_js__WEBPACK_IMPORTED_MODULE_2__.getModelJSON)(pretrained_model_name_or_path, "tokenizer_config.json", true, options2)
         ]);
-        if (options.legacy !== null) {
-          info[1].legacy = options.legacy;
+        if (options2.legacy !== null) {
+          info[1].legacy = options2.legacy;
         }
         return info;
       }
@@ -20227,7 +20377,7 @@ var __webpack_modules__ = {
          * @returns {string[]} The pre-tokenized text.
          * @throws {Error} If the method is not implemented in the subclass.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           throw Error("pre_tokenize_text should be implemented in subclass.");
         }
         /**
@@ -20236,8 +20386,8 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of pre-tokens.
          */
-        pre_tokenize(text, options) {
-          return (Array.isArray(text) ? text.map((x) => this.pre_tokenize_text(x, options)) : this.pre_tokenize_text(text, options)).flat();
+        pre_tokenize(text, options2) {
+          return (Array.isArray(text) ? text.map((x) => this.pre_tokenize_text(x, options2)) : this.pre_tokenize_text(text, options2)).flat();
         }
         /**
          * Alias for {@link PreTokenizer#pre_tokenize}.
@@ -20245,8 +20395,8 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of pre-tokens.
          */
-        _call(text, options) {
-          return this.pre_tokenize(text, options);
+        _call(text, options2) {
+          return this.pre_tokenize(text, options2);
         }
       }
       class BertPreTokenizer extends PreTokenizer {
@@ -20267,7 +20417,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return text.trim().match(this.pattern) || [];
         }
       }
@@ -20292,7 +20442,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           if (this.add_prefix_space && !text.startsWith(" ")) {
             text = " " + text;
           }
@@ -20322,7 +20472,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           if (this.pattern === null) {
             return [];
           }
@@ -20349,7 +20499,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return text.match(this.pattern) || [];
         }
       }
@@ -20370,7 +20520,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return text.match(this.pattern) || [];
         }
       }
@@ -20535,7 +20685,7 @@ var __webpack_modules__ = {
          * @param {string[]} [tokens_pair=null] The list of tokens for the second sequence (optional).
          * @returns {PostProcessedOutput} An object containing the post-processed tokens.
          */
-        post_process(tokens, tokens_pair = null, options = {}) {
+        post_process(tokens, tokens_pair = null, options2 = {}) {
           let token_type_ids;
           for (const processor of this.processors) {
             if (processor instanceof ByteLevelPostProcessor) {
@@ -20546,7 +20696,7 @@ var __webpack_modules__ = {
                 tokens_pair = pair_output.tokens;
               }
             } else {
-              const output = processor.post_process(tokens, tokens_pair, options);
+              const output = processor.post_process(tokens, tokens_pair, options2);
               tokens = output.tokens;
               token_type_ids = output.token_type_ids;
             }
@@ -20699,9 +20849,9 @@ var __webpack_modules__ = {
             }
             let stop_cut = token.length;
             for (let i = 0; i < this.stop; ++i) {
-              const index = token.length - i - 1;
-              if (token[index] === this.content) {
-                stop_cut = index;
+              const index2 = token.length - i - 1;
+              if (token[index2] === this.content) {
+                stop_cut = index2;
                 continue;
               } else {
                 break;
@@ -20962,9 +21112,9 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} The pre-tokenized text.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return this.tokenizers.reduce((preTokenizedText, tokenizer) => {
-            return tokenizer.pre_tokenize(preTokenizedText, options);
+            return tokenizer.pre_tokenize(preTokenizedText, options2);
           }, [text]);
         }
       }
@@ -20982,7 +21132,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens produced by splitting the input text on whitespace.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return text.match(/\w+|[^\w\s]+/g) || [];
         }
       }
@@ -21000,7 +21150,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens produced by splitting the input text on whitespace.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           return whitespace_split(text);
         }
       }
@@ -21022,7 +21172,7 @@ var __webpack_modules__ = {
          * @param {Object} [options] Additional options for the pre-tokenization logic.
          * @returns {string[]} An array of tokens produced by replacing certain characters.
          */
-        pre_tokenize_text(text, options) {
+        pre_tokenize_text(text, options2) {
           if (this.pattern === null) {
             return [text];
           }
@@ -23623,8 +23773,8 @@ var __webpack_modules__ = {
             let self2 = this;
             this.body = new ReadableStream({
               start(controller) {
-                self2.arrayBuffer().then((buffer) => {
-                  controller.enqueue(new Uint8Array(buffer));
+                self2.arrayBuffer().then((buffer2) => {
+                  controller.enqueue(new Uint8Array(buffer2));
                   controller.close();
                 });
               }
@@ -23781,11 +23931,11 @@ var __webpack_modules__ = {
          * @returns {Promise<void>}
          */
         async put(request, response) {
-          const buffer = Buffer.from(await response.arrayBuffer());
+          const buffer2 = Buffer.from(await response.arrayBuffer());
           let outputPath = path__WEBPACK_IMPORTED_MODULE_1__["default"].join(this.path, request);
           try {
             await fs__WEBPACK_IMPORTED_MODULE_0__["default"].promises.mkdir(path__WEBPACK_IMPORTED_MODULE_1__["default"].dirname(outputPath), { recursive: true });
-            await fs__WEBPACK_IMPORTED_MODULE_0__["default"].promises.writeFile(outputPath, buffer);
+            await fs__WEBPACK_IMPORTED_MODULE_0__["default"].promises.writeFile(outputPath, buffer2);
           } catch (err) {
             console.warn("An error occurred while writing the file to cache:", err);
           }
@@ -23808,15 +23958,15 @@ var __webpack_modules__ = {
         }
         return void 0;
       }
-      async function getModelFile(path_or_repo_id, filename, fatal = true, options = {}) {
+      async function getModelFile(path_or_repo_id, filename, fatal = true, options2 = {}) {
         if (!_env_js__WEBPACK_IMPORTED_MODULE_2__.env.allowLocalModels) {
-          if (options.local_files_only) {
+          if (options2.local_files_only) {
             throw Error("Invalid configuration detected: local models are disabled (`env.allowLocalModels=false`) but you have requested to only use local models (`local_files_only=true`).");
           } else if (!_env_js__WEBPACK_IMPORTED_MODULE_2__.env.allowRemoteModels) {
             throw Error("Invalid configuration detected: both local and remote models are disabled. Fix by setting `env.allowLocalModels` or `env.allowRemoteModels` to `true`.");
           }
         }
-        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options.progress_callback, {
+        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options2.progress_callback, {
           status: "initiate",
           name: path_or_repo_id,
           file: filename
@@ -23833,7 +23983,7 @@ var __webpack_modules__ = {
           }
         }
         if (!cache && _env_js__WEBPACK_IMPORTED_MODULE_2__.env.useFSCache) {
-          cache = new FileCache(options.cache_dir ?? _env_js__WEBPACK_IMPORTED_MODULE_2__.env.cacheDir);
+          cache = new FileCache(options2.cache_dir ?? _env_js__WEBPACK_IMPORTED_MODULE_2__.env.cacheDir);
         }
         if (!cache && _env_js__WEBPACK_IMPORTED_MODULE_2__.env.useCustomCache) {
           if (!_env_js__WEBPACK_IMPORTED_MODULE_2__.env.customCache) {
@@ -23846,7 +23996,7 @@ var __webpack_modules__ = {
           }
           cache = _env_js__WEBPACK_IMPORTED_MODULE_2__.env.customCache;
         }
-        const revision = options.revision ?? "main";
+        const revision = options2.revision ?? "main";
         let requestURL = pathJoin(path_or_repo_id, filename);
         let localPath = pathJoin(_env_js__WEBPACK_IMPORTED_MODULE_2__.env.localModelPath, requestURL);
         let remoteURL = pathJoin(
@@ -23855,7 +24005,7 @@ var __webpack_modules__ = {
           filename
         );
         let fsCacheKey = revision === "main" ? requestURL : pathJoin(path_or_repo_id, revision, filename);
-        let cacheKey;
+        let cacheKey2;
         let proposedCacheKey = cache instanceof FileCache ? fsCacheKey : remoteURL;
         let toCacheResponse = false;
         let response;
@@ -23869,18 +24019,18 @@ var __webpack_modules__ = {
             if (!isURL) {
               try {
                 response = await getFile(localPath);
-                cacheKey = localPath;
+                cacheKey2 = localPath;
               } catch (e) {
                 console.warn(`Unable to load from local path "${localPath}": "${e}"`);
               }
-            } else if (options.local_files_only) {
+            } else if (options2.local_files_only) {
               throw new Error(`\`local_files_only=true\`, but attempted to load a remote file from: ${requestURL}.`);
             } else if (!_env_js__WEBPACK_IMPORTED_MODULE_2__.env.allowRemoteModels) {
               throw new Error(`\`env.allowRemoteModels=false\`, but attempted to load a remote file from: ${requestURL}.`);
             }
           }
           if (response === void 0 || response.status === 404) {
-            if (options.local_files_only || !_env_js__WEBPACK_IMPORTED_MODULE_2__.env.allowRemoteModels) {
+            if (options2.local_files_only || !_env_js__WEBPACK_IMPORTED_MODULE_2__.env.allowRemoteModels) {
               if (fatal) {
                 throw Error(`\`local_files_only=true\` or \`env.allowRemoteModels=false\` and file was not found locally at "${localPath}".`);
               } else {
@@ -23891,11 +24041,11 @@ var __webpack_modules__ = {
             if (response.status !== 200) {
               return handleError(response.status, remoteURL, fatal);
             }
-            cacheKey = proposedCacheKey;
+            cacheKey2 = proposedCacheKey;
           }
           toCacheResponse = cache && typeof Response !== "undefined" && response instanceof Response && response.status === 200;
         }
-        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options.progress_callback, {
+        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options2.progress_callback, {
           status: "download",
           name: path_or_repo_id,
           file: filename
@@ -23905,20 +24055,20 @@ var __webpack_modules__ = {
           name: path_or_repo_id,
           file: filename
         };
-        let buffer;
-        if (!options.progress_callback) {
-          buffer = new Uint8Array(await response.arrayBuffer());
+        let buffer2;
+        if (!options2.progress_callback) {
+          buffer2 = new Uint8Array(await response.arrayBuffer());
         } else if (cacheHit && typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent)) {
-          buffer = new Uint8Array(await response.arrayBuffer());
-          (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options.progress_callback, {
+          buffer2 = new Uint8Array(await response.arrayBuffer());
+          (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options2.progress_callback, {
             ...progressInfo,
             progress: 100,
-            loaded: buffer.length,
-            total: buffer.length
+            loaded: buffer2.length,
+            total: buffer2.length
           });
         } else {
-          buffer = await readResponse(response, (data) => {
-            (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options.progress_callback, {
+          buffer2 = await readResponse(response, (data) => {
+            (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options2.progress_callback, {
               ...progressInfo,
               ...data
             });
@@ -23927,29 +24077,29 @@ var __webpack_modules__ = {
         if (
           // Only cache web responses
           // i.e., do not cache FileResponses (prevents duplication)
-          toCacheResponse && cacheKey && // Check again whether request is in cache. If not, we add the response to the cache
-          await cache.match(cacheKey) === void 0
+          toCacheResponse && cacheKey2 && // Check again whether request is in cache. If not, we add the response to the cache
+          await cache.match(cacheKey2) === void 0
         ) {
-          await cache.put(cacheKey, new Response(buffer, {
+          await cache.put(cacheKey2, new Response(buffer2, {
             headers: response.headers
           })).catch((err) => {
             console.warn(`Unable to add response to browser cache: ${err}.`);
           });
         }
-        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options.progress_callback, {
+        (0, _core_js__WEBPACK_IMPORTED_MODULE_3__.dispatchCallback)(options2.progress_callback, {
           status: "done",
           name: path_or_repo_id,
           file: filename
         });
-        return buffer;
+        return buffer2;
       }
-      async function getModelJSON(modelPath, fileName, fatal = true, options = {}) {
-        let buffer = await getModelFile(modelPath, fileName, fatal, options);
-        if (buffer === null) {
+      async function getModelJSON(modelPath, fileName, fatal = true, options2 = {}) {
+        let buffer2 = await getModelFile(modelPath, fileName, fatal, options2);
+        if (buffer2 === null) {
           return {};
         }
         let decoder = new TextDecoder("utf-8");
-        let jsonData = decoder.decode(buffer);
+        let jsonData = decoder.decode(buffer2);
         return JSON.parse(jsonData);
       }
       async function readResponse(response, progress_callback) {
@@ -23958,7 +24108,7 @@ var __webpack_modules__ = {
           console.warn("Unable to determine content-length from response headers. Will expand buffer when needed.");
         }
         let total = parseInt(contentLength ?? "0");
-        let buffer = new Uint8Array(total);
+        let buffer2 = new Uint8Array(total);
         let loaded = 0;
         const reader = response.body.getReader();
         async function read() {
@@ -23968,10 +24118,10 @@ var __webpack_modules__ = {
           if (newLoaded > total) {
             total = newLoaded;
             let newBuffer = new Uint8Array(total);
-            newBuffer.set(buffer);
-            buffer = newBuffer;
+            newBuffer.set(buffer2);
+            buffer2 = newBuffer;
           }
-          buffer.set(value, loaded);
+          buffer2.set(value, loaded);
           loaded = newLoaded;
           const progress = loaded / total * 100;
           progress_callback({
@@ -23982,14 +24132,14 @@ var __webpack_modules__ = {
           return read();
         }
         await read();
-        return buffer;
+        return buffer2;
       }
       function pathJoin(...parts) {
-        parts = parts.map((part, index) => {
-          if (index) {
+        parts = parts.map((part, index2) => {
+          if (index2) {
             part = part.replace(new RegExp("^/"), "");
           }
-          if (index !== parts.length - 1) {
+          if (index2 !== parts.length - 1) {
             part = part.replace(new RegExp("/$"), "");
           }
           return part;
@@ -24811,11 +24961,11 @@ var __webpack_modules__ = {
          * @param {number} size The size of the input array. Must be a power of two larger than 1.
          * @throws {Error} FFT size must be a power of two larger than 1.
          */
-        constructor(size) {
-          this.size = size | 0;
+        constructor(size3) {
+          this.size = size3 | 0;
           if (this.size <= 1 || !isPowerOfTwo(this.size))
             throw new Error("FFT size must be a power of two larger than 1");
-          this._csize = size << 1;
+          this._csize = size3 << 1;
           this.table = new Float64Array(this.size * 2);
           for (let i = 0; i < this.table.length; i += 2) {
             const angle = Math.PI * i / this.size;
@@ -24941,29 +25091,29 @@ var __webpack_modules__ = {
          * @returns {void}
          */
         _transform4(out, data, inv) {
-          const size = this._csize;
+          const size3 = this._csize;
           const width = this._width;
           let step = 1 << width;
-          let len = size / step << 1;
+          let len = size3 / step << 1;
           let outOff;
           let t;
           const bitrev = this._bitrev;
           if (len === 4) {
-            for (outOff = 0, t = 0; outOff < size; outOff += len, ++t) {
+            for (outOff = 0, t = 0; outOff < size3; outOff += len, ++t) {
               const off = bitrev[t];
               this._singleTransform2(data, out, outOff, off, step);
             }
           } else {
-            for (outOff = 0, t = 0; outOff < size; outOff += len, ++t) {
+            for (outOff = 0, t = 0; outOff < size3; outOff += len, ++t) {
               const off = bitrev[t];
               this._singleTransform4(data, out, outOff, off, step, inv);
             }
           }
           const table = this.table;
           for (step >>= 2; step >= 2; step >>= 2) {
-            len = size / step << 1;
+            len = size3 / step << 1;
             const quarterLen = len >>> 2;
-            for (outOff = 0; outOff < size; outOff += len) {
+            for (outOff = 0; outOff < size3; outOff += len) {
               const limit = outOff + quarterLen - 1;
               for (let i = outOff, k = 0; i < limit; i += 2, k += step) {
                 const A = i;
@@ -25077,31 +25227,31 @@ var __webpack_modules__ = {
          * @param {number} inv The scale factor used to normalize the inverse transform
          */
         _realTransform4(out, data, inv) {
-          const size = this._csize;
+          const size3 = this._csize;
           const width = this._width;
           let step = 1 << width;
-          let len = size / step << 1;
+          let len = size3 / step << 1;
           let outOff;
           let t;
           const bitrev = this._bitrev;
           if (len === 4) {
-            for (outOff = 0, t = 0; outOff < size; outOff += len, ++t) {
+            for (outOff = 0, t = 0; outOff < size3; outOff += len, ++t) {
               const off = bitrev[t];
               this._singleRealTransform2(data, out, outOff, off >>> 1, step >>> 1);
             }
           } else {
-            for (outOff = 0, t = 0; outOff < size; outOff += len, ++t) {
+            for (outOff = 0, t = 0; outOff < size3; outOff += len, ++t) {
               const off = bitrev[t];
               this._singleRealTransform4(data, out, outOff, off >>> 1, step >>> 1, inv);
             }
           }
           const table = this.table;
           for (step >>= 2; step >= 2; step >>= 2) {
-            len = size / step << 1;
+            len = size3 / step << 1;
             const halfLen = len >>> 1;
             const quarterLen = halfLen >>> 1;
             const hquarterLen = quarterLen >>> 1;
-            for (outOff = 0; outOff < size; outOff += len) {
+            for (outOff = 0; outOff < size3; outOff += len) {
               for (let i = 0, k = 0; i <= hquarterLen; i += 2, k += step) {
                 const A = outOff + i;
                 const B = A + quarterLen;
@@ -25157,10 +25307,10 @@ var __webpack_modules__ = {
               }
             }
           }
-          const half = size >>> 1;
+          const half = size3 >>> 1;
           for (let i = 2; i < half; i += 2) {
-            out[size - i] = out[i];
-            out[size - i + 1] = -out[i + 1];
+            out[size3 - i] = out[i];
+            out[size3 - i + 1] = -out[i + 1];
           }
         }
         /**
@@ -25319,21 +25469,21 @@ var __webpack_modules__ = {
           throw new Error("Window size must be a positive odd number");
         }
         const outputArray = new data.constructor(data.length);
-        const buffer = new data.constructor(windowSize);
+        const buffer2 = new data.constructor(windowSize);
         const halfWindowSize = Math.floor(windowSize / 2);
         for (let i = 0; i < data.length; ++i) {
           let valuesIndex = 0;
           for (let j = -halfWindowSize; j <= halfWindowSize; ++j) {
-            let index = i + j;
-            if (index < 0) {
-              index = Math.abs(index);
-            } else if (index >= data.length) {
-              index = 2 * (data.length - 1) - index;
+            let index2 = i + j;
+            if (index2 < 0) {
+              index2 = Math.abs(index2);
+            } else if (index2 >= data.length) {
+              index2 = 2 * (data.length - 1) - index2;
             }
-            buffer[valuesIndex++] = data[index];
+            buffer2[valuesIndex++] = data[index2];
           }
-          buffer.sort();
-          outputArray[i] = buffer[halfWindowSize];
+          buffer2.sort();
+          outputArray[i] = buffer2[halfWindowSize];
         }
         return outputArray;
       }
@@ -25599,9 +25749,9 @@ var __webpack_modules__ = {
           return new Proxy(this, {
             get: (obj, key) => {
               if (typeof key === "string") {
-                let index = Number(key);
-                if (Number.isInteger(index)) {
-                  return obj._getitem(index);
+                let index2 = Number(key);
+                if (Number.isInteger(index2)) {
+                  return obj._getitem(index2);
                 }
               }
               return obj[key];
@@ -25635,14 +25785,14 @@ var __webpack_modules__ = {
          * @param {number} index The index to access.
          * @returns {Tensor} The data at the specified index.
          */
-        _getitem(index) {
+        _getitem(index2) {
           const [iterLength, ...iterDims] = this.dims;
-          index = safeIndex(index, iterLength);
+          index2 = safeIndex(index2, iterLength);
           if (iterDims.length > 0) {
             const iterSize = iterDims.reduce((a, b) => a * b);
-            return this._subarray(index, iterSize, iterDims);
+            return this._subarray(index2, iterSize, iterDims);
           } else {
-            return new Tensor(this.type, [this.data[index]], iterDims);
+            return new Tensor(this.type, [this.data[index2]], iterDims);
           }
         }
         /**
@@ -25651,9 +25801,9 @@ var __webpack_modules__ = {
          */
         indexOf(item) {
           const this_data = this.data;
-          for (let index = 0; index < this_data.length; ++index) {
-            if (this_data[index] == item) {
-              return index;
+          for (let index2 = 0; index2 < this_data.length; ++index2) {
+            if (this_data[index2] == item) {
+              return index2;
             }
           }
           return -1;
@@ -25664,9 +25814,9 @@ var __webpack_modules__ = {
          * @param {any} iterDims
          * @returns {Tensor}
          */
-        _subarray(index, iterSize, iterDims) {
-          const o1 = index * iterSize;
-          const o2 = (index + 1) * iterSize;
+        _subarray(index2, iterSize, iterDims) {
+          const o1 = index2 * iterSize;
+          const o2 = (index2 + 1) * iterSize;
           const data = "subarray" in this.data ? this.data.subarray(o1, o2) : this.data.slice(o1, o2);
           return new Tensor(this.type, data, iterDims);
         }
@@ -25849,9 +25999,9 @@ var __webpack_modules__ = {
           for (let i = 0; i < newBufferSize; ++i) {
             let originalIndex = 0;
             for (let j = newDims.length - 1, num = i; j >= 0; --j) {
-              const size = newDims[j];
-              originalIndex += (num % size + newOffsets[j][0]) * stride[j];
-              num = Math.floor(num / size);
+              const size3 = newDims[j];
+              originalIndex += (num % size3 + newOffsets[j][0]) * stride[j];
+              num = Math.floor(num / size3);
             }
             data[i] = this_data[originalIndex];
           }
@@ -25906,13 +26056,13 @@ var __webpack_modules__ = {
           for (let i = 0; i < this_data.length; ++i) {
             let resultIndex = 0;
             for (let j = this.dims.length - 1, num = i, resultMultiplier = 1; j >= 0; --j) {
-              const size = this.dims[j];
+              const size3 = this.dims[j];
               if (j !== dim) {
-                const index = num % size;
-                resultIndex += index * resultMultiplier;
+                const index2 = num % size3;
+                resultIndex += index2 * resultMultiplier;
                 resultMultiplier *= resultDims[j];
               }
-              num = Math.floor(num / size);
+              num = Math.floor(num / size3);
             }
             result[resultIndex] += this_data[i] ** p;
           }
@@ -25940,13 +26090,13 @@ var __webpack_modules__ = {
           for (let i = 0; i < this_data.length; ++i) {
             let resultIndex = 0;
             for (let j = this.dims.length - 1, num = i, resultMultiplier = 1; j >= 0; --j) {
-              const size = this.dims[j];
+              const size3 = this.dims[j];
               if (j !== dim) {
-                const index = num % size;
-                resultIndex += index * resultMultiplier;
+                const index2 = num % size3;
+                resultIndex += index2 * resultMultiplier;
                 resultMultiplier *= this.dims[j];
               }
-              num = Math.floor(num / size);
+              num = Math.floor(num / size3);
             }
             this_data[i] /= norm_data[resultIndex];
           }
@@ -26053,8 +26203,8 @@ var __webpack_modules__ = {
           }
           const this_data = this.data;
           if (inferredIndex !== -1) {
-            const productOther = dims.reduce((product, curr, index) => {
-              return index !== inferredIndex ? product * curr : product;
+            const productOther = dims.reduce((product, curr, index2) => {
+              return index2 !== inferredIndex ? product * curr : product;
             }, 1);
             dims[inferredIndex] = this_data.length / productOther;
           }
@@ -26161,22 +26311,22 @@ var __webpack_modules__ = {
         return new Tensor(input.type, output, [in_channels, out_height, out_width]);
       }
       async function interpolate_4d(input, {
-        size = null,
+        size: size3 = null,
         mode = "bilinear"
       } = {}) {
         if (input.dims.length !== 4) {
           throw new Error("`interpolate_4d` currently only supports 4D input.");
         }
-        if (!size) {
+        if (!size3) {
           throw new Error("`interpolate_4d` requires a `size` argument.");
         }
         let targetDims;
-        if (size.length === 2) {
-          targetDims = [...input.dims.slice(0, 2), ...size];
-        } else if (size.length === 3) {
-          targetDims = [input.dims[0], ...size];
-        } else if (size.length === 4) {
-          targetDims = size;
+        if (size3.length === 2) {
+          targetDims = [...input.dims.slice(0, 2), ...size3];
+        } else if (size3.length === 3) {
+          targetDims = [input.dims[0], ...size3];
+        } else if (size3.length === 4) {
+          targetDims = size3;
         } else {
           throw new Error("`size` must be of length 2, 3, or 4.");
         }
@@ -26298,14 +26448,14 @@ var __webpack_modules__ = {
         dims.splice(dim, 0, 1);
         return dims;
       }
-      function safeIndex(index, size, dimension = null, boundsCheck = true) {
-        if (boundsCheck && (index < -size || index >= size)) {
-          throw new Error(`IndexError: index ${index} is out of bounds for dimension${dimension === null ? "" : " " + dimension} with size ${size}`);
+      function safeIndex(index2, size3, dimension = null, boundsCheck = true) {
+        if (boundsCheck && (index2 < -size3 || index2 >= size3)) {
+          throw new Error(`IndexError: index ${index2} is out of bounds for dimension${dimension === null ? "" : " " + dimension} with size ${size3}`);
         }
-        if (index < 0) {
-          index = (index % size + size) % size;
+        if (index2 < 0) {
+          index2 = (index2 % size3 + size3) % size3;
         }
-        return index;
+        return index2;
       }
       function cat(tensors, dim = 0) {
         dim = safeIndex(dim, tensors[0].dims.length);
@@ -26328,14 +26478,14 @@ var __webpack_modules__ = {
             for (let i = 0; i < data.length; ++i) {
               let resultIndex = 0;
               for (let j = dims.length - 1, num = i, resultMultiplier = 1; j >= 0; --j) {
-                const size = dims[j];
-                let index = num % size;
+                const size3 = dims[j];
+                let index2 = num % size3;
                 if (j === dim) {
-                  index += currentDim;
+                  index2 += currentDim;
                 }
-                resultIndex += index * resultMultiplier;
+                resultIndex += index2 * resultMultiplier;
                 resultMultiplier *= resultDims[j];
-                num = Math.floor(num / size);
+                num = Math.floor(num / size3);
               }
               result[resultIndex] = data[i];
             }
@@ -26374,13 +26524,13 @@ var __webpack_modules__ = {
         for (let i = 0; i < inputData.length; ++i) {
           let resultIndex = 0;
           for (let j = inputDims.length - 1, num = i, resultMultiplier = 1; j >= 0; --j) {
-            const size = inputDims[j];
+            const size3 = inputDims[j];
             if (j !== dim) {
-              const index = num % size;
-              resultIndex += index * resultMultiplier;
+              const index2 = num % size3;
+              resultIndex += index2 * resultMultiplier;
               resultMultiplier *= resultDims[j];
             }
-            num = Math.floor(num / size);
+            num = Math.floor(num / size3);
           }
           result[resultIndex] += (inputData[i] - meanTensorData[resultIndex]) ** 2;
         }
@@ -26412,13 +26562,13 @@ var __webpack_modules__ = {
         for (let i = 0; i < inputData.length; ++i) {
           let resultIndex = 0;
           for (let j = inputDims.length - 1, num = i, resultMultiplier = 1; j >= 0; --j) {
-            const size = inputDims[j];
+            const size3 = inputDims[j];
             if (j !== dim) {
-              const index = num % size;
-              resultIndex += index * resultMultiplier;
+              const index2 = num % size3;
+              resultIndex += index2 * resultMultiplier;
               resultMultiplier *= resultDims[j];
             }
-            num = Math.floor(num / size);
+            num = Math.floor(num / size3);
           }
           result[resultIndex] += inputData[i];
         }
@@ -26440,15 +26590,15 @@ var __webpack_modules__ = {
         }
         return stride;
       }
-      function fullHelper(size, fill_value, dtype, cls) {
-        const numElements = size.reduce((a, b) => a * b, 1);
+      function fullHelper(size3, fill_value, dtype, cls) {
+        const numElements = size3.reduce((a, b) => a * b, 1);
         return new Tensor(
           dtype,
           new cls(numElements).fill(fill_value),
-          size
+          size3
         );
       }
-      function full(size, fill_value) {
+      function full(size3, fill_value) {
         let dtype;
         let typedArrayCls;
         if (typeof fill_value === "number") {
@@ -26460,19 +26610,19 @@ var __webpack_modules__ = {
         } else {
           throw new Error(`Unsupported data type: ${typeof fill_value}`);
         }
-        return fullHelper(size, fill_value, dtype, typedArrayCls);
+        return fullHelper(size3, fill_value, dtype, typedArrayCls);
       }
       function full_like(tensor, fill_value) {
         return full(tensor.dims, fill_value);
       }
-      function ones(size) {
-        return fullHelper(size, 1n, "int64", BigInt64Array);
+      function ones(size3) {
+        return fullHelper(size3, 1n, "int64", BigInt64Array);
       }
       function ones_like(tensor) {
         return ones(tensor.dims);
       }
-      function zeros(size) {
-        return fullHelper(size, 0n, "int64", BigInt64Array);
+      function zeros(size3) {
+        return fullHelper(size3, 0n, "int64", BigInt64Array);
       }
       function zeros_like(tensor) {
         return zeros(tensor.dims);
@@ -30333,7 +30483,5658 @@ var __webpack_exports__zeros_like = __webpack_exports__.zeros_like;
 // src/generation.ts
 import Together from "together-ai";
 import { fal } from "@fal-ai/client";
-import { tavily } from "@tavily/core";
+
+// ../../node_modules/bignumber.js/bignumber.mjs
+var isNumeric = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+var mathceil = Math.ceil;
+var mathfloor = Math.floor;
+var bignumberError = "[BigNumber Error] ";
+var tooManyDigits = bignumberError + "Number primitive has more than 15 significant digits: ";
+var BASE = 1e14;
+var LOG_BASE = 14;
+var MAX_SAFE_INTEGER = 9007199254740991;
+var POWS_TEN = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13];
+var SQRT_BASE = 1e7;
+var MAX = 1e9;
+function clone(configObject) {
+  var div, convertBase, parseNumeric, P = BigNumber2.prototype = { constructor: BigNumber2, toString: null, valueOf: null }, ONE = new BigNumber2(1), DECIMAL_PLACES = 20, ROUNDING_MODE = 4, TO_EXP_NEG = -7, TO_EXP_POS = 21, MIN_EXP = -1e7, MAX_EXP = 1e7, CRYPTO = false, MODULO_MODE = 1, POW_PRECISION = 0, FORMAT = {
+    prefix: "",
+    groupSize: 3,
+    secondaryGroupSize: 0,
+    groupSeparator: ",",
+    decimalSeparator: ".",
+    fractionGroupSize: 0,
+    fractionGroupSeparator: "\xA0",
+    // non-breaking space
+    suffix: ""
+  }, ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz", alphabetHasNormalDecimalDigits = true;
+  function BigNumber2(v, b) {
+    var alphabet, c, caseChanged, e, i, isNum, len, str, x = this;
+    if (!(x instanceof BigNumber2)) return new BigNumber2(v, b);
+    if (b == null) {
+      if (v && v._isBigNumber === true) {
+        x.s = v.s;
+        if (!v.c || v.e > MAX_EXP) {
+          x.c = x.e = null;
+        } else if (v.e < MIN_EXP) {
+          x.c = [x.e = 0];
+        } else {
+          x.e = v.e;
+          x.c = v.c.slice();
+        }
+        return;
+      }
+      if ((isNum = typeof v == "number") && v * 0 == 0) {
+        x.s = 1 / v < 0 ? (v = -v, -1) : 1;
+        if (v === ~~v) {
+          for (e = 0, i = v; i >= 10; i /= 10, e++) ;
+          if (e > MAX_EXP) {
+            x.c = x.e = null;
+          } else {
+            x.e = e;
+            x.c = [v];
+          }
+          return;
+        }
+        str = String(v);
+      } else {
+        if (!isNumeric.test(str = String(v))) return parseNumeric(x, str, isNum);
+        x.s = str.charCodeAt(0) == 45 ? (str = str.slice(1), -1) : 1;
+      }
+      if ((e = str.indexOf(".")) > -1) str = str.replace(".", "");
+      if ((i = str.search(/e/i)) > 0) {
+        if (e < 0) e = i;
+        e += +str.slice(i + 1);
+        str = str.substring(0, i);
+      } else if (e < 0) {
+        e = str.length;
+      }
+    } else {
+      intCheck(b, 2, ALPHABET.length, "Base");
+      if (b == 10 && alphabetHasNormalDecimalDigits) {
+        x = new BigNumber2(v);
+        return round(x, DECIMAL_PLACES + x.e + 1, ROUNDING_MODE);
+      }
+      str = String(v);
+      if (isNum = typeof v == "number") {
+        if (v * 0 != 0) return parseNumeric(x, str, isNum, b);
+        x.s = 1 / v < 0 ? (str = str.slice(1), -1) : 1;
+        if (BigNumber2.DEBUG && str.replace(/^0\.0*|\./, "").length > 15) {
+          throw Error(tooManyDigits + v);
+        }
+      } else {
+        x.s = str.charCodeAt(0) === 45 ? (str = str.slice(1), -1) : 1;
+      }
+      alphabet = ALPHABET.slice(0, b);
+      e = i = 0;
+      for (len = str.length; i < len; i++) {
+        if (alphabet.indexOf(c = str.charAt(i)) < 0) {
+          if (c == ".") {
+            if (i > e) {
+              e = len;
+              continue;
+            }
+          } else if (!caseChanged) {
+            if (str == str.toUpperCase() && (str = str.toLowerCase()) || str == str.toLowerCase() && (str = str.toUpperCase())) {
+              caseChanged = true;
+              i = -1;
+              e = 0;
+              continue;
+            }
+          }
+          return parseNumeric(x, String(v), isNum, b);
+        }
+      }
+      isNum = false;
+      str = convertBase(str, b, 10, x.s);
+      if ((e = str.indexOf(".")) > -1) str = str.replace(".", "");
+      else e = str.length;
+    }
+    for (i = 0; str.charCodeAt(i) === 48; i++) ;
+    for (len = str.length; str.charCodeAt(--len) === 48; ) ;
+    if (str = str.slice(i, ++len)) {
+      len -= i;
+      if (isNum && BigNumber2.DEBUG && len > 15 && (v > MAX_SAFE_INTEGER || v !== mathfloor(v))) {
+        throw Error(tooManyDigits + x.s * v);
+      }
+      if ((e = e - i - 1) > MAX_EXP) {
+        x.c = x.e = null;
+      } else if (e < MIN_EXP) {
+        x.c = [x.e = 0];
+      } else {
+        x.e = e;
+        x.c = [];
+        i = (e + 1) % LOG_BASE;
+        if (e < 0) i += LOG_BASE;
+        if (i < len) {
+          if (i) x.c.push(+str.slice(0, i));
+          for (len -= LOG_BASE; i < len; ) {
+            x.c.push(+str.slice(i, i += LOG_BASE));
+          }
+          i = LOG_BASE - (str = str.slice(i)).length;
+        } else {
+          i -= len;
+        }
+        for (; i--; str += "0") ;
+        x.c.push(+str);
+      }
+    } else {
+      x.c = [x.e = 0];
+    }
+  }
+  BigNumber2.clone = clone;
+  BigNumber2.ROUND_UP = 0;
+  BigNumber2.ROUND_DOWN = 1;
+  BigNumber2.ROUND_CEIL = 2;
+  BigNumber2.ROUND_FLOOR = 3;
+  BigNumber2.ROUND_HALF_UP = 4;
+  BigNumber2.ROUND_HALF_DOWN = 5;
+  BigNumber2.ROUND_HALF_EVEN = 6;
+  BigNumber2.ROUND_HALF_CEIL = 7;
+  BigNumber2.ROUND_HALF_FLOOR = 8;
+  BigNumber2.EUCLID = 9;
+  BigNumber2.config = BigNumber2.set = function(obj) {
+    var p, v;
+    if (obj != null) {
+      if (typeof obj == "object") {
+        if (obj.hasOwnProperty(p = "DECIMAL_PLACES")) {
+          v = obj[p];
+          intCheck(v, 0, MAX, p);
+          DECIMAL_PLACES = v;
+        }
+        if (obj.hasOwnProperty(p = "ROUNDING_MODE")) {
+          v = obj[p];
+          intCheck(v, 0, 8, p);
+          ROUNDING_MODE = v;
+        }
+        if (obj.hasOwnProperty(p = "EXPONENTIAL_AT")) {
+          v = obj[p];
+          if (v && v.pop) {
+            intCheck(v[0], -MAX, 0, p);
+            intCheck(v[1], 0, MAX, p);
+            TO_EXP_NEG = v[0];
+            TO_EXP_POS = v[1];
+          } else {
+            intCheck(v, -MAX, MAX, p);
+            TO_EXP_NEG = -(TO_EXP_POS = v < 0 ? -v : v);
+          }
+        }
+        if (obj.hasOwnProperty(p = "RANGE")) {
+          v = obj[p];
+          if (v && v.pop) {
+            intCheck(v[0], -MAX, -1, p);
+            intCheck(v[1], 1, MAX, p);
+            MIN_EXP = v[0];
+            MAX_EXP = v[1];
+          } else {
+            intCheck(v, -MAX, MAX, p);
+            if (v) {
+              MIN_EXP = -(MAX_EXP = v < 0 ? -v : v);
+            } else {
+              throw Error(bignumberError + p + " cannot be zero: " + v);
+            }
+          }
+        }
+        if (obj.hasOwnProperty(p = "CRYPTO")) {
+          v = obj[p];
+          if (v === !!v) {
+            if (v) {
+              if (typeof crypto != "undefined" && crypto && (crypto.getRandomValues || crypto.randomBytes)) {
+                CRYPTO = v;
+              } else {
+                CRYPTO = !v;
+                throw Error(bignumberError + "crypto unavailable");
+              }
+            } else {
+              CRYPTO = v;
+            }
+          } else {
+            throw Error(bignumberError + p + " not true or false: " + v);
+          }
+        }
+        if (obj.hasOwnProperty(p = "MODULO_MODE")) {
+          v = obj[p];
+          intCheck(v, 0, 9, p);
+          MODULO_MODE = v;
+        }
+        if (obj.hasOwnProperty(p = "POW_PRECISION")) {
+          v = obj[p];
+          intCheck(v, 0, MAX, p);
+          POW_PRECISION = v;
+        }
+        if (obj.hasOwnProperty(p = "FORMAT")) {
+          v = obj[p];
+          if (typeof v == "object") FORMAT = v;
+          else throw Error(bignumberError + p + " not an object: " + v);
+        }
+        if (obj.hasOwnProperty(p = "ALPHABET")) {
+          v = obj[p];
+          if (typeof v == "string" && !/^.?$|[+\-.\s]|(.).*\1/.test(v)) {
+            alphabetHasNormalDecimalDigits = v.slice(0, 10) == "0123456789";
+            ALPHABET = v;
+          } else {
+            throw Error(bignumberError + p + " invalid: " + v);
+          }
+        }
+      } else {
+        throw Error(bignumberError + "Object expected: " + obj);
+      }
+    }
+    return {
+      DECIMAL_PLACES,
+      ROUNDING_MODE,
+      EXPONENTIAL_AT: [TO_EXP_NEG, TO_EXP_POS],
+      RANGE: [MIN_EXP, MAX_EXP],
+      CRYPTO,
+      MODULO_MODE,
+      POW_PRECISION,
+      FORMAT,
+      ALPHABET
+    };
+  };
+  BigNumber2.isBigNumber = function(v) {
+    if (!v || v._isBigNumber !== true) return false;
+    if (!BigNumber2.DEBUG) return true;
+    var i, n, c = v.c, e = v.e, s = v.s;
+    out: if ({}.toString.call(c) == "[object Array]") {
+      if ((s === 1 || s === -1) && e >= -MAX && e <= MAX && e === mathfloor(e)) {
+        if (c[0] === 0) {
+          if (e === 0 && c.length === 1) return true;
+          break out;
+        }
+        i = (e + 1) % LOG_BASE;
+        if (i < 1) i += LOG_BASE;
+        if (String(c[0]).length == i) {
+          for (i = 0; i < c.length; i++) {
+            n = c[i];
+            if (n < 0 || n >= BASE || n !== mathfloor(n)) break out;
+          }
+          if (n !== 0) return true;
+        }
+      }
+    } else if (c === null && e === null && (s === null || s === 1 || s === -1)) {
+      return true;
+    }
+    throw Error(bignumberError + "Invalid BigNumber: " + v);
+  };
+  BigNumber2.maximum = BigNumber2.max = function() {
+    return maxOrMin(arguments, -1);
+  };
+  BigNumber2.minimum = BigNumber2.min = function() {
+    return maxOrMin(arguments, 1);
+  };
+  BigNumber2.random = function() {
+    var pow2_53 = 9007199254740992;
+    var random53bitInt = Math.random() * pow2_53 & 2097151 ? function() {
+      return mathfloor(Math.random() * pow2_53);
+    } : function() {
+      return (Math.random() * 1073741824 | 0) * 8388608 + (Math.random() * 8388608 | 0);
+    };
+    return function(dp) {
+      var a, b, e, k, v, i = 0, c = [], rand = new BigNumber2(ONE);
+      if (dp == null) dp = DECIMAL_PLACES;
+      else intCheck(dp, 0, MAX);
+      k = mathceil(dp / LOG_BASE);
+      if (CRYPTO) {
+        if (crypto.getRandomValues) {
+          a = crypto.getRandomValues(new Uint32Array(k *= 2));
+          for (; i < k; ) {
+            v = a[i] * 131072 + (a[i + 1] >>> 11);
+            if (v >= 9e15) {
+              b = crypto.getRandomValues(new Uint32Array(2));
+              a[i] = b[0];
+              a[i + 1] = b[1];
+            } else {
+              c.push(v % 1e14);
+              i += 2;
+            }
+          }
+          i = k / 2;
+        } else if (crypto.randomBytes) {
+          a = crypto.randomBytes(k *= 7);
+          for (; i < k; ) {
+            v = (a[i] & 31) * 281474976710656 + a[i + 1] * 1099511627776 + a[i + 2] * 4294967296 + a[i + 3] * 16777216 + (a[i + 4] << 16) + (a[i + 5] << 8) + a[i + 6];
+            if (v >= 9e15) {
+              crypto.randomBytes(7).copy(a, i);
+            } else {
+              c.push(v % 1e14);
+              i += 7;
+            }
+          }
+          i = k / 7;
+        } else {
+          CRYPTO = false;
+          throw Error(bignumberError + "crypto unavailable");
+        }
+      }
+      if (!CRYPTO) {
+        for (; i < k; ) {
+          v = random53bitInt();
+          if (v < 9e15) c[i++] = v % 1e14;
+        }
+      }
+      k = c[--i];
+      dp %= LOG_BASE;
+      if (k && dp) {
+        v = POWS_TEN[LOG_BASE - dp];
+        c[i] = mathfloor(k / v) * v;
+      }
+      for (; c[i] === 0; c.pop(), i--) ;
+      if (i < 0) {
+        c = [e = 0];
+      } else {
+        for (e = -1; c[0] === 0; c.splice(0, 1), e -= LOG_BASE) ;
+        for (i = 1, v = c[0]; v >= 10; v /= 10, i++) ;
+        if (i < LOG_BASE) e -= LOG_BASE - i;
+      }
+      rand.e = e;
+      rand.c = c;
+      return rand;
+    };
+  }();
+  BigNumber2.sum = function() {
+    var i = 1, args = arguments, sum = new BigNumber2(args[0]);
+    for (; i < args.length; ) sum = sum.plus(args[i++]);
+    return sum;
+  };
+  convertBase = /* @__PURE__ */ function() {
+    var decimal = "0123456789";
+    function toBaseOut(str, baseIn, baseOut, alphabet) {
+      var j, arr = [0], arrL, i = 0, len = str.length;
+      for (; i < len; ) {
+        for (arrL = arr.length; arrL--; arr[arrL] *= baseIn) ;
+        arr[0] += alphabet.indexOf(str.charAt(i++));
+        for (j = 0; j < arr.length; j++) {
+          if (arr[j] > baseOut - 1) {
+            if (arr[j + 1] == null) arr[j + 1] = 0;
+            arr[j + 1] += arr[j] / baseOut | 0;
+            arr[j] %= baseOut;
+          }
+        }
+      }
+      return arr.reverse();
+    }
+    return function(str, baseIn, baseOut, sign, callerIsToString) {
+      var alphabet, d, e, k, r, x, xc, y, i = str.indexOf("."), dp = DECIMAL_PLACES, rm = ROUNDING_MODE;
+      if (i >= 0) {
+        k = POW_PRECISION;
+        POW_PRECISION = 0;
+        str = str.replace(".", "");
+        y = new BigNumber2(baseIn);
+        x = y.pow(str.length - i);
+        POW_PRECISION = k;
+        y.c = toBaseOut(
+          toFixedPoint(coeffToString(x.c), x.e, "0"),
+          10,
+          baseOut,
+          decimal
+        );
+        y.e = y.c.length;
+      }
+      xc = toBaseOut(str, baseIn, baseOut, callerIsToString ? (alphabet = ALPHABET, decimal) : (alphabet = decimal, ALPHABET));
+      e = k = xc.length;
+      for (; xc[--k] == 0; xc.pop()) ;
+      if (!xc[0]) return alphabet.charAt(0);
+      if (i < 0) {
+        --e;
+      } else {
+        x.c = xc;
+        x.e = e;
+        x.s = sign;
+        x = div(x, y, dp, rm, baseOut);
+        xc = x.c;
+        r = x.r;
+        e = x.e;
+      }
+      d = e + dp + 1;
+      i = xc[d];
+      k = baseOut / 2;
+      r = r || d < 0 || xc[d + 1] != null;
+      r = rm < 4 ? (i != null || r) && (rm == 0 || rm == (x.s < 0 ? 3 : 2)) : i > k || i == k && (rm == 4 || r || rm == 6 && xc[d - 1] & 1 || rm == (x.s < 0 ? 8 : 7));
+      if (d < 1 || !xc[0]) {
+        str = r ? toFixedPoint(alphabet.charAt(1), -dp, alphabet.charAt(0)) : alphabet.charAt(0);
+      } else {
+        xc.length = d;
+        if (r) {
+          for (--baseOut; ++xc[--d] > baseOut; ) {
+            xc[d] = 0;
+            if (!d) {
+              ++e;
+              xc = [1].concat(xc);
+            }
+          }
+        }
+        for (k = xc.length; !xc[--k]; ) ;
+        for (i = 0, str = ""; i <= k; str += alphabet.charAt(xc[i++])) ;
+        str = toFixedPoint(str, e, alphabet.charAt(0));
+      }
+      return str;
+    };
+  }();
+  div = /* @__PURE__ */ function() {
+    function multiply(x, k, base) {
+      var m, temp, xlo, xhi, carry = 0, i = x.length, klo = k % SQRT_BASE, khi = k / SQRT_BASE | 0;
+      for (x = x.slice(); i--; ) {
+        xlo = x[i] % SQRT_BASE;
+        xhi = x[i] / SQRT_BASE | 0;
+        m = khi * xlo + xhi * klo;
+        temp = klo * xlo + m % SQRT_BASE * SQRT_BASE + carry;
+        carry = (temp / base | 0) + (m / SQRT_BASE | 0) + khi * xhi;
+        x[i] = temp % base;
+      }
+      if (carry) x = [carry].concat(x);
+      return x;
+    }
+    function compare2(a, b, aL, bL) {
+      var i, cmp;
+      if (aL != bL) {
+        cmp = aL > bL ? 1 : -1;
+      } else {
+        for (i = cmp = 0; i < aL; i++) {
+          if (a[i] != b[i]) {
+            cmp = a[i] > b[i] ? 1 : -1;
+            break;
+          }
+        }
+      }
+      return cmp;
+    }
+    function subtract(a, b, aL, base) {
+      var i = 0;
+      for (; aL--; ) {
+        a[aL] -= i;
+        i = a[aL] < b[aL] ? 1 : 0;
+        a[aL] = i * base + a[aL] - b[aL];
+      }
+      for (; !a[0] && a.length > 1; a.splice(0, 1)) ;
+    }
+    return function(x, y, dp, rm, base) {
+      var cmp, e, i, more, n, prod, prodL, q, qc, rem, remL, rem0, xi, xL, yc0, yL, yz, s = x.s == y.s ? 1 : -1, xc = x.c, yc = y.c;
+      if (!xc || !xc[0] || !yc || !yc[0]) {
+        return new BigNumber2(
+          // Return NaN if either NaN, or both Infinity or 0.
+          !x.s || !y.s || (xc ? yc && xc[0] == yc[0] : !yc) ? NaN : (
+            // Return ±0 if x is ±0 or y is ±Infinity, or return ±Infinity as y is ±0.
+            xc && xc[0] == 0 || !yc ? s * 0 : s / 0
+          )
+        );
+      }
+      q = new BigNumber2(s);
+      qc = q.c = [];
+      e = x.e - y.e;
+      s = dp + e + 1;
+      if (!base) {
+        base = BASE;
+        e = bitFloor(x.e / LOG_BASE) - bitFloor(y.e / LOG_BASE);
+        s = s / LOG_BASE | 0;
+      }
+      for (i = 0; yc[i] == (xc[i] || 0); i++) ;
+      if (yc[i] > (xc[i] || 0)) e--;
+      if (s < 0) {
+        qc.push(1);
+        more = true;
+      } else {
+        xL = xc.length;
+        yL = yc.length;
+        i = 0;
+        s += 2;
+        n = mathfloor(base / (yc[0] + 1));
+        if (n > 1) {
+          yc = multiply(yc, n, base);
+          xc = multiply(xc, n, base);
+          yL = yc.length;
+          xL = xc.length;
+        }
+        xi = yL;
+        rem = xc.slice(0, yL);
+        remL = rem.length;
+        for (; remL < yL; rem[remL++] = 0) ;
+        yz = yc.slice();
+        yz = [0].concat(yz);
+        yc0 = yc[0];
+        if (yc[1] >= base / 2) yc0++;
+        do {
+          n = 0;
+          cmp = compare2(yc, rem, yL, remL);
+          if (cmp < 0) {
+            rem0 = rem[0];
+            if (yL != remL) rem0 = rem0 * base + (rem[1] || 0);
+            n = mathfloor(rem0 / yc0);
+            if (n > 1) {
+              if (n >= base) n = base - 1;
+              prod = multiply(yc, n, base);
+              prodL = prod.length;
+              remL = rem.length;
+              while (compare2(prod, rem, prodL, remL) == 1) {
+                n--;
+                subtract(prod, yL < prodL ? yz : yc, prodL, base);
+                prodL = prod.length;
+                cmp = 1;
+              }
+            } else {
+              if (n == 0) {
+                cmp = n = 1;
+              }
+              prod = yc.slice();
+              prodL = prod.length;
+            }
+            if (prodL < remL) prod = [0].concat(prod);
+            subtract(rem, prod, remL, base);
+            remL = rem.length;
+            if (cmp == -1) {
+              while (compare2(yc, rem, yL, remL) < 1) {
+                n++;
+                subtract(rem, yL < remL ? yz : yc, remL, base);
+                remL = rem.length;
+              }
+            }
+          } else if (cmp === 0) {
+            n++;
+            rem = [0];
+          }
+          qc[i++] = n;
+          if (rem[0]) {
+            rem[remL++] = xc[xi] || 0;
+          } else {
+            rem = [xc[xi]];
+            remL = 1;
+          }
+        } while ((xi++ < xL || rem[0] != null) && s--);
+        more = rem[0] != null;
+        if (!qc[0]) qc.splice(0, 1);
+      }
+      if (base == BASE) {
+        for (i = 1, s = qc[0]; s >= 10; s /= 10, i++) ;
+        round(q, dp + (q.e = i + e * LOG_BASE - 1) + 1, rm, more);
+      } else {
+        q.e = e;
+        q.r = +more;
+      }
+      return q;
+    };
+  }();
+  function format(n, i, rm, id) {
+    var c0, e, ne, len, str;
+    if (rm == null) rm = ROUNDING_MODE;
+    else intCheck(rm, 0, 8);
+    if (!n.c) return n.toString();
+    c0 = n.c[0];
+    ne = n.e;
+    if (i == null) {
+      str = coeffToString(n.c);
+      str = id == 1 || id == 2 && (ne <= TO_EXP_NEG || ne >= TO_EXP_POS) ? toExponential(str, ne) : toFixedPoint(str, ne, "0");
+    } else {
+      n = round(new BigNumber2(n), i, rm);
+      e = n.e;
+      str = coeffToString(n.c);
+      len = str.length;
+      if (id == 1 || id == 2 && (i <= e || e <= TO_EXP_NEG)) {
+        for (; len < i; str += "0", len++) ;
+        str = toExponential(str, e);
+      } else {
+        i -= ne;
+        str = toFixedPoint(str, e, "0");
+        if (e + 1 > len) {
+          if (--i > 0) for (str += "."; i--; str += "0") ;
+        } else {
+          i += e - len;
+          if (i > 0) {
+            if (e + 1 == len) str += ".";
+            for (; i--; str += "0") ;
+          }
+        }
+      }
+    }
+    return n.s < 0 && c0 ? "-" + str : str;
+  }
+  function maxOrMin(args, n) {
+    var k, y, i = 1, x = new BigNumber2(args[0]);
+    for (; i < args.length; i++) {
+      y = new BigNumber2(args[i]);
+      if (!y.s || (k = compare(x, y)) === n || k === 0 && x.s === n) {
+        x = y;
+      }
+    }
+    return x;
+  }
+  function normalise(n, c, e) {
+    var i = 1, j = c.length;
+    for (; !c[--j]; c.pop()) ;
+    for (j = c[0]; j >= 10; j /= 10, i++) ;
+    if ((e = i + e * LOG_BASE - 1) > MAX_EXP) {
+      n.c = n.e = null;
+    } else if (e < MIN_EXP) {
+      n.c = [n.e = 0];
+    } else {
+      n.e = e;
+      n.c = c;
+    }
+    return n;
+  }
+  parseNumeric = /* @__PURE__ */ function() {
+    var basePrefix = /^(-?)0([xbo])(?=\w[\w.]*$)/i, dotAfter = /^([^.]+)\.$/, dotBefore = /^\.([^.]+)$/, isInfinityOrNaN = /^-?(Infinity|NaN)$/, whitespaceOrPlus = /^\s*\+(?=[\w.])|^\s+|\s+$/g;
+    return function(x, str, isNum, b) {
+      var base, s = isNum ? str : str.replace(whitespaceOrPlus, "");
+      if (isInfinityOrNaN.test(s)) {
+        x.s = isNaN(s) ? null : s < 0 ? -1 : 1;
+      } else {
+        if (!isNum) {
+          s = s.replace(basePrefix, function(m, p1, p2) {
+            base = (p2 = p2.toLowerCase()) == "x" ? 16 : p2 == "b" ? 2 : 8;
+            return !b || b == base ? p1 : m;
+          });
+          if (b) {
+            base = b;
+            s = s.replace(dotAfter, "$1").replace(dotBefore, "0.$1");
+          }
+          if (str != s) return new BigNumber2(s, base);
+        }
+        if (BigNumber2.DEBUG) {
+          throw Error(bignumberError + "Not a" + (b ? " base " + b : "") + " number: " + str);
+        }
+        x.s = null;
+      }
+      x.c = x.e = null;
+    };
+  }();
+  function round(x, sd, rm, r) {
+    var d, i, j, k, n, ni, rd, xc = x.c, pows10 = POWS_TEN;
+    if (xc) {
+      out: {
+        for (d = 1, k = xc[0]; k >= 10; k /= 10, d++) ;
+        i = sd - d;
+        if (i < 0) {
+          i += LOG_BASE;
+          j = sd;
+          n = xc[ni = 0];
+          rd = mathfloor(n / pows10[d - j - 1] % 10);
+        } else {
+          ni = mathceil((i + 1) / LOG_BASE);
+          if (ni >= xc.length) {
+            if (r) {
+              for (; xc.length <= ni; xc.push(0)) ;
+              n = rd = 0;
+              d = 1;
+              i %= LOG_BASE;
+              j = i - LOG_BASE + 1;
+            } else {
+              break out;
+            }
+          } else {
+            n = k = xc[ni];
+            for (d = 1; k >= 10; k /= 10, d++) ;
+            i %= LOG_BASE;
+            j = i - LOG_BASE + d;
+            rd = j < 0 ? 0 : mathfloor(n / pows10[d - j - 1] % 10);
+          }
+        }
+        r = r || sd < 0 || // Are there any non-zero digits after the rounding digit?
+        // The expression  n % pows10[d - j - 1]  returns all digits of n to the right
+        // of the digit at j, e.g. if n is 908714 and j is 2, the expression gives 714.
+        xc[ni + 1] != null || (j < 0 ? n : n % pows10[d - j - 1]);
+        r = rm < 4 ? (rd || r) && (rm == 0 || rm == (x.s < 0 ? 3 : 2)) : rd > 5 || rd == 5 && (rm == 4 || r || rm == 6 && // Check whether the digit to the left of the rounding digit is odd.
+        (i > 0 ? j > 0 ? n / pows10[d - j] : 0 : xc[ni - 1]) % 10 & 1 || rm == (x.s < 0 ? 8 : 7));
+        if (sd < 1 || !xc[0]) {
+          xc.length = 0;
+          if (r) {
+            sd -= x.e + 1;
+            xc[0] = pows10[(LOG_BASE - sd % LOG_BASE) % LOG_BASE];
+            x.e = -sd || 0;
+          } else {
+            xc[0] = x.e = 0;
+          }
+          return x;
+        }
+        if (i == 0) {
+          xc.length = ni;
+          k = 1;
+          ni--;
+        } else {
+          xc.length = ni + 1;
+          k = pows10[LOG_BASE - i];
+          xc[ni] = j > 0 ? mathfloor(n / pows10[d - j] % pows10[j]) * k : 0;
+        }
+        if (r) {
+          for (; ; ) {
+            if (ni == 0) {
+              for (i = 1, j = xc[0]; j >= 10; j /= 10, i++) ;
+              j = xc[0] += k;
+              for (k = 1; j >= 10; j /= 10, k++) ;
+              if (i != k) {
+                x.e++;
+                if (xc[0] == BASE) xc[0] = 1;
+              }
+              break;
+            } else {
+              xc[ni] += k;
+              if (xc[ni] != BASE) break;
+              xc[ni--] = 0;
+              k = 1;
+            }
+          }
+        }
+        for (i = xc.length; xc[--i] === 0; xc.pop()) ;
+      }
+      if (x.e > MAX_EXP) {
+        x.c = x.e = null;
+      } else if (x.e < MIN_EXP) {
+        x.c = [x.e = 0];
+      }
+    }
+    return x;
+  }
+  function valueOf(n) {
+    var str, e = n.e;
+    if (e === null) return n.toString();
+    str = coeffToString(n.c);
+    str = e <= TO_EXP_NEG || e >= TO_EXP_POS ? toExponential(str, e) : toFixedPoint(str, e, "0");
+    return n.s < 0 ? "-" + str : str;
+  }
+  P.absoluteValue = P.abs = function() {
+    var x = new BigNumber2(this);
+    if (x.s < 0) x.s = 1;
+    return x;
+  };
+  P.comparedTo = function(y, b) {
+    return compare(this, new BigNumber2(y, b));
+  };
+  P.decimalPlaces = P.dp = function(dp, rm) {
+    var c, n, v, x = this;
+    if (dp != null) {
+      intCheck(dp, 0, MAX);
+      if (rm == null) rm = ROUNDING_MODE;
+      else intCheck(rm, 0, 8);
+      return round(new BigNumber2(x), dp + x.e + 1, rm);
+    }
+    if (!(c = x.c)) return null;
+    n = ((v = c.length - 1) - bitFloor(this.e / LOG_BASE)) * LOG_BASE;
+    if (v = c[v]) for (; v % 10 == 0; v /= 10, n--) ;
+    if (n < 0) n = 0;
+    return n;
+  };
+  P.dividedBy = P.div = function(y, b) {
+    return div(this, new BigNumber2(y, b), DECIMAL_PLACES, ROUNDING_MODE);
+  };
+  P.dividedToIntegerBy = P.idiv = function(y, b) {
+    return div(this, new BigNumber2(y, b), 0, 1);
+  };
+  P.exponentiatedBy = P.pow = function(n, m) {
+    var half, isModExp, i, k, more, nIsBig, nIsNeg, nIsOdd, y, x = this;
+    n = new BigNumber2(n);
+    if (n.c && !n.isInteger()) {
+      throw Error(bignumberError + "Exponent not an integer: " + valueOf(n));
+    }
+    if (m != null) m = new BigNumber2(m);
+    nIsBig = n.e > 14;
+    if (!x.c || !x.c[0] || x.c[0] == 1 && !x.e && x.c.length == 1 || !n.c || !n.c[0]) {
+      y = new BigNumber2(Math.pow(+valueOf(x), nIsBig ? n.s * (2 - isOdd(n)) : +valueOf(n)));
+      return m ? y.mod(m) : y;
+    }
+    nIsNeg = n.s < 0;
+    if (m) {
+      if (m.c ? !m.c[0] : !m.s) return new BigNumber2(NaN);
+      isModExp = !nIsNeg && x.isInteger() && m.isInteger();
+      if (isModExp) x = x.mod(m);
+    } else if (n.e > 9 && (x.e > 0 || x.e < -1 || (x.e == 0 ? x.c[0] > 1 || nIsBig && x.c[1] >= 24e7 : x.c[0] < 8e13 || nIsBig && x.c[0] <= 9999975e7))) {
+      k = x.s < 0 && isOdd(n) ? -0 : 0;
+      if (x.e > -1) k = 1 / k;
+      return new BigNumber2(nIsNeg ? 1 / k : k);
+    } else if (POW_PRECISION) {
+      k = mathceil(POW_PRECISION / LOG_BASE + 2);
+    }
+    if (nIsBig) {
+      half = new BigNumber2(0.5);
+      if (nIsNeg) n.s = 1;
+      nIsOdd = isOdd(n);
+    } else {
+      i = Math.abs(+valueOf(n));
+      nIsOdd = i % 2;
+    }
+    y = new BigNumber2(ONE);
+    for (; ; ) {
+      if (nIsOdd) {
+        y = y.times(x);
+        if (!y.c) break;
+        if (k) {
+          if (y.c.length > k) y.c.length = k;
+        } else if (isModExp) {
+          y = y.mod(m);
+        }
+      }
+      if (i) {
+        i = mathfloor(i / 2);
+        if (i === 0) break;
+        nIsOdd = i % 2;
+      } else {
+        n = n.times(half);
+        round(n, n.e + 1, 1);
+        if (n.e > 14) {
+          nIsOdd = isOdd(n);
+        } else {
+          i = +valueOf(n);
+          if (i === 0) break;
+          nIsOdd = i % 2;
+        }
+      }
+      x = x.times(x);
+      if (k) {
+        if (x.c && x.c.length > k) x.c.length = k;
+      } else if (isModExp) {
+        x = x.mod(m);
+      }
+    }
+    if (isModExp) return y;
+    if (nIsNeg) y = ONE.div(y);
+    return m ? y.mod(m) : k ? round(y, POW_PRECISION, ROUNDING_MODE, more) : y;
+  };
+  P.integerValue = function(rm) {
+    var n = new BigNumber2(this);
+    if (rm == null) rm = ROUNDING_MODE;
+    else intCheck(rm, 0, 8);
+    return round(n, n.e + 1, rm);
+  };
+  P.isEqualTo = P.eq = function(y, b) {
+    return compare(this, new BigNumber2(y, b)) === 0;
+  };
+  P.isFinite = function() {
+    return !!this.c;
+  };
+  P.isGreaterThan = P.gt = function(y, b) {
+    return compare(this, new BigNumber2(y, b)) > 0;
+  };
+  P.isGreaterThanOrEqualTo = P.gte = function(y, b) {
+    return (b = compare(this, new BigNumber2(y, b))) === 1 || b === 0;
+  };
+  P.isInteger = function() {
+    return !!this.c && bitFloor(this.e / LOG_BASE) > this.c.length - 2;
+  };
+  P.isLessThan = P.lt = function(y, b) {
+    return compare(this, new BigNumber2(y, b)) < 0;
+  };
+  P.isLessThanOrEqualTo = P.lte = function(y, b) {
+    return (b = compare(this, new BigNumber2(y, b))) === -1 || b === 0;
+  };
+  P.isNaN = function() {
+    return !this.s;
+  };
+  P.isNegative = function() {
+    return this.s < 0;
+  };
+  P.isPositive = function() {
+    return this.s > 0;
+  };
+  P.isZero = function() {
+    return !!this.c && this.c[0] == 0;
+  };
+  P.minus = function(y, b) {
+    var i, j, t, xLTy, x = this, a = x.s;
+    y = new BigNumber2(y, b);
+    b = y.s;
+    if (!a || !b) return new BigNumber2(NaN);
+    if (a != b) {
+      y.s = -b;
+      return x.plus(y);
+    }
+    var xe = x.e / LOG_BASE, ye = y.e / LOG_BASE, xc = x.c, yc = y.c;
+    if (!xe || !ye) {
+      if (!xc || !yc) return xc ? (y.s = -b, y) : new BigNumber2(yc ? x : NaN);
+      if (!xc[0] || !yc[0]) {
+        return yc[0] ? (y.s = -b, y) : new BigNumber2(xc[0] ? x : (
+          // IEEE 754 (2008) 6.3: n - n = -0 when rounding to -Infinity
+          ROUNDING_MODE == 3 ? -0 : 0
+        ));
+      }
+    }
+    xe = bitFloor(xe);
+    ye = bitFloor(ye);
+    xc = xc.slice();
+    if (a = xe - ye) {
+      if (xLTy = a < 0) {
+        a = -a;
+        t = xc;
+      } else {
+        ye = xe;
+        t = yc;
+      }
+      t.reverse();
+      for (b = a; b--; t.push(0)) ;
+      t.reverse();
+    } else {
+      j = (xLTy = (a = xc.length) < (b = yc.length)) ? a : b;
+      for (a = b = 0; b < j; b++) {
+        if (xc[b] != yc[b]) {
+          xLTy = xc[b] < yc[b];
+          break;
+        }
+      }
+    }
+    if (xLTy) {
+      t = xc;
+      xc = yc;
+      yc = t;
+      y.s = -y.s;
+    }
+    b = (j = yc.length) - (i = xc.length);
+    if (b > 0) for (; b--; xc[i++] = 0) ;
+    b = BASE - 1;
+    for (; j > a; ) {
+      if (xc[--j] < yc[j]) {
+        for (i = j; i && !xc[--i]; xc[i] = b) ;
+        --xc[i];
+        xc[j] += BASE;
+      }
+      xc[j] -= yc[j];
+    }
+    for (; xc[0] == 0; xc.splice(0, 1), --ye) ;
+    if (!xc[0]) {
+      y.s = ROUNDING_MODE == 3 ? -1 : 1;
+      y.c = [y.e = 0];
+      return y;
+    }
+    return normalise(y, xc, ye);
+  };
+  P.modulo = P.mod = function(y, b) {
+    var q, s, x = this;
+    y = new BigNumber2(y, b);
+    if (!x.c || !y.s || y.c && !y.c[0]) {
+      return new BigNumber2(NaN);
+    } else if (!y.c || x.c && !x.c[0]) {
+      return new BigNumber2(x);
+    }
+    if (MODULO_MODE == 9) {
+      s = y.s;
+      y.s = 1;
+      q = div(x, y, 0, 3);
+      y.s = s;
+      q.s *= s;
+    } else {
+      q = div(x, y, 0, MODULO_MODE);
+    }
+    y = x.minus(q.times(y));
+    if (!y.c[0] && MODULO_MODE == 1) y.s = x.s;
+    return y;
+  };
+  P.multipliedBy = P.times = function(y, b) {
+    var c, e, i, j, k, m, xcL, xlo, xhi, ycL, ylo, yhi, zc, base, sqrtBase, x = this, xc = x.c, yc = (y = new BigNumber2(y, b)).c;
+    if (!xc || !yc || !xc[0] || !yc[0]) {
+      if (!x.s || !y.s || xc && !xc[0] && !yc || yc && !yc[0] && !xc) {
+        y.c = y.e = y.s = null;
+      } else {
+        y.s *= x.s;
+        if (!xc || !yc) {
+          y.c = y.e = null;
+        } else {
+          y.c = [0];
+          y.e = 0;
+        }
+      }
+      return y;
+    }
+    e = bitFloor(x.e / LOG_BASE) + bitFloor(y.e / LOG_BASE);
+    y.s *= x.s;
+    xcL = xc.length;
+    ycL = yc.length;
+    if (xcL < ycL) {
+      zc = xc;
+      xc = yc;
+      yc = zc;
+      i = xcL;
+      xcL = ycL;
+      ycL = i;
+    }
+    for (i = xcL + ycL, zc = []; i--; zc.push(0)) ;
+    base = BASE;
+    sqrtBase = SQRT_BASE;
+    for (i = ycL; --i >= 0; ) {
+      c = 0;
+      ylo = yc[i] % sqrtBase;
+      yhi = yc[i] / sqrtBase | 0;
+      for (k = xcL, j = i + k; j > i; ) {
+        xlo = xc[--k] % sqrtBase;
+        xhi = xc[k] / sqrtBase | 0;
+        m = yhi * xlo + xhi * ylo;
+        xlo = ylo * xlo + m % sqrtBase * sqrtBase + zc[j] + c;
+        c = (xlo / base | 0) + (m / sqrtBase | 0) + yhi * xhi;
+        zc[j--] = xlo % base;
+      }
+      zc[j] = c;
+    }
+    if (c) {
+      ++e;
+    } else {
+      zc.splice(0, 1);
+    }
+    return normalise(y, zc, e);
+  };
+  P.negated = function() {
+    var x = new BigNumber2(this);
+    x.s = -x.s || null;
+    return x;
+  };
+  P.plus = function(y, b) {
+    var t, x = this, a = x.s;
+    y = new BigNumber2(y, b);
+    b = y.s;
+    if (!a || !b) return new BigNumber2(NaN);
+    if (a != b) {
+      y.s = -b;
+      return x.minus(y);
+    }
+    var xe = x.e / LOG_BASE, ye = y.e / LOG_BASE, xc = x.c, yc = y.c;
+    if (!xe || !ye) {
+      if (!xc || !yc) return new BigNumber2(a / 0);
+      if (!xc[0] || !yc[0]) return yc[0] ? y : new BigNumber2(xc[0] ? x : a * 0);
+    }
+    xe = bitFloor(xe);
+    ye = bitFloor(ye);
+    xc = xc.slice();
+    if (a = xe - ye) {
+      if (a > 0) {
+        ye = xe;
+        t = yc;
+      } else {
+        a = -a;
+        t = xc;
+      }
+      t.reverse();
+      for (; a--; t.push(0)) ;
+      t.reverse();
+    }
+    a = xc.length;
+    b = yc.length;
+    if (a - b < 0) {
+      t = yc;
+      yc = xc;
+      xc = t;
+      b = a;
+    }
+    for (a = 0; b; ) {
+      a = (xc[--b] = xc[b] + yc[b] + a) / BASE | 0;
+      xc[b] = BASE === xc[b] ? 0 : xc[b] % BASE;
+    }
+    if (a) {
+      xc = [a].concat(xc);
+      ++ye;
+    }
+    return normalise(y, xc, ye);
+  };
+  P.precision = P.sd = function(sd, rm) {
+    var c, n, v, x = this;
+    if (sd != null && sd !== !!sd) {
+      intCheck(sd, 1, MAX);
+      if (rm == null) rm = ROUNDING_MODE;
+      else intCheck(rm, 0, 8);
+      return round(new BigNumber2(x), sd, rm);
+    }
+    if (!(c = x.c)) return null;
+    v = c.length - 1;
+    n = v * LOG_BASE + 1;
+    if (v = c[v]) {
+      for (; v % 10 == 0; v /= 10, n--) ;
+      for (v = c[0]; v >= 10; v /= 10, n++) ;
+    }
+    if (sd && x.e + 1 > n) n = x.e + 1;
+    return n;
+  };
+  P.shiftedBy = function(k) {
+    intCheck(k, -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER);
+    return this.times("1e" + k);
+  };
+  P.squareRoot = P.sqrt = function() {
+    var m, n, r, rep, t, x = this, c = x.c, s = x.s, e = x.e, dp = DECIMAL_PLACES + 4, half = new BigNumber2("0.5");
+    if (s !== 1 || !c || !c[0]) {
+      return new BigNumber2(!s || s < 0 && (!c || c[0]) ? NaN : c ? x : 1 / 0);
+    }
+    s = Math.sqrt(+valueOf(x));
+    if (s == 0 || s == 1 / 0) {
+      n = coeffToString(c);
+      if ((n.length + e) % 2 == 0) n += "0";
+      s = Math.sqrt(+n);
+      e = bitFloor((e + 1) / 2) - (e < 0 || e % 2);
+      if (s == 1 / 0) {
+        n = "5e" + e;
+      } else {
+        n = s.toExponential();
+        n = n.slice(0, n.indexOf("e") + 1) + e;
+      }
+      r = new BigNumber2(n);
+    } else {
+      r = new BigNumber2(s + "");
+    }
+    if (r.c[0]) {
+      e = r.e;
+      s = e + dp;
+      if (s < 3) s = 0;
+      for (; ; ) {
+        t = r;
+        r = half.times(t.plus(div(x, t, dp, 1)));
+        if (coeffToString(t.c).slice(0, s) === (n = coeffToString(r.c)).slice(0, s)) {
+          if (r.e < e) --s;
+          n = n.slice(s - 3, s + 1);
+          if (n == "9999" || !rep && n == "4999") {
+            if (!rep) {
+              round(t, t.e + DECIMAL_PLACES + 2, 0);
+              if (t.times(t).eq(x)) {
+                r = t;
+                break;
+              }
+            }
+            dp += 4;
+            s += 4;
+            rep = 1;
+          } else {
+            if (!+n || !+n.slice(1) && n.charAt(0) == "5") {
+              round(r, r.e + DECIMAL_PLACES + 2, 1);
+              m = !r.times(r).eq(x);
+            }
+            break;
+          }
+        }
+      }
+    }
+    return round(r, r.e + DECIMAL_PLACES + 1, ROUNDING_MODE, m);
+  };
+  P.toExponential = function(dp, rm) {
+    if (dp != null) {
+      intCheck(dp, 0, MAX);
+      dp++;
+    }
+    return format(this, dp, rm, 1);
+  };
+  P.toFixed = function(dp, rm) {
+    if (dp != null) {
+      intCheck(dp, 0, MAX);
+      dp = dp + this.e + 1;
+    }
+    return format(this, dp, rm);
+  };
+  P.toFormat = function(dp, rm, format2) {
+    var str, x = this;
+    if (format2 == null) {
+      if (dp != null && rm && typeof rm == "object") {
+        format2 = rm;
+        rm = null;
+      } else if (dp && typeof dp == "object") {
+        format2 = dp;
+        dp = rm = null;
+      } else {
+        format2 = FORMAT;
+      }
+    } else if (typeof format2 != "object") {
+      throw Error(bignumberError + "Argument not an object: " + format2);
+    }
+    str = x.toFixed(dp, rm);
+    if (x.c) {
+      var i, arr = str.split("."), g1 = +format2.groupSize, g2 = +format2.secondaryGroupSize, groupSeparator = format2.groupSeparator || "", intPart = arr[0], fractionPart = arr[1], isNeg = x.s < 0, intDigits = isNeg ? intPart.slice(1) : intPart, len = intDigits.length;
+      if (g2) {
+        i = g1;
+        g1 = g2;
+        g2 = i;
+        len -= i;
+      }
+      if (g1 > 0 && len > 0) {
+        i = len % g1 || g1;
+        intPart = intDigits.substr(0, i);
+        for (; i < len; i += g1) intPart += groupSeparator + intDigits.substr(i, g1);
+        if (g2 > 0) intPart += groupSeparator + intDigits.slice(i);
+        if (isNeg) intPart = "-" + intPart;
+      }
+      str = fractionPart ? intPart + (format2.decimalSeparator || "") + ((g2 = +format2.fractionGroupSize) ? fractionPart.replace(
+        new RegExp("\\d{" + g2 + "}\\B", "g"),
+        "$&" + (format2.fractionGroupSeparator || "")
+      ) : fractionPart) : intPart;
+    }
+    return (format2.prefix || "") + str + (format2.suffix || "");
+  };
+  P.toFraction = function(md) {
+    var d, d0, d1, d2, e, exp, n, n0, n1, q, r, s, x = this, xc = x.c;
+    if (md != null) {
+      n = new BigNumber2(md);
+      if (!n.isInteger() && (n.c || n.s !== 1) || n.lt(ONE)) {
+        throw Error(bignumberError + "Argument " + (n.isInteger() ? "out of range: " : "not an integer: ") + valueOf(n));
+      }
+    }
+    if (!xc) return new BigNumber2(x);
+    d = new BigNumber2(ONE);
+    n1 = d0 = new BigNumber2(ONE);
+    d1 = n0 = new BigNumber2(ONE);
+    s = coeffToString(xc);
+    e = d.e = s.length - x.e - 1;
+    d.c[0] = POWS_TEN[(exp = e % LOG_BASE) < 0 ? LOG_BASE + exp : exp];
+    md = !md || n.comparedTo(d) > 0 ? e > 0 ? d : n1 : n;
+    exp = MAX_EXP;
+    MAX_EXP = 1 / 0;
+    n = new BigNumber2(s);
+    n0.c[0] = 0;
+    for (; ; ) {
+      q = div(n, d, 0, 1);
+      d2 = d0.plus(q.times(d1));
+      if (d2.comparedTo(md) == 1) break;
+      d0 = d1;
+      d1 = d2;
+      n1 = n0.plus(q.times(d2 = n1));
+      n0 = d2;
+      d = n.minus(q.times(d2 = d));
+      n = d2;
+    }
+    d2 = div(md.minus(d0), d1, 0, 1);
+    n0 = n0.plus(d2.times(n1));
+    d0 = d0.plus(d2.times(d1));
+    n0.s = n1.s = x.s;
+    e = e * 2;
+    r = div(n1, d1, e, ROUNDING_MODE).minus(x).abs().comparedTo(
+      div(n0, d0, e, ROUNDING_MODE).minus(x).abs()
+    ) < 1 ? [n1, d1] : [n0, d0];
+    MAX_EXP = exp;
+    return r;
+  };
+  P.toNumber = function() {
+    return +valueOf(this);
+  };
+  P.toPrecision = function(sd, rm) {
+    if (sd != null) intCheck(sd, 1, MAX);
+    return format(this, sd, rm, 2);
+  };
+  P.toString = function(b) {
+    var str, n = this, s = n.s, e = n.e;
+    if (e === null) {
+      if (s) {
+        str = "Infinity";
+        if (s < 0) str = "-" + str;
+      } else {
+        str = "NaN";
+      }
+    } else {
+      if (b == null) {
+        str = e <= TO_EXP_NEG || e >= TO_EXP_POS ? toExponential(coeffToString(n.c), e) : toFixedPoint(coeffToString(n.c), e, "0");
+      } else if (b === 10 && alphabetHasNormalDecimalDigits) {
+        n = round(new BigNumber2(n), DECIMAL_PLACES + e + 1, ROUNDING_MODE);
+        str = toFixedPoint(coeffToString(n.c), n.e, "0");
+      } else {
+        intCheck(b, 2, ALPHABET.length, "Base");
+        str = convertBase(toFixedPoint(coeffToString(n.c), e, "0"), 10, b, s, true);
+      }
+      if (s < 0 && n.c[0]) str = "-" + str;
+    }
+    return str;
+  };
+  P.valueOf = P.toJSON = function() {
+    return valueOf(this);
+  };
+  P._isBigNumber = true;
+  P[Symbol.toStringTag] = "BigNumber";
+  P[Symbol.for("nodejs.util.inspect.custom")] = P.valueOf;
+  if (configObject != null) BigNumber2.set(configObject);
+  return BigNumber2;
+}
+function bitFloor(n) {
+  var i = n | 0;
+  return n > 0 || n === i ? i : i - 1;
+}
+function coeffToString(a) {
+  var s, z3, i = 1, j = a.length, r = a[0] + "";
+  for (; i < j; ) {
+    s = a[i++] + "";
+    z3 = LOG_BASE - s.length;
+    for (; z3--; s = "0" + s) ;
+    r += s;
+  }
+  for (j = r.length; r.charCodeAt(--j) === 48; ) ;
+  return r.slice(0, j + 1 || 1);
+}
+function compare(x, y) {
+  var a, b, xc = x.c, yc = y.c, i = x.s, j = y.s, k = x.e, l = y.e;
+  if (!i || !j) return null;
+  a = xc && !xc[0];
+  b = yc && !yc[0];
+  if (a || b) return a ? b ? 0 : -j : i;
+  if (i != j) return i;
+  a = i < 0;
+  b = k == l;
+  if (!xc || !yc) return b ? 0 : !xc ^ a ? 1 : -1;
+  if (!b) return k > l ^ a ? 1 : -1;
+  j = (k = xc.length) < (l = yc.length) ? k : l;
+  for (i = 0; i < j; i++) if (xc[i] != yc[i]) return xc[i] > yc[i] ^ a ? 1 : -1;
+  return k == l ? 0 : k > l ^ a ? 1 : -1;
+}
+function intCheck(n, min, max, name) {
+  if (n < min || n > max || n !== mathfloor(n)) {
+    throw Error(bignumberError + (name || "Argument") + (typeof n == "number" ? n < min || n > max ? " out of range: " : " not an integer: " : " not a primitive number: ") + String(n));
+  }
+}
+function isOdd(n) {
+  var k = n.c.length - 1;
+  return bitFloor(n.e / LOG_BASE) == k && n.c[k] % 2 != 0;
+}
+function toExponential(str, e) {
+  return (str.length > 1 ? str.charAt(0) + "." + str.slice(1) : str) + (e < 0 ? "e" : "e+") + e;
+}
+function toFixedPoint(str, e, z3) {
+  var len, zs;
+  if (e < 0) {
+    for (zs = z3 + "."; ++e; zs += z3) ;
+    str = zs + str;
+  } else {
+    len = str.length;
+    if (++e > len) {
+      for (zs = z3, e -= len; --e; zs += z3) ;
+      str += zs;
+    } else if (e < len) {
+      str = str.slice(0, e) + "." + str.slice(e);
+    }
+  }
+  return str;
+}
+var BigNumber = clone();
+var bignumber_default = BigNumber;
+
+// ../../node_modules/viem/_esm/utils/getAction.js
+function getAction(client, actionFn, name) {
+  const action_implicit = client[actionFn.name];
+  if (typeof action_implicit === "function")
+    return action_implicit;
+  const action_explicit = client[name];
+  if (typeof action_explicit === "function")
+    return action_explicit;
+  return (params) => actionFn(client, params);
+}
+
+// ../../node_modules/viem/_esm/errors/log.js
+var FilterTypeNotSupportedError = class extends BaseError {
+  constructor(type) {
+    super(`Filter type "${type}" is not supported.`, {
+      name: "FilterTypeNotSupportedError"
+    });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/abi/encodeEventTopics.js
+var docsPath = "/docs/contract/encodeEventTopics";
+function encodeEventTopics(parameters) {
+  const { abi: abi2, eventName, args } = parameters;
+  let abiItem = abi2[0];
+  if (eventName) {
+    const item = getAbiItem({ abi: abi2, name: eventName });
+    if (!item)
+      throw new AbiEventNotFoundError(eventName, { docsPath });
+    abiItem = item;
+  }
+  if (abiItem.type !== "event")
+    throw new AbiEventNotFoundError(void 0, { docsPath });
+  const definition = formatAbiItem(abiItem);
+  const signature = toEventSelector(definition);
+  let topics = [];
+  if (args && "inputs" in abiItem) {
+    const indexedInputs = abiItem.inputs?.filter((param) => "indexed" in param && param.indexed);
+    const args_ = Array.isArray(args) ? args : Object.values(args).length > 0 ? indexedInputs?.map((x) => args[x.name]) ?? [] : [];
+    if (args_.length > 0) {
+      topics = indexedInputs?.map((param, i) => {
+        if (Array.isArray(args_[i]))
+          return args_[i].map((_, j) => encodeArg({ param, value: args_[i][j] }));
+        return args_[i] ? encodeArg({ param, value: args_[i] }) : null;
+      }) ?? [];
+    }
+  }
+  return [signature, ...topics];
+}
+function encodeArg({ param, value }) {
+  if (param.type === "string" || param.type === "bytes")
+    return keccak256(toBytes(value));
+  if (param.type === "tuple" || param.type.match(/^(.*)\[(\d+)?\]$/))
+    throw new FilterTypeNotSupportedError(param.type);
+  return encodeAbiParameters([param], [value]);
+}
+
+// ../../node_modules/viem/_esm/utils/filters/createFilterRequestScope.js
+function createFilterRequestScope(client, { method }) {
+  const requestMap = {};
+  if (client.transport.type === "fallback")
+    client.transport.onResponse?.(({ method: method_, response: id, status, transport }) => {
+      if (status === "success" && method === method_)
+        requestMap[id] = transport.request;
+    });
+  return (id) => requestMap[id] || client.request;
+}
+
+// ../../node_modules/viem/_esm/actions/public/createContractEventFilter.js
+async function createContractEventFilter(client, parameters) {
+  const { address, abi: abi2, args, eventName, fromBlock, strict, toBlock } = parameters;
+  const getRequest = createFilterRequestScope(client, {
+    method: "eth_newFilter"
+  });
+  const topics = eventName ? encodeEventTopics({
+    abi: abi2,
+    args,
+    eventName
+  }) : void 0;
+  const id = await client.request({
+    method: "eth_newFilter",
+    params: [
+      {
+        address,
+        fromBlock: typeof fromBlock === "bigint" ? numberToHex(fromBlock) : fromBlock,
+        toBlock: typeof toBlock === "bigint" ? numberToHex(toBlock) : toBlock,
+        topics
+      }
+    ]
+  });
+  return {
+    abi: abi2,
+    args,
+    eventName,
+    id,
+    request: getRequest(id),
+    strict: Boolean(strict),
+    type: "event"
+  };
+}
+
+// ../../node_modules/viem/_esm/utils/errors/getContractError.js
+var EXECUTION_REVERTED_ERROR_CODE = 3;
+function getContractError(err, { abi: abi2, address, args, docsPath: docsPath3, functionName, sender }) {
+  const error = err instanceof RawContractError ? err : err instanceof BaseError ? err.walk((err2) => "data" in err2) || err.walk() : {};
+  const { code, data, details, message, shortMessage } = error;
+  const cause = (() => {
+    if (err instanceof AbiDecodingZeroDataError)
+      return new ContractFunctionZeroDataError({ functionName });
+    if ([EXECUTION_REVERTED_ERROR_CODE, InternalRpcError.code].includes(code) && (data || details || message || shortMessage)) {
+      return new ContractFunctionRevertedError({
+        abi: abi2,
+        data: typeof data === "object" ? data.data : data,
+        functionName,
+        message: error instanceof RpcRequestError ? details : shortMessage ?? message
+      });
+    }
+    return err;
+  })();
+  return new ContractFunctionExecutionError(cause, {
+    abi: abi2,
+    args,
+    contractAddress: address,
+    docsPath: docsPath3,
+    functionName,
+    sender
+  });
+}
+
+// ../../node_modules/viem/_esm/accounts/utils/publicKeyToAddress.js
+function publicKeyToAddress(publicKey) {
+  const address = keccak256(`0x${publicKey.substring(4)}`).substring(26);
+  return checksumAddress(`0x${address}`);
+}
+
+// ../../node_modules/viem/_esm/utils/signature/recoverPublicKey.js
+async function recoverPublicKey({ hash, signature }) {
+  const hashHex = isHex(hash) ? hash : toHex(hash);
+  const { secp256k1: secp256k12 } = await import("./secp256k1-QUTB2QC2.js");
+  const signature_ = (() => {
+    if (typeof signature === "object" && "r" in signature && "s" in signature) {
+      const { r, s, v, yParity } = signature;
+      const yParityOrV2 = Number(yParity ?? v);
+      const recoveryBit2 = toRecoveryBit(yParityOrV2);
+      return new secp256k12.Signature(hexToBigInt(r), hexToBigInt(s)).addRecoveryBit(recoveryBit2);
+    }
+    const signatureHex = isHex(signature) ? signature : toHex(signature);
+    const yParityOrV = hexToNumber(`0x${signatureHex.slice(130)}`);
+    const recoveryBit = toRecoveryBit(yParityOrV);
+    return secp256k12.Signature.fromCompact(signatureHex.substring(2, 130)).addRecoveryBit(recoveryBit);
+  })();
+  const publicKey = signature_.recoverPublicKey(hashHex.substring(2)).toHex(false);
+  return `0x${publicKey}`;
+}
+function toRecoveryBit(yParityOrV) {
+  if (yParityOrV === 0 || yParityOrV === 1)
+    return yParityOrV;
+  if (yParityOrV === 27)
+    return 0;
+  if (yParityOrV === 28)
+    return 1;
+  throw new Error("Invalid yParityOrV value");
+}
+
+// ../../node_modules/viem/_esm/utils/signature/recoverAddress.js
+async function recoverAddress({ hash, signature }) {
+  return publicKeyToAddress(await recoverPublicKey({ hash, signature }));
+}
+
+// ../../node_modules/viem/_esm/utils/encoding/toRlp.js
+function toRlp(bytes, to = "hex") {
+  const encodable = getEncodable(bytes);
+  const cursor = createCursor(new Uint8Array(encodable.length));
+  encodable.encode(cursor);
+  if (to === "hex")
+    return bytesToHex(cursor.bytes);
+  return cursor.bytes;
+}
+function getEncodable(bytes) {
+  if (Array.isArray(bytes))
+    return getEncodableList(bytes.map((x) => getEncodable(x)));
+  return getEncodableBytes(bytes);
+}
+function getEncodableList(list) {
+  const bodyLength = list.reduce((acc, x) => acc + x.length, 0);
+  const sizeOfBodyLength = getSizeOfLength(bodyLength);
+  const length = (() => {
+    if (bodyLength <= 55)
+      return 1 + bodyLength;
+    return 1 + sizeOfBodyLength + bodyLength;
+  })();
+  return {
+    length,
+    encode(cursor) {
+      if (bodyLength <= 55) {
+        cursor.pushByte(192 + bodyLength);
+      } else {
+        cursor.pushByte(192 + 55 + sizeOfBodyLength);
+        if (sizeOfBodyLength === 1)
+          cursor.pushUint8(bodyLength);
+        else if (sizeOfBodyLength === 2)
+          cursor.pushUint16(bodyLength);
+        else if (sizeOfBodyLength === 3)
+          cursor.pushUint24(bodyLength);
+        else
+          cursor.pushUint32(bodyLength);
+      }
+      for (const { encode } of list) {
+        encode(cursor);
+      }
+    }
+  };
+}
+function getEncodableBytes(bytesOrHex) {
+  const bytes = typeof bytesOrHex === "string" ? hexToBytes(bytesOrHex) : bytesOrHex;
+  const sizeOfBytesLength = getSizeOfLength(bytes.length);
+  const length = (() => {
+    if (bytes.length === 1 && bytes[0] < 128)
+      return 1;
+    if (bytes.length <= 55)
+      return 1 + bytes.length;
+    return 1 + sizeOfBytesLength + bytes.length;
+  })();
+  return {
+    length,
+    encode(cursor) {
+      if (bytes.length === 1 && bytes[0] < 128) {
+        cursor.pushBytes(bytes);
+      } else if (bytes.length <= 55) {
+        cursor.pushByte(128 + bytes.length);
+        cursor.pushBytes(bytes);
+      } else {
+        cursor.pushByte(128 + 55 + sizeOfBytesLength);
+        if (sizeOfBytesLength === 1)
+          cursor.pushUint8(bytes.length);
+        else if (sizeOfBytesLength === 2)
+          cursor.pushUint16(bytes.length);
+        else if (sizeOfBytesLength === 3)
+          cursor.pushUint24(bytes.length);
+        else
+          cursor.pushUint32(bytes.length);
+        cursor.pushBytes(bytes);
+      }
+    }
+  };
+}
+function getSizeOfLength(length) {
+  if (length < 2 ** 8)
+    return 1;
+  if (length < 2 ** 16)
+    return 2;
+  if (length < 2 ** 24)
+    return 3;
+  if (length < 2 ** 32)
+    return 4;
+  throw new BaseError("Length is too large.");
+}
+
+// ../../node_modules/viem/_esm/experimental/eip7702/utils/hashAuthorization.js
+function hashAuthorization(parameters) {
+  const { chainId, contractAddress, nonce, to } = parameters;
+  const hash = keccak256(concatHex([
+    "0x05",
+    toRlp([
+      chainId ? numberToHex(chainId) : "0x",
+      contractAddress,
+      nonce ? numberToHex(nonce) : "0x"
+    ])
+  ]));
+  if (to === "bytes")
+    return hexToBytes(hash);
+  return hash;
+}
+
+// ../../node_modules/viem/_esm/experimental/eip7702/utils/recoverAuthorizationAddress.js
+async function recoverAuthorizationAddress(parameters) {
+  const { authorization, signature } = parameters;
+  return recoverAddress({
+    hash: hashAuthorization(authorization),
+    signature: signature ?? authorization
+  });
+}
+
+// ../../node_modules/viem/_esm/errors/estimateGas.js
+var EstimateGasExecutionError = class extends BaseError {
+  constructor(cause, { account, docsPath: docsPath3, chain, data, gas, gasPrice, maxFeePerGas, maxPriorityFeePerGas, nonce, to, value }) {
+    const prettyArgs = prettyPrint({
+      from: account?.address,
+      to,
+      value: typeof value !== "undefined" && `${formatEther(value)} ${chain?.nativeCurrency?.symbol || "ETH"}`,
+      data,
+      gas,
+      gasPrice: typeof gasPrice !== "undefined" && `${formatGwei(gasPrice)} gwei`,
+      maxFeePerGas: typeof maxFeePerGas !== "undefined" && `${formatGwei(maxFeePerGas)} gwei`,
+      maxPriorityFeePerGas: typeof maxPriorityFeePerGas !== "undefined" && `${formatGwei(maxPriorityFeePerGas)} gwei`,
+      nonce
+    });
+    super(cause.shortMessage, {
+      cause,
+      docsPath: docsPath3,
+      metaMessages: [
+        ...cause.metaMessages ? [...cause.metaMessages, " "] : [],
+        "Estimate Gas Arguments:",
+        prettyArgs
+      ].filter(Boolean),
+      name: "EstimateGasExecutionError"
+    });
+    Object.defineProperty(this, "cause", {
+      enumerable: true,
+      configurable: true,
+      writable: true,
+      value: void 0
+    });
+    this.cause = cause;
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/errors/getEstimateGasError.js
+function getEstimateGasError(err, { docsPath: docsPath3, ...args }) {
+  const cause = (() => {
+    const cause2 = getNodeError(err, args);
+    if (cause2 instanceof UnknownNodeError)
+      return err;
+    return cause2;
+  })();
+  return new EstimateGasExecutionError(cause, {
+    docsPath: docsPath3,
+    ...args
+  });
+}
+
+// ../../node_modules/viem/_esm/errors/fee.js
+var BaseFeeScalarError = class extends BaseError {
+  constructor() {
+    super("`baseFeeMultiplier` must be greater than 1.", {
+      name: "BaseFeeScalarError"
+    });
+  }
+};
+var Eip1559FeesNotSupportedError = class extends BaseError {
+  constructor() {
+    super("Chain does not support EIP-1559 fees.", {
+      name: "Eip1559FeesNotSupportedError"
+    });
+  }
+};
+var MaxFeePerGasTooLowError = class extends BaseError {
+  constructor({ maxPriorityFeePerGas }) {
+    super(`\`maxFeePerGas\` cannot be less than the \`maxPriorityFeePerGas\` (${formatGwei(maxPriorityFeePerGas)} gwei).`, { name: "MaxFeePerGasTooLowError" });
+  }
+};
+
+// ../../node_modules/viem/_esm/errors/block.js
+var BlockNotFoundError = class extends BaseError {
+  constructor({ blockHash, blockNumber }) {
+    let identifier = "Block";
+    if (blockHash)
+      identifier = `Block at hash "${blockHash}"`;
+    if (blockNumber)
+      identifier = `Block at number "${blockNumber}"`;
+    super(`${identifier} could not be found.`, { name: "BlockNotFoundError" });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/formatters/transaction.js
+var transactionType = {
+  "0x0": "legacy",
+  "0x1": "eip2930",
+  "0x2": "eip1559",
+  "0x3": "eip4844",
+  "0x4": "eip7702"
+};
+function formatTransaction(transaction) {
+  const transaction_ = {
+    ...transaction,
+    blockHash: transaction.blockHash ? transaction.blockHash : null,
+    blockNumber: transaction.blockNumber ? BigInt(transaction.blockNumber) : null,
+    chainId: transaction.chainId ? hexToNumber(transaction.chainId) : void 0,
+    gas: transaction.gas ? BigInt(transaction.gas) : void 0,
+    gasPrice: transaction.gasPrice ? BigInt(transaction.gasPrice) : void 0,
+    maxFeePerBlobGas: transaction.maxFeePerBlobGas ? BigInt(transaction.maxFeePerBlobGas) : void 0,
+    maxFeePerGas: transaction.maxFeePerGas ? BigInt(transaction.maxFeePerGas) : void 0,
+    maxPriorityFeePerGas: transaction.maxPriorityFeePerGas ? BigInt(transaction.maxPriorityFeePerGas) : void 0,
+    nonce: transaction.nonce ? hexToNumber(transaction.nonce) : void 0,
+    to: transaction.to ? transaction.to : null,
+    transactionIndex: transaction.transactionIndex ? Number(transaction.transactionIndex) : null,
+    type: transaction.type ? transactionType[transaction.type] : void 0,
+    typeHex: transaction.type ? transaction.type : void 0,
+    value: transaction.value ? BigInt(transaction.value) : void 0,
+    v: transaction.v ? BigInt(transaction.v) : void 0
+  };
+  if (transaction.authorizationList)
+    transaction_.authorizationList = formatAuthorizationList(transaction.authorizationList);
+  transaction_.yParity = (() => {
+    if (transaction.yParity)
+      return Number(transaction.yParity);
+    if (typeof transaction_.v === "bigint") {
+      if (transaction_.v === 0n || transaction_.v === 27n)
+        return 0;
+      if (transaction_.v === 1n || transaction_.v === 28n)
+        return 1;
+      if (transaction_.v >= 35n)
+        return transaction_.v % 2n === 0n ? 1 : 0;
+    }
+    return void 0;
+  })();
+  if (transaction_.type === "legacy") {
+    delete transaction_.accessList;
+    delete transaction_.maxFeePerBlobGas;
+    delete transaction_.maxFeePerGas;
+    delete transaction_.maxPriorityFeePerGas;
+    delete transaction_.yParity;
+  }
+  if (transaction_.type === "eip2930") {
+    delete transaction_.maxFeePerBlobGas;
+    delete transaction_.maxFeePerGas;
+    delete transaction_.maxPriorityFeePerGas;
+  }
+  if (transaction_.type === "eip1559") {
+    delete transaction_.maxFeePerBlobGas;
+  }
+  return transaction_;
+}
+function formatAuthorizationList(authorizationList) {
+  return authorizationList.map((authorization) => ({
+    contractAddress: authorization.address,
+    chainId: Number(authorization.chainId),
+    nonce: Number(authorization.nonce),
+    r: authorization.r,
+    s: authorization.s,
+    yParity: Number(authorization.yParity)
+  }));
+}
+
+// ../../node_modules/viem/_esm/utils/formatters/block.js
+function formatBlock(block) {
+  const transactions = (block.transactions ?? []).map((transaction) => {
+    if (typeof transaction === "string")
+      return transaction;
+    return formatTransaction(transaction);
+  });
+  return {
+    ...block,
+    baseFeePerGas: block.baseFeePerGas ? BigInt(block.baseFeePerGas) : null,
+    blobGasUsed: block.blobGasUsed ? BigInt(block.blobGasUsed) : void 0,
+    difficulty: block.difficulty ? BigInt(block.difficulty) : void 0,
+    excessBlobGas: block.excessBlobGas ? BigInt(block.excessBlobGas) : void 0,
+    gasLimit: block.gasLimit ? BigInt(block.gasLimit) : void 0,
+    gasUsed: block.gasUsed ? BigInt(block.gasUsed) : void 0,
+    hash: block.hash ? block.hash : null,
+    logsBloom: block.logsBloom ? block.logsBloom : null,
+    nonce: block.nonce ? block.nonce : null,
+    number: block.number ? BigInt(block.number) : null,
+    size: block.size ? BigInt(block.size) : void 0,
+    timestamp: block.timestamp ? BigInt(block.timestamp) : void 0,
+    transactions,
+    totalDifficulty: block.totalDifficulty ? BigInt(block.totalDifficulty) : null
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getBlock.js
+async function getBlock(client, { blockHash, blockNumber, blockTag: blockTag_, includeTransactions: includeTransactions_ } = {}) {
+  const blockTag = blockTag_ ?? "latest";
+  const includeTransactions = includeTransactions_ ?? false;
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  let block = null;
+  if (blockHash) {
+    block = await client.request({
+      method: "eth_getBlockByHash",
+      params: [blockHash, includeTransactions]
+    }, { dedupe: true });
+  } else {
+    block = await client.request({
+      method: "eth_getBlockByNumber",
+      params: [blockNumberHex || blockTag, includeTransactions]
+    }, { dedupe: Boolean(blockNumberHex) });
+  }
+  if (!block)
+    throw new BlockNotFoundError({ blockHash, blockNumber });
+  const format = client.chain?.formatters?.block?.format || formatBlock;
+  return format(block);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getGasPrice.js
+async function getGasPrice(client) {
+  const gasPrice = await client.request({
+    method: "eth_gasPrice"
+  });
+  return BigInt(gasPrice);
+}
+
+// ../../node_modules/viem/_esm/actions/public/estimateMaxPriorityFeePerGas.js
+async function estimateMaxPriorityFeePerGas(client, args) {
+  return internal_estimateMaxPriorityFeePerGas(client, args);
+}
+async function internal_estimateMaxPriorityFeePerGas(client, args) {
+  const { block: block_, chain = client.chain, request } = args || {};
+  try {
+    const maxPriorityFeePerGas = chain?.fees?.maxPriorityFeePerGas ?? chain?.fees?.defaultPriorityFee;
+    if (typeof maxPriorityFeePerGas === "function") {
+      const block = block_ || await getAction(client, getBlock, "getBlock")({});
+      const maxPriorityFeePerGas_ = await maxPriorityFeePerGas({
+        block,
+        client,
+        request
+      });
+      if (maxPriorityFeePerGas_ === null)
+        throw new Error();
+      return maxPriorityFeePerGas_;
+    }
+    if (typeof maxPriorityFeePerGas !== "undefined")
+      return maxPriorityFeePerGas;
+    const maxPriorityFeePerGasHex = await client.request({
+      method: "eth_maxPriorityFeePerGas"
+    });
+    return hexToBigInt(maxPriorityFeePerGasHex);
+  } catch {
+    const [block, gasPrice] = await Promise.all([
+      block_ ? Promise.resolve(block_) : getAction(client, getBlock, "getBlock")({}),
+      getAction(client, getGasPrice, "getGasPrice")({})
+    ]);
+    if (typeof block.baseFeePerGas !== "bigint")
+      throw new Eip1559FeesNotSupportedError();
+    const maxPriorityFeePerGas = gasPrice - block.baseFeePerGas;
+    if (maxPriorityFeePerGas < 0n)
+      return 0n;
+    return maxPriorityFeePerGas;
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/public/estimateFeesPerGas.js
+async function estimateFeesPerGas(client, args) {
+  return internal_estimateFeesPerGas(client, args);
+}
+async function internal_estimateFeesPerGas(client, args) {
+  const { block: block_, chain = client.chain, request, type = "eip1559" } = args || {};
+  const baseFeeMultiplier = await (async () => {
+    if (typeof chain?.fees?.baseFeeMultiplier === "function")
+      return chain.fees.baseFeeMultiplier({
+        block: block_,
+        client,
+        request
+      });
+    return chain?.fees?.baseFeeMultiplier ?? 1.2;
+  })();
+  if (baseFeeMultiplier < 1)
+    throw new BaseFeeScalarError();
+  const decimals = baseFeeMultiplier.toString().split(".")[1]?.length ?? 0;
+  const denominator = 10 ** decimals;
+  const multiply = (base) => base * BigInt(Math.ceil(baseFeeMultiplier * denominator)) / BigInt(denominator);
+  const block = block_ ? block_ : await getAction(client, getBlock, "getBlock")({});
+  if (typeof chain?.fees?.estimateFeesPerGas === "function") {
+    const fees = await chain.fees.estimateFeesPerGas({
+      block: block_,
+      client,
+      multiply,
+      request,
+      type
+    });
+    if (fees !== null)
+      return fees;
+  }
+  if (type === "eip1559") {
+    if (typeof block.baseFeePerGas !== "bigint")
+      throw new Eip1559FeesNotSupportedError();
+    const maxPriorityFeePerGas = typeof request?.maxPriorityFeePerGas === "bigint" ? request.maxPriorityFeePerGas : await internal_estimateMaxPriorityFeePerGas(client, {
+      block,
+      chain,
+      request
+    });
+    const baseFeePerGas = multiply(block.baseFeePerGas);
+    const maxFeePerGas = request?.maxFeePerGas ?? baseFeePerGas + maxPriorityFeePerGas;
+    return {
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    };
+  }
+  const gasPrice = request?.gasPrice ?? multiply(await getAction(client, getGasPrice, "getGasPrice")({}));
+  return {
+    gasPrice
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getTransactionCount.js
+async function getTransactionCount(client, { address, blockTag = "latest", blockNumber }) {
+  const count = await client.request({
+    method: "eth_getTransactionCount",
+    params: [address, blockNumber ? numberToHex(blockNumber) : blockTag]
+  }, { dedupe: Boolean(blockNumber) });
+  return hexToNumber(count);
+}
+
+// ../../node_modules/viem/_esm/utils/blob/blobsToCommitments.js
+function blobsToCommitments(parameters) {
+  const { kzg } = parameters;
+  const to = parameters.to ?? (typeof parameters.blobs[0] === "string" ? "hex" : "bytes");
+  const blobs = typeof parameters.blobs[0] === "string" ? parameters.blobs.map((x) => hexToBytes(x)) : parameters.blobs;
+  const commitments = [];
+  for (const blob of blobs)
+    commitments.push(Uint8Array.from(kzg.blobToKzgCommitment(blob)));
+  return to === "bytes" ? commitments : commitments.map((x) => bytesToHex(x));
+}
+
+// ../../node_modules/viem/_esm/utils/blob/blobsToProofs.js
+function blobsToProofs(parameters) {
+  const { kzg } = parameters;
+  const to = parameters.to ?? (typeof parameters.blobs[0] === "string" ? "hex" : "bytes");
+  const blobs = typeof parameters.blobs[0] === "string" ? parameters.blobs.map((x) => hexToBytes(x)) : parameters.blobs;
+  const commitments = typeof parameters.commitments[0] === "string" ? parameters.commitments.map((x) => hexToBytes(x)) : parameters.commitments;
+  const proofs = [];
+  for (let i = 0; i < blobs.length; i++) {
+    const blob = blobs[i];
+    const commitment = commitments[i];
+    proofs.push(Uint8Array.from(kzg.computeBlobKzgProof(blob, commitment)));
+  }
+  return to === "bytes" ? proofs : proofs.map((x) => bytesToHex(x));
+}
+
+// ../../node_modules/viem/node_modules/@noble/hashes/esm/_md.js
+function setBigUint64(view, byteOffset, value, isLE) {
+  if (typeof view.setBigUint64 === "function")
+    return view.setBigUint64(byteOffset, value, isLE);
+  const _32n = BigInt(32);
+  const _u32_max = BigInt(4294967295);
+  const wh = Number(value >> _32n & _u32_max);
+  const wl = Number(value & _u32_max);
+  const h = isLE ? 4 : 0;
+  const l = isLE ? 0 : 4;
+  view.setUint32(byteOffset + h, wh, isLE);
+  view.setUint32(byteOffset + l, wl, isLE);
+}
+var Chi = (a, b, c) => a & b ^ ~a & c;
+var Maj = (a, b, c) => a & b ^ a & c ^ b & c;
+var HashMD = class extends Hash {
+  constructor(blockLen, outputLen, padOffset, isLE) {
+    super();
+    this.blockLen = blockLen;
+    this.outputLen = outputLen;
+    this.padOffset = padOffset;
+    this.isLE = isLE;
+    this.finished = false;
+    this.length = 0;
+    this.pos = 0;
+    this.destroyed = false;
+    this.buffer = new Uint8Array(blockLen);
+    this.view = createView(this.buffer);
+  }
+  update(data) {
+    aexists(this);
+    const { view, buffer: buffer2, blockLen } = this;
+    data = toBytes2(data);
+    const len = data.length;
+    for (let pos = 0; pos < len; ) {
+      const take = Math.min(blockLen - this.pos, len - pos);
+      if (take === blockLen) {
+        const dataView = createView(data);
+        for (; blockLen <= len - pos; pos += blockLen)
+          this.process(dataView, pos);
+        continue;
+      }
+      buffer2.set(data.subarray(pos, pos + take), this.pos);
+      this.pos += take;
+      pos += take;
+      if (this.pos === blockLen) {
+        this.process(view, 0);
+        this.pos = 0;
+      }
+    }
+    this.length += data.length;
+    this.roundClean();
+    return this;
+  }
+  digestInto(out) {
+    aexists(this);
+    aoutput(out, this);
+    this.finished = true;
+    const { buffer: buffer2, view, blockLen, isLE } = this;
+    let { pos } = this;
+    buffer2[pos++] = 128;
+    this.buffer.subarray(pos).fill(0);
+    if (this.padOffset > blockLen - pos) {
+      this.process(view, 0);
+      pos = 0;
+    }
+    for (let i = pos; i < blockLen; i++)
+      buffer2[i] = 0;
+    setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
+    this.process(view, 0);
+    const oview = createView(out);
+    const len = this.outputLen;
+    if (len % 4)
+      throw new Error("_sha2: outputLen should be aligned to 32bit");
+    const outLen = len / 4;
+    const state = this.get();
+    if (outLen > state.length)
+      throw new Error("_sha2: outputLen bigger than state");
+    for (let i = 0; i < outLen; i++)
+      oview.setUint32(4 * i, state[i], isLE);
+  }
+  digest() {
+    const { buffer: buffer2, outputLen } = this;
+    this.digestInto(buffer2);
+    const res = buffer2.slice(0, outputLen);
+    this.destroy();
+    return res;
+  }
+  _cloneInto(to) {
+    to || (to = new this.constructor());
+    to.set(...this.get());
+    const { blockLen, buffer: buffer2, length, finished, destroyed, pos } = this;
+    to.length = length;
+    to.pos = pos;
+    to.finished = finished;
+    to.destroyed = destroyed;
+    if (length % blockLen)
+      to.buffer.set(buffer2);
+    return to;
+  }
+};
+
+// ../../node_modules/viem/node_modules/@noble/hashes/esm/sha256.js
+var SHA256_K = /* @__PURE__ */ new Uint32Array([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var SHA256_IV = /* @__PURE__ */ new Uint32Array([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+var SHA256_W = /* @__PURE__ */ new Uint32Array(64);
+var SHA256 = class extends HashMD {
+  constructor() {
+    super(64, 32, 8, false);
+    this.A = SHA256_IV[0] | 0;
+    this.B = SHA256_IV[1] | 0;
+    this.C = SHA256_IV[2] | 0;
+    this.D = SHA256_IV[3] | 0;
+    this.E = SHA256_IV[4] | 0;
+    this.F = SHA256_IV[5] | 0;
+    this.G = SHA256_IV[6] | 0;
+    this.H = SHA256_IV[7] | 0;
+  }
+  get() {
+    const { A, B, C, D, E, F, G, H } = this;
+    return [A, B, C, D, E, F, G, H];
+  }
+  // prettier-ignore
+  set(A, B, C, D, E, F, G, H) {
+    this.A = A | 0;
+    this.B = B | 0;
+    this.C = C | 0;
+    this.D = D | 0;
+    this.E = E | 0;
+    this.F = F | 0;
+    this.G = G | 0;
+    this.H = H | 0;
+  }
+  process(view, offset) {
+    for (let i = 0; i < 16; i++, offset += 4)
+      SHA256_W[i] = view.getUint32(offset, false);
+    for (let i = 16; i < 64; i++) {
+      const W15 = SHA256_W[i - 15];
+      const W2 = SHA256_W[i - 2];
+      const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ W15 >>> 3;
+      const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ W2 >>> 10;
+      SHA256_W[i] = s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16] | 0;
+    }
+    let { A, B, C, D, E, F, G, H } = this;
+    for (let i = 0; i < 64; i++) {
+      const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+      const T1 = H + sigma1 + Chi(E, F, G) + SHA256_K[i] + SHA256_W[i] | 0;
+      const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+      const T2 = sigma0 + Maj(A, B, C) | 0;
+      H = G;
+      G = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C;
+      C = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    A = A + this.A | 0;
+    B = B + this.B | 0;
+    C = C + this.C | 0;
+    D = D + this.D | 0;
+    E = E + this.E | 0;
+    F = F + this.F | 0;
+    G = G + this.G | 0;
+    H = H + this.H | 0;
+    this.set(A, B, C, D, E, F, G, H);
+  }
+  roundClean() {
+    SHA256_W.fill(0);
+  }
+  destroy() {
+    this.set(0, 0, 0, 0, 0, 0, 0, 0);
+    this.buffer.fill(0);
+  }
+};
+var sha256 = /* @__PURE__ */ wrapConstructor(() => new SHA256());
+
+// ../../node_modules/viem/_esm/utils/hash/sha256.js
+function sha2562(value, to_) {
+  const to = to_ || "hex";
+  const bytes = sha256(isHex(value, { strict: false }) ? toBytes(value) : value);
+  if (to === "bytes")
+    return bytes;
+  return toHex(bytes);
+}
+
+// ../../node_modules/viem/_esm/utils/blob/commitmentToVersionedHash.js
+function commitmentToVersionedHash(parameters) {
+  const { commitment, version = 1 } = parameters;
+  const to = parameters.to ?? (typeof commitment === "string" ? "hex" : "bytes");
+  const versionedHash = sha2562(commitment, "bytes");
+  versionedHash.set([version], 0);
+  return to === "bytes" ? versionedHash : bytesToHex(versionedHash);
+}
+
+// ../../node_modules/viem/_esm/utils/blob/commitmentsToVersionedHashes.js
+function commitmentsToVersionedHashes(parameters) {
+  const { commitments, version } = parameters;
+  const to = parameters.to ?? (typeof commitments[0] === "string" ? "hex" : "bytes");
+  const hashes = [];
+  for (const commitment of commitments) {
+    hashes.push(commitmentToVersionedHash({
+      commitment,
+      to,
+      version
+    }));
+  }
+  return hashes;
+}
+
+// ../../node_modules/viem/_esm/constants/blob.js
+var blobsPerTransaction = 6;
+var bytesPerFieldElement = 32;
+var fieldElementsPerBlob = 4096;
+var bytesPerBlob = bytesPerFieldElement * fieldElementsPerBlob;
+var maxBytesPerTransaction = bytesPerBlob * blobsPerTransaction - // terminator byte (0x80).
+1 - // zero byte (0x00) appended to each field element.
+1 * fieldElementsPerBlob * blobsPerTransaction;
+
+// ../../node_modules/viem/_esm/errors/blob.js
+var BlobSizeTooLargeError = class extends BaseError {
+  constructor({ maxSize, size: size3 }) {
+    super("Blob size is too large.", {
+      metaMessages: [`Max: ${maxSize} bytes`, `Given: ${size3} bytes`],
+      name: "BlobSizeTooLargeError"
+    });
+  }
+};
+var EmptyBlobError = class extends BaseError {
+  constructor() {
+    super("Blob data must not be empty.", { name: "EmptyBlobError" });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/blob/toBlobs.js
+function toBlobs(parameters) {
+  const to = parameters.to ?? (typeof parameters.data === "string" ? "hex" : "bytes");
+  const data = typeof parameters.data === "string" ? hexToBytes(parameters.data) : parameters.data;
+  const size_ = size(data);
+  if (!size_)
+    throw new EmptyBlobError();
+  if (size_ > maxBytesPerTransaction)
+    throw new BlobSizeTooLargeError({
+      maxSize: maxBytesPerTransaction,
+      size: size_
+    });
+  const blobs = [];
+  let active = true;
+  let position = 0;
+  while (active) {
+    const blob = createCursor(new Uint8Array(bytesPerBlob));
+    let size3 = 0;
+    while (size3 < fieldElementsPerBlob) {
+      const bytes = data.slice(position, position + (bytesPerFieldElement - 1));
+      blob.pushByte(0);
+      blob.pushBytes(bytes);
+      if (bytes.length < 31) {
+        blob.pushByte(128);
+        active = false;
+        break;
+      }
+      size3++;
+      position += 31;
+    }
+    blobs.push(blob);
+  }
+  return to === "bytes" ? blobs.map((x) => x.bytes) : blobs.map((x) => bytesToHex(x.bytes));
+}
+
+// ../../node_modules/viem/_esm/utils/blob/toBlobSidecars.js
+function toBlobSidecars(parameters) {
+  const { data, kzg, to } = parameters;
+  const blobs = parameters.blobs ?? toBlobs({ data, to });
+  const commitments = parameters.commitments ?? blobsToCommitments({ blobs, kzg, to });
+  const proofs = parameters.proofs ?? blobsToProofs({ blobs, commitments, kzg, to });
+  const sidecars = [];
+  for (let i = 0; i < blobs.length; i++)
+    sidecars.push({
+      blob: blobs[i],
+      commitment: commitments[i],
+      proof: proofs[i]
+    });
+  return sidecars;
+}
+
+// ../../node_modules/viem/_esm/utils/transaction/getTransactionType.js
+function getTransactionType(transaction) {
+  if (transaction.type)
+    return transaction.type;
+  if (typeof transaction.authorizationList !== "undefined")
+    return "eip7702";
+  if (typeof transaction.blobs !== "undefined" || typeof transaction.blobVersionedHashes !== "undefined" || typeof transaction.maxFeePerBlobGas !== "undefined" || typeof transaction.sidecars !== "undefined")
+    return "eip4844";
+  if (typeof transaction.maxFeePerGas !== "undefined" || typeof transaction.maxPriorityFeePerGas !== "undefined") {
+    return "eip1559";
+  }
+  if (typeof transaction.gasPrice !== "undefined") {
+    if (typeof transaction.accessList !== "undefined")
+      return "eip2930";
+    return "legacy";
+  }
+  throw new InvalidSerializableTransactionError({ transaction });
+}
+
+// ../../node_modules/viem/_esm/actions/public/getChainId.js
+async function getChainId(client) {
+  const chainIdHex = await client.request({
+    method: "eth_chainId"
+  }, { dedupe: true });
+  return hexToNumber(chainIdHex);
+}
+
+// ../../node_modules/viem/_esm/actions/wallet/prepareTransactionRequest.js
+var defaultParameters = [
+  "blobVersionedHashes",
+  "chainId",
+  "fees",
+  "gas",
+  "nonce",
+  "type"
+];
+async function prepareTransactionRequest(client, args) {
+  const { account: account_ = client.account, blobs, chain, gas, kzg, nonce, nonceManager, parameters = defaultParameters, type } = args;
+  const account = account_ ? parseAccount(account_) : account_;
+  const request = { ...args, ...account ? { from: account?.address } : {} };
+  let block;
+  async function getBlock2() {
+    if (block)
+      return block;
+    block = await getAction(client, getBlock, "getBlock")({ blockTag: "latest" });
+    return block;
+  }
+  let chainId;
+  async function getChainId2() {
+    if (chainId)
+      return chainId;
+    if (chain)
+      return chain.id;
+    if (typeof args.chainId !== "undefined")
+      return args.chainId;
+    const chainId_ = await getAction(client, getChainId, "getChainId")({});
+    chainId = chainId_;
+    return chainId;
+  }
+  if ((parameters.includes("blobVersionedHashes") || parameters.includes("sidecars")) && blobs && kzg) {
+    const commitments = blobsToCommitments({ blobs, kzg });
+    if (parameters.includes("blobVersionedHashes")) {
+      const versionedHashes = commitmentsToVersionedHashes({
+        commitments,
+        to: "hex"
+      });
+      request.blobVersionedHashes = versionedHashes;
+    }
+    if (parameters.includes("sidecars")) {
+      const proofs = blobsToProofs({ blobs, commitments, kzg });
+      const sidecars = toBlobSidecars({
+        blobs,
+        commitments,
+        proofs,
+        to: "hex"
+      });
+      request.sidecars = sidecars;
+    }
+  }
+  if (parameters.includes("chainId"))
+    request.chainId = await getChainId2();
+  if (parameters.includes("nonce") && typeof nonce === "undefined" && account) {
+    if (nonceManager) {
+      const chainId2 = await getChainId2();
+      request.nonce = await nonceManager.consume({
+        address: account.address,
+        chainId: chainId2,
+        client
+      });
+    } else {
+      request.nonce = await getAction(client, getTransactionCount, "getTransactionCount")({
+        address: account.address,
+        blockTag: "pending"
+      });
+    }
+  }
+  if ((parameters.includes("fees") || parameters.includes("type")) && typeof type === "undefined") {
+    try {
+      request.type = getTransactionType(request);
+    } catch {
+      const block2 = await getBlock2();
+      request.type = typeof block2?.baseFeePerGas === "bigint" ? "eip1559" : "legacy";
+    }
+  }
+  if (parameters.includes("fees")) {
+    if (request.type !== "legacy" && request.type !== "eip2930") {
+      if (typeof request.maxFeePerGas === "undefined" || typeof request.maxPriorityFeePerGas === "undefined") {
+        const block2 = await getBlock2();
+        const { maxFeePerGas, maxPriorityFeePerGas } = await internal_estimateFeesPerGas(client, {
+          block: block2,
+          chain,
+          request
+        });
+        if (typeof args.maxPriorityFeePerGas === "undefined" && args.maxFeePerGas && args.maxFeePerGas < maxPriorityFeePerGas)
+          throw new MaxFeePerGasTooLowError({
+            maxPriorityFeePerGas
+          });
+        request.maxPriorityFeePerGas = maxPriorityFeePerGas;
+        request.maxFeePerGas = maxFeePerGas;
+      }
+    } else {
+      if (typeof args.maxFeePerGas !== "undefined" || typeof args.maxPriorityFeePerGas !== "undefined")
+        throw new Eip1559FeesNotSupportedError();
+      const block2 = await getBlock2();
+      const { gasPrice: gasPrice_ } = await internal_estimateFeesPerGas(client, {
+        block: block2,
+        chain,
+        request,
+        type: "legacy"
+      });
+      request.gasPrice = gasPrice_;
+    }
+  }
+  if (parameters.includes("gas") && typeof gas === "undefined")
+    request.gas = await getAction(client, estimateGas, "estimateGas")({
+      ...request,
+      account: account ? { address: account.address, type: "json-rpc" } : account
+    });
+  assertRequest(request);
+  delete request.parameters;
+  return request;
+}
+
+// ../../node_modules/viem/_esm/actions/public/getBalance.js
+async function getBalance(client, { address, blockNumber, blockTag = "latest" }) {
+  const blockNumberHex = blockNumber ? numberToHex(blockNumber) : void 0;
+  const balance = await client.request({
+    method: "eth_getBalance",
+    params: [address, blockNumberHex || blockTag]
+  });
+  return BigInt(balance);
+}
+
+// ../../node_modules/viem/_esm/actions/public/estimateGas.js
+async function estimateGas(client, args) {
+  const { account: account_ = client.account } = args;
+  const account = account_ ? parseAccount(account_) : void 0;
+  try {
+    let estimateGas_rpc = function(parameters) {
+      const { block: block2, request: request2, rpcStateOverride: rpcStateOverride2 } = parameters;
+      return client.request({
+        method: "eth_estimateGas",
+        params: rpcStateOverride2 ? [request2, block2 ?? "latest", rpcStateOverride2] : block2 ? [request2, block2] : [request2]
+      });
+    };
+    const { accessList, authorizationList, blobs, blobVersionedHashes, blockNumber, blockTag, data, gas, gasPrice, maxFeePerBlobGas, maxFeePerGas, maxPriorityFeePerGas, nonce, value, stateOverride, ...rest } = await prepareTransactionRequest(client, {
+      ...args,
+      parameters: (
+        // Some RPC Providers do not compute versioned hashes from blobs. We will need
+        // to compute them.
+        account?.type === "local" ? void 0 : ["blobVersionedHashes"]
+      )
+    });
+    const blockNumberHex = blockNumber ? numberToHex(blockNumber) : void 0;
+    const block = blockNumberHex || blockTag;
+    const rpcStateOverride = serializeStateOverride(stateOverride);
+    const to = await (async () => {
+      if (rest.to)
+        return rest.to;
+      if (authorizationList && authorizationList.length > 0)
+        return await recoverAuthorizationAddress({
+          authorization: authorizationList[0]
+        }).catch(() => {
+          throw new BaseError("`to` is required. Could not infer from `authorizationList`");
+        });
+      return void 0;
+    })();
+    assertRequest(args);
+    const chainFormat = client.chain?.formatters?.transactionRequest?.format;
+    const format = chainFormat || formatTransactionRequest;
+    const request = format({
+      // Pick out extra data that might exist on the chain's transaction request type.
+      ...extract(rest, { format: chainFormat }),
+      from: account?.address,
+      accessList,
+      authorizationList,
+      blobs,
+      blobVersionedHashes,
+      data,
+      gas,
+      gasPrice,
+      maxFeePerBlobGas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
+      to,
+      value
+    });
+    let estimate = BigInt(await estimateGas_rpc({ block, request, rpcStateOverride }));
+    if (authorizationList) {
+      const value2 = await getBalance(client, { address: request.from });
+      const estimates = await Promise.all(authorizationList.map(async (authorization) => {
+        const { contractAddress } = authorization;
+        const estimate2 = await estimateGas_rpc({
+          block,
+          request: {
+            authorizationList: void 0,
+            data,
+            from: account?.address,
+            to: contractAddress,
+            value: numberToHex(value2)
+          },
+          rpcStateOverride
+        }).catch(() => 100000n);
+        return 2n * BigInt(estimate2);
+      }));
+      estimate += estimates.reduce((acc, curr) => acc + curr, 0n);
+    }
+    return estimate;
+  } catch (err) {
+    throw getEstimateGasError(err, {
+      ...args,
+      account,
+      chain: client.chain
+    });
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/public/estimateContractGas.js
+async function estimateContractGas(client, parameters) {
+  const { abi: abi2, address, args, functionName, dataSuffix, ...request } = parameters;
+  const data = encodeFunctionData({
+    abi: abi2,
+    args,
+    functionName
+  });
+  try {
+    const gas = await getAction(client, estimateGas, "estimateGas")({
+      data: `${data}${dataSuffix ? dataSuffix.replace("0x", "") : ""}`,
+      to: address,
+      ...request
+    });
+    return gas;
+  } catch (error) {
+    const account = request.account ? parseAccount(request.account) : void 0;
+    throw getContractError(error, {
+      abi: abi2,
+      address,
+      args,
+      docsPath: "/docs/contract/estimateContractGas",
+      functionName,
+      sender: account?.address
+    });
+  }
+}
+
+// ../../node_modules/viem/_esm/utils/abi/decodeEventLog.js
+var docsPath2 = "/docs/contract/decodeEventLog";
+function decodeEventLog(parameters) {
+  const { abi: abi2, data, strict: strict_, topics } = parameters;
+  const strict = strict_ ?? true;
+  const [signature, ...argTopics] = topics;
+  if (!signature)
+    throw new AbiEventSignatureEmptyTopicsError({ docsPath: docsPath2 });
+  const abiItem = (() => {
+    if (abi2.length === 1)
+      return abi2[0];
+    return abi2.find((x) => x.type === "event" && signature === toEventSelector(formatAbiItem(x)));
+  })();
+  if (!(abiItem && "name" in abiItem) || abiItem.type !== "event")
+    throw new AbiEventSignatureNotFoundError(signature, { docsPath: docsPath2 });
+  const { name, inputs } = abiItem;
+  const isUnnamed = inputs?.some((x) => !("name" in x && x.name));
+  let args = isUnnamed ? [] : {};
+  const indexedInputs = inputs.filter((x) => "indexed" in x && x.indexed);
+  for (let i = 0; i < indexedInputs.length; i++) {
+    const param = indexedInputs[i];
+    const topic = argTopics[i];
+    if (!topic)
+      throw new DecodeLogTopicsMismatch({
+        abiItem,
+        param
+      });
+    args[isUnnamed ? i : param.name || i] = decodeTopic({ param, value: topic });
+  }
+  const nonIndexedInputs = inputs.filter((x) => !("indexed" in x && x.indexed));
+  if (nonIndexedInputs.length > 0) {
+    if (data && data !== "0x") {
+      try {
+        const decodedData = decodeAbiParameters(nonIndexedInputs, data);
+        if (decodedData) {
+          if (isUnnamed)
+            args = [...args, ...decodedData];
+          else {
+            for (let i = 0; i < nonIndexedInputs.length; i++) {
+              args[nonIndexedInputs[i].name] = decodedData[i];
+            }
+          }
+        }
+      } catch (err) {
+        if (strict) {
+          if (err instanceof AbiDecodingDataSizeTooSmallError || err instanceof PositionOutOfBoundsError)
+            throw new DecodeLogDataMismatch({
+              abiItem,
+              data,
+              params: nonIndexedInputs,
+              size: size(data)
+            });
+          throw err;
+        }
+      }
+    } else if (strict) {
+      throw new DecodeLogDataMismatch({
+        abiItem,
+        data: "0x",
+        params: nonIndexedInputs,
+        size: 0
+      });
+    }
+  }
+  return {
+    eventName: name,
+    args: Object.values(args).length > 0 ? args : void 0
+  };
+}
+function decodeTopic({ param, value }) {
+  if (param.type === "string" || param.type === "bytes" || param.type === "tuple" || param.type.match(/^(.*)\[(\d+)?\]$/))
+    return value;
+  const decodedArg = decodeAbiParameters([param], value) || [];
+  return decodedArg[0];
+}
+
+// ../../node_modules/viem/_esm/utils/abi/parseEventLogs.js
+function parseEventLogs(parameters) {
+  const { abi: abi2, args, logs, strict = true } = parameters;
+  const eventName = (() => {
+    if (!parameters.eventName)
+      return void 0;
+    if (Array.isArray(parameters.eventName))
+      return parameters.eventName;
+    return [parameters.eventName];
+  })();
+  return logs.map((log) => {
+    try {
+      const abiItem = abi2.find((abiItem2) => abiItem2.type === "event" && log.topics[0] === toEventSelector(abiItem2));
+      if (!abiItem)
+        return null;
+      const event = decodeEventLog({
+        ...log,
+        abi: [abiItem],
+        strict
+      });
+      if (eventName && !eventName.includes(event.eventName))
+        return null;
+      if (!includesArgs({
+        args: event.args,
+        inputs: abiItem.inputs,
+        matchArgs: args
+      }))
+        return null;
+      return { ...event, ...log };
+    } catch (err) {
+      let eventName2;
+      let isUnnamed;
+      if (err instanceof AbiEventSignatureNotFoundError)
+        return null;
+      if (err instanceof DecodeLogDataMismatch || err instanceof DecodeLogTopicsMismatch) {
+        if (strict)
+          return null;
+        eventName2 = err.abiItem.name;
+        isUnnamed = err.abiItem.inputs?.some((x) => !("name" in x && x.name));
+      }
+      return { ...log, args: isUnnamed ? [] : {}, eventName: eventName2 };
+    }
+  }).filter(Boolean);
+}
+function includesArgs(parameters) {
+  const { args, inputs, matchArgs } = parameters;
+  if (!matchArgs)
+    return true;
+  if (!args)
+    return false;
+  function isEqual(input, value, arg) {
+    try {
+      if (input.type === "address")
+        return isAddressEqual(value, arg);
+      if (input.type === "string" || input.type === "bytes")
+        return keccak256(toBytes(value)) === arg;
+      return value === arg;
+    } catch {
+      return false;
+    }
+  }
+  if (Array.isArray(args) && Array.isArray(matchArgs)) {
+    return matchArgs.every((value, index2) => {
+      if (value === null || value === void 0)
+        return true;
+      const input = inputs[index2];
+      if (!input)
+        return false;
+      const value_ = Array.isArray(value) ? value : [value];
+      return value_.some((value2) => isEqual(input, value2, args[index2]));
+    });
+  }
+  if (typeof args === "object" && !Array.isArray(args) && typeof matchArgs === "object" && !Array.isArray(matchArgs))
+    return Object.entries(matchArgs).every(([key, value]) => {
+      if (value === null || value === void 0)
+        return true;
+      const input = inputs.find((input2) => input2.name === key);
+      if (!input)
+        return false;
+      const value_ = Array.isArray(value) ? value : [value];
+      return value_.some((value2) => isEqual(input, value2, args[key]));
+    });
+  return false;
+}
+
+// ../../node_modules/viem/_esm/utils/formatters/log.js
+function formatLog(log, { args, eventName } = {}) {
+  return {
+    ...log,
+    blockHash: log.blockHash ? log.blockHash : null,
+    blockNumber: log.blockNumber ? BigInt(log.blockNumber) : null,
+    logIndex: log.logIndex ? Number(log.logIndex) : null,
+    transactionHash: log.transactionHash ? log.transactionHash : null,
+    transactionIndex: log.transactionIndex ? Number(log.transactionIndex) : null,
+    ...eventName ? { args, eventName } : {}
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getLogs.js
+async function getLogs(client, { address, blockHash, fromBlock, toBlock, event, events: events_, args, strict: strict_ } = {}) {
+  const strict = strict_ ?? false;
+  const events = events_ ?? (event ? [event] : void 0);
+  let topics = [];
+  if (events) {
+    const encoded = events.flatMap((event2) => encodeEventTopics({
+      abi: [event2],
+      eventName: event2.name,
+      args: events_ ? void 0 : args
+    }));
+    topics = [encoded];
+    if (event)
+      topics = topics[0];
+  }
+  let logs;
+  if (blockHash) {
+    logs = await client.request({
+      method: "eth_getLogs",
+      params: [{ address, topics, blockHash }]
+    });
+  } else {
+    logs = await client.request({
+      method: "eth_getLogs",
+      params: [
+        {
+          address,
+          topics,
+          fromBlock: typeof fromBlock === "bigint" ? numberToHex(fromBlock) : fromBlock,
+          toBlock: typeof toBlock === "bigint" ? numberToHex(toBlock) : toBlock
+        }
+      ]
+    });
+  }
+  const formattedLogs = logs.map((log) => formatLog(log));
+  if (!events)
+    return formattedLogs;
+  return parseEventLogs({
+    abi: events,
+    args,
+    logs: formattedLogs,
+    strict
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/getContractEvents.js
+async function getContractEvents(client, parameters) {
+  const { abi: abi2, address, args, blockHash, eventName, fromBlock, toBlock, strict } = parameters;
+  const event = eventName ? getAbiItem({ abi: abi2, name: eventName }) : void 0;
+  const events = !event ? abi2.filter((x) => x.type === "event") : void 0;
+  return getAction(client, getLogs, "getLogs")({
+    address,
+    args,
+    blockHash,
+    event,
+    events,
+    fromBlock,
+    toBlock,
+    strict
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/readContract.js
+async function readContract(client, parameters) {
+  const { abi: abi2, address, args, functionName, ...rest } = parameters;
+  const calldata = encodeFunctionData({
+    abi: abi2,
+    args,
+    functionName
+  });
+  try {
+    const { data } = await getAction(client, call, "call")({
+      ...rest,
+      data: calldata,
+      to: address
+    });
+    return decodeFunctionResult({
+      abi: abi2,
+      args,
+      functionName,
+      data: data || "0x"
+    });
+  } catch (error) {
+    throw getContractError(error, {
+      abi: abi2,
+      address,
+      args,
+      docsPath: "/docs/contract/readContract",
+      functionName
+    });
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/public/simulateContract.js
+async function simulateContract(client, parameters) {
+  const { abi: abi2, address, args, dataSuffix, functionName, ...callRequest } = parameters;
+  const account = callRequest.account ? parseAccount(callRequest.account) : client.account;
+  const calldata = encodeFunctionData({ abi: abi2, args, functionName });
+  try {
+    const { data } = await getAction(client, call, "call")({
+      batch: false,
+      data: `${calldata}${dataSuffix ? dataSuffix.replace("0x", "") : ""}`,
+      to: address,
+      ...callRequest,
+      account
+    });
+    const result = decodeFunctionResult({
+      abi: abi2,
+      args,
+      functionName,
+      data: data || "0x"
+    });
+    const minimizedAbi = abi2.filter((abiItem) => "name" in abiItem && abiItem.name === parameters.functionName);
+    return {
+      result,
+      request: {
+        abi: minimizedAbi,
+        address,
+        args,
+        dataSuffix,
+        functionName,
+        ...callRequest,
+        account
+      }
+    };
+  } catch (error) {
+    throw getContractError(error, {
+      abi: abi2,
+      address,
+      args,
+      docsPath: "/docs/contract/simulateContract",
+      functionName,
+      sender: account?.address
+    });
+  }
+}
+
+// ../../node_modules/viem/_esm/utils/observe.js
+var listenersCache = /* @__PURE__ */ new Map();
+var cleanupCache = /* @__PURE__ */ new Map();
+var callbackCount = 0;
+function observe(observerId, callbacks, fn) {
+  const callbackId = ++callbackCount;
+  const getListeners = () => listenersCache.get(observerId) || [];
+  const unsubscribe = () => {
+    const listeners2 = getListeners();
+    listenersCache.set(observerId, listeners2.filter((cb) => cb.id !== callbackId));
+  };
+  const unwatch = () => {
+    const listeners2 = getListeners();
+    if (!listeners2.some((cb) => cb.id === callbackId))
+      return;
+    const cleanup2 = cleanupCache.get(observerId);
+    if (listeners2.length === 1 && cleanup2)
+      cleanup2();
+    unsubscribe();
+  };
+  const listeners = getListeners();
+  listenersCache.set(observerId, [
+    ...listeners,
+    { id: callbackId, fns: callbacks }
+  ]);
+  if (listeners && listeners.length > 0)
+    return unwatch;
+  const emit = {};
+  for (const key in callbacks) {
+    emit[key] = (...args) => {
+      const listeners2 = getListeners();
+      if (listeners2.length === 0)
+        return;
+      for (const listener of listeners2)
+        listener.fns[key]?.(...args);
+    };
+  }
+  const cleanup = fn(emit);
+  if (typeof cleanup === "function")
+    cleanupCache.set(observerId, cleanup);
+  return unwatch;
+}
+
+// ../../node_modules/viem/_esm/utils/wait.js
+async function wait(time) {
+  return new Promise((res) => setTimeout(res, time));
+}
+
+// ../../node_modules/viem/_esm/utils/poll.js
+function poll(fn, { emitOnBegin, initialWaitTime, interval }) {
+  let active = true;
+  const unwatch = () => active = false;
+  const watch = async () => {
+    let data = void 0;
+    if (emitOnBegin)
+      data = await fn({ unpoll: unwatch });
+    const initialWait = await initialWaitTime?.(data) ?? interval;
+    await wait(initialWait);
+    const poll2 = async () => {
+      if (!active)
+        return;
+      await fn({ unpoll: unwatch });
+      await wait(interval);
+      poll2();
+    };
+    poll2();
+  };
+  watch();
+  return unwatch;
+}
+
+// ../../node_modules/viem/_esm/utils/promise/withCache.js
+var promiseCache = /* @__PURE__ */ new Map();
+var responseCache = /* @__PURE__ */ new Map();
+function getCache(cacheKey2) {
+  const buildCache = (cacheKey3, cache) => ({
+    clear: () => cache.delete(cacheKey3),
+    get: () => cache.get(cacheKey3),
+    set: (data) => cache.set(cacheKey3, data)
+  });
+  const promise = buildCache(cacheKey2, promiseCache);
+  const response = buildCache(cacheKey2, responseCache);
+  return {
+    clear: () => {
+      promise.clear();
+      response.clear();
+    },
+    promise,
+    response
+  };
+}
+async function withCache(fn, { cacheKey: cacheKey2, cacheTime = Number.POSITIVE_INFINITY }) {
+  const cache = getCache(cacheKey2);
+  const response = cache.response.get();
+  if (response && cacheTime > 0) {
+    const age = (/* @__PURE__ */ new Date()).getTime() - response.created.getTime();
+    if (age < cacheTime)
+      return response.data;
+  }
+  let promise = cache.promise.get();
+  if (!promise) {
+    promise = fn();
+    cache.promise.set(promise);
+  }
+  try {
+    const data = await promise;
+    cache.response.set({ created: /* @__PURE__ */ new Date(), data });
+    return data;
+  } finally {
+    cache.promise.clear();
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/public/getBlockNumber.js
+var cacheKey = (id) => `blockNumber.${id}`;
+async function getBlockNumber(client, { cacheTime = client.cacheTime } = {}) {
+  const blockNumberHex = await withCache(() => client.request({
+    method: "eth_blockNumber"
+  }), { cacheKey: cacheKey(client.uid), cacheTime });
+  return BigInt(blockNumberHex);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getFilterChanges.js
+async function getFilterChanges(_client, { filter }) {
+  const strict = "strict" in filter && filter.strict;
+  const logs = await filter.request({
+    method: "eth_getFilterChanges",
+    params: [filter.id]
+  });
+  if (typeof logs[0] === "string")
+    return logs;
+  const formattedLogs = logs.map((log) => formatLog(log));
+  if (!("abi" in filter) || !filter.abi)
+    return formattedLogs;
+  return parseEventLogs({
+    abi: filter.abi,
+    logs: formattedLogs,
+    strict
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/uninstallFilter.js
+async function uninstallFilter(_client, { filter }) {
+  return filter.request({
+    method: "eth_uninstallFilter",
+    params: [filter.id]
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/watchContractEvent.js
+function watchContractEvent(client, parameters) {
+  const { abi: abi2, address, args, batch = true, eventName, fromBlock, onError, onLogs, poll: poll_, pollingInterval = client.pollingInterval, strict: strict_ } = parameters;
+  const enablePolling = (() => {
+    if (typeof poll_ !== "undefined")
+      return poll_;
+    if (typeof fromBlock === "bigint")
+      return true;
+    if (client.transport.type === "webSocket")
+      return false;
+    if (client.transport.type === "fallback" && client.transport.transports[0].config.type === "webSocket")
+      return false;
+    return true;
+  })();
+  const pollContractEvent = () => {
+    const strict = strict_ ?? false;
+    const observerId = stringify([
+      "watchContractEvent",
+      address,
+      args,
+      batch,
+      client.uid,
+      eventName,
+      pollingInterval,
+      strict,
+      fromBlock
+    ]);
+    return observe(observerId, { onLogs, onError }, (emit) => {
+      let previousBlockNumber;
+      if (fromBlock !== void 0)
+        previousBlockNumber = fromBlock - 1n;
+      let filter;
+      let initialized = false;
+      const unwatch = poll(async () => {
+        if (!initialized) {
+          try {
+            filter = await getAction(client, createContractEventFilter, "createContractEventFilter")({
+              abi: abi2,
+              address,
+              args,
+              eventName,
+              strict,
+              fromBlock
+            });
+          } catch {
+          }
+          initialized = true;
+          return;
+        }
+        try {
+          let logs;
+          if (filter) {
+            logs = await getAction(client, getFilterChanges, "getFilterChanges")({ filter });
+          } else {
+            const blockNumber = await getAction(client, getBlockNumber, "getBlockNumber")({});
+            if (previousBlockNumber && previousBlockNumber < blockNumber) {
+              logs = await getAction(client, getContractEvents, "getContractEvents")({
+                abi: abi2,
+                address,
+                args,
+                eventName,
+                fromBlock: previousBlockNumber + 1n,
+                toBlock: blockNumber,
+                strict
+              });
+            } else {
+              logs = [];
+            }
+            previousBlockNumber = blockNumber;
+          }
+          if (logs.length === 0)
+            return;
+          if (batch)
+            emit.onLogs(logs);
+          else
+            for (const log of logs)
+              emit.onLogs([log]);
+        } catch (err) {
+          if (filter && err instanceof InvalidInputRpcError)
+            initialized = false;
+          emit.onError?.(err);
+        }
+      }, {
+        emitOnBegin: true,
+        interval: pollingInterval
+      });
+      return async () => {
+        if (filter)
+          await getAction(client, uninstallFilter, "uninstallFilter")({ filter });
+        unwatch();
+      };
+    });
+  };
+  const subscribeContractEvent = () => {
+    const strict = strict_ ?? false;
+    const observerId = stringify([
+      "watchContractEvent",
+      address,
+      args,
+      batch,
+      client.uid,
+      eventName,
+      pollingInterval,
+      strict
+    ]);
+    let active = true;
+    let unsubscribe = () => active = false;
+    return observe(observerId, { onLogs, onError }, (emit) => {
+      ;
+      (async () => {
+        try {
+          const transport = (() => {
+            if (client.transport.type === "fallback") {
+              const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket");
+              if (!transport2)
+                return client.transport;
+              return transport2.value;
+            }
+            return client.transport;
+          })();
+          const topics = eventName ? encodeEventTopics({
+            abi: abi2,
+            eventName,
+            args
+          }) : [];
+          const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+            params: ["logs", { address, topics }],
+            onData(data) {
+              if (!active)
+                return;
+              const log = data.result;
+              try {
+                const { eventName: eventName2, args: args2 } = decodeEventLog({
+                  abi: abi2,
+                  data: log.data,
+                  topics: log.topics,
+                  strict: strict_
+                });
+                const formatted = formatLog(log, {
+                  args: args2,
+                  eventName: eventName2
+                });
+                emit.onLogs([formatted]);
+              } catch (err) {
+                let eventName2;
+                let isUnnamed;
+                if (err instanceof DecodeLogDataMismatch || err instanceof DecodeLogTopicsMismatch) {
+                  if (strict_)
+                    return;
+                  eventName2 = err.abiItem.name;
+                  isUnnamed = err.abiItem.inputs?.some((x) => !("name" in x && x.name));
+                }
+                const formatted = formatLog(log, {
+                  args: isUnnamed ? [] : {},
+                  eventName: eventName2
+                });
+                emit.onLogs([formatted]);
+              }
+            },
+            onError(error) {
+              emit.onError?.(error);
+            }
+          });
+          unsubscribe = unsubscribe_;
+          if (!active)
+            unsubscribe();
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+      return () => unsubscribe();
+    });
+  };
+  return enablePolling ? pollContractEvent() : subscribeContractEvent();
+}
+
+// ../../node_modules/viem/_esm/actions/wallet/sendRawTransaction.js
+async function sendRawTransaction(client, { serializedTransaction }) {
+  return client.request({
+    method: "eth_sendRawTransaction",
+    params: [serializedTransaction]
+  }, { retryCount: 0 });
+}
+
+// ../../node_modules/viem/_esm/errors/eip712.js
+var Eip712DomainNotFoundError = class extends BaseError {
+  constructor({ address }) {
+    super(`No EIP-712 domain found on contract "${address}".`, {
+      metaMessages: [
+        "Ensure that:",
+        `- The contract is deployed at the address "${address}".`,
+        "- `eip712Domain()` function exists on the contract.",
+        "- `eip712Domain()` function matches signature to ERC-5267 specification."
+      ],
+      name: "Eip712DomainNotFoundError"
+    });
+  }
+};
+
+// ../../node_modules/viem/_esm/actions/public/getEip712Domain.js
+async function getEip712Domain(client, parameters) {
+  const { address, factory, factoryData } = parameters;
+  try {
+    const [fields, name, version, chainId, verifyingContract, salt, extensions] = await getAction(client, readContract, "readContract")({
+      abi,
+      address,
+      functionName: "eip712Domain",
+      factory,
+      factoryData
+    });
+    return {
+      domain: {
+        name,
+        version,
+        chainId: Number(chainId),
+        verifyingContract,
+        salt
+      },
+      extensions,
+      fields
+    };
+  } catch (e) {
+    const error = e;
+    if (error.name === "ContractFunctionExecutionError" && error.cause.name === "ContractFunctionZeroDataError") {
+      throw new Eip712DomainNotFoundError({ address });
+    }
+    throw error;
+  }
+}
+var abi = [
+  {
+    inputs: [],
+    name: "eip712Domain",
+    outputs: [
+      { name: "fields", type: "bytes1" },
+      { name: "name", type: "string" },
+      { name: "version", type: "string" },
+      { name: "chainId", type: "uint256" },
+      { name: "verifyingContract", type: "address" },
+      { name: "salt", type: "bytes32" },
+      { name: "extensions", type: "uint256[]" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
+];
+
+// ../../node_modules/viem/_esm/utils/uid.js
+var size2 = 256;
+var index = size2;
+var buffer;
+function uid(length = 11) {
+  if (!buffer || index + length > size2 * 2) {
+    buffer = "";
+    index = 0;
+    for (let i = 0; i < size2; i++) {
+      buffer += (256 + Math.random() * 256 | 0).toString(16).substring(1);
+    }
+  }
+  return buffer.substring(index, index++ + length);
+}
+
+// ../../node_modules/viem/_esm/clients/createClient.js
+function createClient(parameters) {
+  const { batch, cacheTime = parameters.pollingInterval ?? 4e3, ccipRead, key = "base", name = "Base Client", pollingInterval = 4e3, type = "base" } = parameters;
+  const chain = parameters.chain;
+  const account = parameters.account ? parseAccount(parameters.account) : void 0;
+  const { config: config2, request, value } = parameters.transport({
+    chain,
+    pollingInterval
+  });
+  const transport = { ...config2, ...value };
+  const client = {
+    account,
+    batch,
+    cacheTime,
+    ccipRead,
+    chain,
+    key,
+    name,
+    pollingInterval,
+    request,
+    transport,
+    type,
+    uid: uid()
+  };
+  function extend(base) {
+    return (extendFn) => {
+      const extended = extendFn(base);
+      for (const key2 in client)
+        delete extended[key2];
+      const combined = { ...base, ...extended };
+      return Object.assign(combined, { extend: extend(combined) });
+    };
+  }
+  return Object.assign(client, { extend: extend(client) });
+}
+
+// ../../node_modules/viem/_esm/utils/promise/withDedupe.js
+var promiseCache2 = /* @__PURE__ */ new LruMap(8192);
+function withDedupe(fn, { enabled = true, id }) {
+  if (!enabled || !id)
+    return fn();
+  if (promiseCache2.get(id))
+    return promiseCache2.get(id);
+  const promise = fn().finally(() => promiseCache2.delete(id));
+  promiseCache2.set(id, promise);
+  return promise;
+}
+
+// ../../node_modules/viem/_esm/utils/promise/withRetry.js
+function withRetry(fn, { delay: delay_ = 100, retryCount = 2, shouldRetry: shouldRetry2 = () => true } = {}) {
+  return new Promise((resolve, reject) => {
+    const attemptRetry = async ({ count = 0 } = {}) => {
+      const retry = async ({ error }) => {
+        const delay = typeof delay_ === "function" ? delay_({ count, error }) : delay_;
+        if (delay)
+          await wait(delay);
+        attemptRetry({ count: count + 1 });
+      };
+      try {
+        const data = await fn();
+        resolve(data);
+      } catch (err) {
+        if (count < retryCount && await shouldRetry2({ count, error: err }))
+          return retry({ error: err });
+        reject(err);
+      }
+    };
+    attemptRetry();
+  });
+}
+
+// ../../node_modules/viem/_esm/utils/buildRequest.js
+function buildRequest(request, options2 = {}) {
+  return async (args, overrideOptions = {}) => {
+    const { dedupe = false, retryDelay = 150, retryCount = 3, uid: uid2 } = {
+      ...options2,
+      ...overrideOptions
+    };
+    const requestId = dedupe ? keccak256(stringToHex(`${uid2}.${stringify(args)}`)) : void 0;
+    return withDedupe(() => withRetry(async () => {
+      try {
+        return await request(args);
+      } catch (err_) {
+        const err = err_;
+        switch (err.code) {
+          // -32700
+          case ParseRpcError.code:
+            throw new ParseRpcError(err);
+          // -32600
+          case InvalidRequestRpcError.code:
+            throw new InvalidRequestRpcError(err);
+          // -32601
+          case MethodNotFoundRpcError.code:
+            throw new MethodNotFoundRpcError(err, { method: args.method });
+          // -32602
+          case InvalidParamsRpcError.code:
+            throw new InvalidParamsRpcError(err);
+          // -32603
+          case InternalRpcError.code:
+            throw new InternalRpcError(err);
+          // -32000
+          case InvalidInputRpcError.code:
+            throw new InvalidInputRpcError(err);
+          // -32001
+          case ResourceNotFoundRpcError.code:
+            throw new ResourceNotFoundRpcError(err);
+          // -32002
+          case ResourceUnavailableRpcError.code:
+            throw new ResourceUnavailableRpcError(err);
+          // -32003
+          case TransactionRejectedRpcError.code:
+            throw new TransactionRejectedRpcError(err);
+          // -32004
+          case MethodNotSupportedRpcError.code:
+            throw new MethodNotSupportedRpcError(err, {
+              method: args.method
+            });
+          // -32005
+          case LimitExceededRpcError.code:
+            throw new LimitExceededRpcError(err);
+          // -32006
+          case JsonRpcVersionUnsupportedError.code:
+            throw new JsonRpcVersionUnsupportedError(err);
+          // 4001
+          case UserRejectedRequestError.code:
+            throw new UserRejectedRequestError(err);
+          // 4100
+          case UnauthorizedProviderError.code:
+            throw new UnauthorizedProviderError(err);
+          // 4200
+          case UnsupportedProviderMethodError.code:
+            throw new UnsupportedProviderMethodError(err);
+          // 4900
+          case ProviderDisconnectedError.code:
+            throw new ProviderDisconnectedError(err);
+          // 4901
+          case ChainDisconnectedError.code:
+            throw new ChainDisconnectedError(err);
+          // 4902
+          case SwitchChainError.code:
+            throw new SwitchChainError(err);
+          // CAIP-25: User Rejected Error
+          // https://docs.walletconnect.com/2.0/specs/clients/sign/error-codes#rejected-caip-25
+          case 5e3:
+            throw new UserRejectedRequestError(err);
+          default:
+            if (err_ instanceof BaseError)
+              throw err_;
+            throw new UnknownRpcError(err);
+        }
+      }
+    }, {
+      delay: ({ count, error }) => {
+        if (error && error instanceof HttpRequestError) {
+          const retryAfter = error?.headers?.get("Retry-After");
+          if (retryAfter?.match(/\d/))
+            return Number.parseInt(retryAfter) * 1e3;
+        }
+        return ~~(1 << count) * retryDelay;
+      },
+      retryCount,
+      shouldRetry: ({ error }) => shouldRetry(error)
+    }), { enabled: dedupe, id: requestId });
+  };
+}
+function shouldRetry(error) {
+  if ("code" in error && typeof error.code === "number") {
+    if (error.code === -1)
+      return true;
+    if (error.code === LimitExceededRpcError.code)
+      return true;
+    if (error.code === InternalRpcError.code)
+      return true;
+    return false;
+  }
+  if (error instanceof HttpRequestError && error.status) {
+    if (error.status === 403)
+      return true;
+    if (error.status === 408)
+      return true;
+    if (error.status === 413)
+      return true;
+    if (error.status === 429)
+      return true;
+    if (error.status === 500)
+      return true;
+    if (error.status === 502)
+      return true;
+    if (error.status === 503)
+      return true;
+    if (error.status === 504)
+      return true;
+    return false;
+  }
+  return true;
+}
+
+// ../../node_modules/viem/_esm/clients/transports/createTransport.js
+function createTransport({ key, name, request, retryCount = 3, retryDelay = 150, timeout, type }, value) {
+  const uid2 = uid();
+  return {
+    config: {
+      key,
+      name,
+      request,
+      retryCount,
+      retryDelay,
+      timeout,
+      type
+    },
+    request: buildRequest(request, { retryCount, retryDelay, uid: uid2 }),
+    value
+  };
+}
+
+// ../../node_modules/viem/_esm/errors/transport.js
+var UrlRequiredError = class extends BaseError {
+  constructor() {
+    super("No URL was provided to the Transport. Please provide a valid RPC URL to the Transport.", {
+      docsPath: "/docs/clients/intro",
+      name: "UrlRequiredError"
+    });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/promise/withTimeout.js
+function withTimeout(fn, { errorInstance = new Error("timed out"), timeout, signal }) {
+  return new Promise((resolve, reject) => {
+    ;
+    (async () => {
+      let timeoutId;
+      try {
+        const controller = new AbortController();
+        if (timeout > 0) {
+          timeoutId = setTimeout(() => {
+            if (signal) {
+              controller.abort();
+            } else {
+              reject(errorInstance);
+            }
+          }, timeout);
+        }
+        resolve(await fn({ signal: controller?.signal || null }));
+      } catch (err) {
+        if (err?.name === "AbortError")
+          reject(errorInstance);
+        reject(err);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    })();
+  });
+}
+
+// ../../node_modules/viem/_esm/utils/rpc/id.js
+function createIdStore() {
+  return {
+    current: 0,
+    take() {
+      return this.current++;
+    },
+    reset() {
+      this.current = 0;
+    }
+  };
+}
+var idCache = /* @__PURE__ */ createIdStore();
+
+// ../../node_modules/viem/_esm/utils/rpc/http.js
+function getHttpRpcClient(url, options2 = {}) {
+  return {
+    async request(params) {
+      const { body, onRequest = options2.onRequest, onResponse = options2.onResponse, timeout = options2.timeout ?? 1e4 } = params;
+      const fetchOptions = {
+        ...options2.fetchOptions ?? {},
+        ...params.fetchOptions ?? {}
+      };
+      const { headers, method, signal: signal_ } = fetchOptions;
+      try {
+        const response = await withTimeout(async ({ signal }) => {
+          const init = {
+            ...fetchOptions,
+            body: Array.isArray(body) ? stringify(body.map((body2) => ({
+              jsonrpc: "2.0",
+              id: body2.id ?? idCache.take(),
+              ...body2
+            }))) : stringify({
+              jsonrpc: "2.0",
+              id: body.id ?? idCache.take(),
+              ...body
+            }),
+            headers: {
+              "Content-Type": "application/json",
+              ...headers
+            },
+            method: method || "POST",
+            signal: signal_ || (timeout > 0 ? signal : null)
+          };
+          const request = new Request(url, init);
+          const args = await onRequest?.(request, init) ?? { ...init, url };
+          const response2 = await fetch(args.url ?? url, args);
+          return response2;
+        }, {
+          errorInstance: new TimeoutError({ body, url }),
+          timeout,
+          signal: true
+        });
+        if (onResponse)
+          await onResponse(response);
+        let data;
+        if (response.headers.get("Content-Type")?.startsWith("application/json"))
+          data = await response.json();
+        else {
+          data = await response.text();
+          try {
+            data = JSON.parse(data || "{}");
+          } catch (err) {
+            if (response.ok)
+              throw err;
+            data = { error: data };
+          }
+        }
+        if (!response.ok) {
+          throw new HttpRequestError({
+            body,
+            details: stringify(data.error) || response.statusText,
+            headers: response.headers,
+            status: response.status,
+            url
+          });
+        }
+        return data;
+      } catch (err) {
+        if (err instanceof HttpRequestError)
+          throw err;
+        if (err instanceof TimeoutError)
+          throw err;
+        throw new HttpRequestError({
+          body,
+          cause: err,
+          url
+        });
+      }
+    }
+  };
+}
+
+// ../../node_modules/viem/_esm/clients/transports/http.js
+function http(url, config2 = {}) {
+  const { batch, fetchOptions, key = "http", name = "HTTP JSON-RPC", onFetchRequest, onFetchResponse, retryDelay } = config2;
+  return ({ chain, retryCount: retryCount_, timeout: timeout_ }) => {
+    const { batchSize = 1e3, wait: wait2 = 0 } = typeof batch === "object" ? batch : {};
+    const retryCount = config2.retryCount ?? retryCount_;
+    const timeout = timeout_ ?? config2.timeout ?? 1e4;
+    const url_ = url || chain?.rpcUrls.default.http[0];
+    if (!url_)
+      throw new UrlRequiredError();
+    const rpcClient = getHttpRpcClient(url_, {
+      fetchOptions,
+      onRequest: onFetchRequest,
+      onResponse: onFetchResponse,
+      timeout
+    });
+    return createTransport({
+      key,
+      name,
+      async request({ method, params }) {
+        const body = { method, params };
+        const { schedule } = createBatchScheduler({
+          id: url_,
+          wait: wait2,
+          shouldSplitBatch(requests) {
+            return requests.length > batchSize;
+          },
+          fn: (body2) => rpcClient.request({
+            body: body2
+          }),
+          sort: (a, b) => a.id - b.id
+        });
+        const fn = async (body2) => batch ? schedule(body2) : [
+          await rpcClient.request({
+            body: body2
+          })
+        ];
+        const [{ error, result }] = await fn(body);
+        if (error)
+          throw new RpcRequestError({
+            body,
+            error,
+            url: url_
+          });
+        return result;
+      },
+      retryCount,
+      retryDelay,
+      timeout,
+      type: "http"
+    }, {
+      fetchOptions,
+      url: url_
+    });
+  };
+}
+
+// ../../node_modules/viem/_esm/utils/ens/errors.js
+function isNullUniversalResolverError(err, callType) {
+  if (!(err instanceof BaseError))
+    return false;
+  const cause = err.walk((e) => e instanceof ContractFunctionRevertedError);
+  if (!(cause instanceof ContractFunctionRevertedError))
+    return false;
+  if (cause.data?.errorName === "ResolverNotFound")
+    return true;
+  if (cause.data?.errorName === "ResolverWildcardNotSupported")
+    return true;
+  if (cause.data?.errorName === "ResolverNotContract")
+    return true;
+  if (cause.data?.errorName === "ResolverError")
+    return true;
+  if (cause.data?.errorName === "HttpError")
+    return true;
+  if (cause.reason?.includes("Wildcard on non-extended resolvers is not supported"))
+    return true;
+  if (callType === "reverse" && cause.reason === panicReasons[50])
+    return true;
+  return false;
+}
+
+// ../../node_modules/viem/_esm/utils/ens/encodedLabelToLabelhash.js
+function encodedLabelToLabelhash(label) {
+  if (label.length !== 66)
+    return null;
+  if (label.indexOf("[") !== 0)
+    return null;
+  if (label.indexOf("]") !== 65)
+    return null;
+  const hash = `0x${label.slice(1, 65)}`;
+  if (!isHex(hash))
+    return null;
+  return hash;
+}
+
+// ../../node_modules/viem/_esm/utils/ens/namehash.js
+function namehash(name) {
+  let result = new Uint8Array(32).fill(0);
+  if (!name)
+    return bytesToHex(result);
+  const labels = name.split(".");
+  for (let i = labels.length - 1; i >= 0; i -= 1) {
+    const hashFromEncodedLabel = encodedLabelToLabelhash(labels[i]);
+    const hashed = hashFromEncodedLabel ? toBytes(hashFromEncodedLabel) : keccak256(stringToBytes(labels[i]), "bytes");
+    result = keccak256(concat([result, hashed]), "bytes");
+  }
+  return bytesToHex(result);
+}
+
+// ../../node_modules/viem/_esm/utils/ens/encodeLabelhash.js
+function encodeLabelhash(hash) {
+  return `[${hash.slice(2)}]`;
+}
+
+// ../../node_modules/viem/_esm/utils/ens/labelhash.js
+function labelhash(label) {
+  const result = new Uint8Array(32).fill(0);
+  if (!label)
+    return bytesToHex(result);
+  return encodedLabelToLabelhash(label) || keccak256(stringToBytes(label));
+}
+
+// ../../node_modules/viem/_esm/utils/ens/packetToBytes.js
+function packetToBytes(packet) {
+  const value = packet.replace(/^\.|\.$/gm, "");
+  if (value.length === 0)
+    return new Uint8Array(1);
+  const bytes = new Uint8Array(stringToBytes(value).byteLength + 2);
+  let offset = 0;
+  const list = value.split(".");
+  for (let i = 0; i < list.length; i++) {
+    let encoded = stringToBytes(list[i]);
+    if (encoded.byteLength > 255)
+      encoded = stringToBytes(encodeLabelhash(labelhash(list[i])));
+    bytes[offset] = encoded.length;
+    bytes.set(encoded, offset + 1);
+    offset += encoded.length + 1;
+  }
+  if (bytes.byteLength !== offset + 1)
+    return bytes.slice(0, offset + 1);
+  return bytes;
+}
+
+// ../../node_modules/viem/_esm/actions/ens/getEnsAddress.js
+async function getEnsAddress(client, { blockNumber, blockTag, coinType, name, gatewayUrls, strict, universalResolverAddress: universalResolverAddress_ }) {
+  let universalResolverAddress = universalResolverAddress_;
+  if (!universalResolverAddress) {
+    if (!client.chain)
+      throw new Error("client chain not configured. universalResolverAddress is required.");
+    universalResolverAddress = getChainContractAddress({
+      blockNumber,
+      chain: client.chain,
+      contract: "ensUniversalResolver"
+    });
+  }
+  try {
+    const functionData = encodeFunctionData({
+      abi: addressResolverAbi,
+      functionName: "addr",
+      ...coinType != null ? { args: [namehash(name), BigInt(coinType)] } : { args: [namehash(name)] }
+    });
+    const readContractParameters = {
+      address: universalResolverAddress,
+      abi: universalResolverResolveAbi,
+      functionName: "resolve",
+      args: [toHex(packetToBytes(name)), functionData],
+      blockNumber,
+      blockTag
+    };
+    const readContractAction = getAction(client, readContract, "readContract");
+    const res = gatewayUrls ? await readContractAction({
+      ...readContractParameters,
+      args: [...readContractParameters.args, gatewayUrls]
+    }) : await readContractAction(readContractParameters);
+    if (res[0] === "0x")
+      return null;
+    const address = decodeFunctionResult({
+      abi: addressResolverAbi,
+      args: coinType != null ? [namehash(name), BigInt(coinType)] : void 0,
+      functionName: "addr",
+      data: res[0]
+    });
+    if (address === "0x")
+      return null;
+    if (trim(address) === "0x00")
+      return null;
+    return address;
+  } catch (err) {
+    if (strict)
+      throw err;
+    if (isNullUniversalResolverError(err, "resolve"))
+      return null;
+    throw err;
+  }
+}
+
+// ../../node_modules/viem/_esm/errors/ens.js
+var EnsAvatarInvalidMetadataError = class extends BaseError {
+  constructor({ data }) {
+    super("Unable to extract image from metadata. The metadata may be malformed or invalid.", {
+      metaMessages: [
+        "- Metadata must be a JSON object with at least an `image`, `image_url` or `image_data` property.",
+        "",
+        `Provided data: ${JSON.stringify(data)}`
+      ],
+      name: "EnsAvatarInvalidMetadataError"
+    });
+  }
+};
+var EnsAvatarInvalidNftUriError = class extends BaseError {
+  constructor({ reason }) {
+    super(`ENS NFT avatar URI is invalid. ${reason}`, {
+      name: "EnsAvatarInvalidNftUriError"
+    });
+  }
+};
+var EnsAvatarUriResolutionError = class extends BaseError {
+  constructor({ uri }) {
+    super(`Unable to resolve ENS avatar URI "${uri}". The URI may be malformed, invalid, or does not respond with a valid image.`, { name: "EnsAvatarUriResolutionError" });
+  }
+};
+var EnsAvatarUnsupportedNamespaceError = class extends BaseError {
+  constructor({ namespace }) {
+    super(`ENS NFT avatar namespace "${namespace}" is not supported. Must be "erc721" or "erc1155".`, { name: "EnsAvatarUnsupportedNamespaceError" });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/ens/avatar/utils.js
+var networkRegex = /(?<protocol>https?:\/\/[^\/]*|ipfs:\/|ipns:\/|ar:\/)?(?<root>\/)?(?<subpath>ipfs\/|ipns\/)?(?<target>[\w\-.]+)(?<subtarget>\/.*)?/;
+var ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,})(\/(?<target>[\w\-.]+))?(?<subtarget>\/.*)?$/;
+var base64Regex = /^data:([a-zA-Z\-/+]*);base64,([^"].*)/;
+var dataURIRegex = /^data:([a-zA-Z\-/+]*)?(;[a-zA-Z0-9].*?)?(,)/;
+async function isImageUri(uri) {
+  try {
+    const res = await fetch(uri, { method: "HEAD" });
+    if (res.status === 200) {
+      const contentType = res.headers.get("content-type");
+      return contentType?.startsWith("image/");
+    }
+    return false;
+  } catch (error) {
+    if (typeof error === "object" && typeof error.response !== "undefined") {
+      return false;
+    }
+    if (!globalThis.hasOwnProperty("Image"))
+      return false;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve(true);
+      };
+      img.onerror = () => {
+        resolve(false);
+      };
+      img.src = uri;
+    });
+  }
+}
+function getGateway(custom, defaultGateway) {
+  if (!custom)
+    return defaultGateway;
+  if (custom.endsWith("/"))
+    return custom.slice(0, -1);
+  return custom;
+}
+function resolveAvatarUri({ uri, gatewayUrls }) {
+  const isEncoded = base64Regex.test(uri);
+  if (isEncoded)
+    return { uri, isOnChain: true, isEncoded };
+  const ipfsGateway = getGateway(gatewayUrls?.ipfs, "https://ipfs.io");
+  const arweaveGateway = getGateway(gatewayUrls?.arweave, "https://arweave.net");
+  const networkRegexMatch = uri.match(networkRegex);
+  const { protocol, subpath, target, subtarget = "" } = networkRegexMatch?.groups || {};
+  const isIPNS = protocol === "ipns:/" || subpath === "ipns/";
+  const isIPFS = protocol === "ipfs:/" || subpath === "ipfs/" || ipfsHashRegex.test(uri);
+  if (uri.startsWith("http") && !isIPNS && !isIPFS) {
+    let replacedUri = uri;
+    if (gatewayUrls?.arweave)
+      replacedUri = uri.replace(/https:\/\/arweave.net/g, gatewayUrls?.arweave);
+    return { uri: replacedUri, isOnChain: false, isEncoded: false };
+  }
+  if ((isIPNS || isIPFS) && target) {
+    return {
+      uri: `${ipfsGateway}/${isIPNS ? "ipns" : "ipfs"}/${target}${subtarget}`,
+      isOnChain: false,
+      isEncoded: false
+    };
+  }
+  if (protocol === "ar:/" && target) {
+    return {
+      uri: `${arweaveGateway}/${target}${subtarget || ""}`,
+      isOnChain: false,
+      isEncoded: false
+    };
+  }
+  let parsedUri = uri.replace(dataURIRegex, "");
+  if (parsedUri.startsWith("<svg")) {
+    parsedUri = `data:image/svg+xml;base64,${btoa(parsedUri)}`;
+  }
+  if (parsedUri.startsWith("data:") || parsedUri.startsWith("{")) {
+    return {
+      uri: parsedUri,
+      isOnChain: true,
+      isEncoded: false
+    };
+  }
+  throw new EnsAvatarUriResolutionError({ uri });
+}
+function getJsonImage(data) {
+  if (typeof data !== "object" || !("image" in data) && !("image_url" in data) && !("image_data" in data)) {
+    throw new EnsAvatarInvalidMetadataError({ data });
+  }
+  return data.image || data.image_url || data.image_data;
+}
+async function getMetadataAvatarUri({ gatewayUrls, uri }) {
+  try {
+    const res = await fetch(uri).then((res2) => res2.json());
+    const image = await parseAvatarUri({
+      gatewayUrls,
+      uri: getJsonImage(res)
+    });
+    return image;
+  } catch {
+    throw new EnsAvatarUriResolutionError({ uri });
+  }
+}
+async function parseAvatarUri({ gatewayUrls, uri }) {
+  const { uri: resolvedURI, isOnChain } = resolveAvatarUri({ uri, gatewayUrls });
+  if (isOnChain)
+    return resolvedURI;
+  const isImage = await isImageUri(resolvedURI);
+  if (isImage)
+    return resolvedURI;
+  throw new EnsAvatarUriResolutionError({ uri });
+}
+function parseNftUri(uri_) {
+  let uri = uri_;
+  if (uri.startsWith("did:nft:")) {
+    uri = uri.replace("did:nft:", "").replace(/_/g, "/");
+  }
+  const [reference, asset_namespace, tokenID] = uri.split("/");
+  const [eip_namespace, chainID] = reference.split(":");
+  const [erc_namespace, contractAddress] = asset_namespace.split(":");
+  if (!eip_namespace || eip_namespace.toLowerCase() !== "eip155")
+    throw new EnsAvatarInvalidNftUriError({ reason: "Only EIP-155 supported" });
+  if (!chainID)
+    throw new EnsAvatarInvalidNftUriError({ reason: "Chain ID not found" });
+  if (!contractAddress)
+    throw new EnsAvatarInvalidNftUriError({
+      reason: "Contract address not found"
+    });
+  if (!tokenID)
+    throw new EnsAvatarInvalidNftUriError({ reason: "Token ID not found" });
+  if (!erc_namespace)
+    throw new EnsAvatarInvalidNftUriError({ reason: "ERC namespace not found" });
+  return {
+    chainID: Number.parseInt(chainID),
+    namespace: erc_namespace.toLowerCase(),
+    contractAddress,
+    tokenID
+  };
+}
+async function getNftTokenUri(client, { nft }) {
+  if (nft.namespace === "erc721") {
+    return readContract(client, {
+      address: nft.contractAddress,
+      abi: [
+        {
+          name: "tokenURI",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "tokenId", type: "uint256" }],
+          outputs: [{ name: "", type: "string" }]
+        }
+      ],
+      functionName: "tokenURI",
+      args: [BigInt(nft.tokenID)]
+    });
+  }
+  if (nft.namespace === "erc1155") {
+    return readContract(client, {
+      address: nft.contractAddress,
+      abi: [
+        {
+          name: "uri",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "_id", type: "uint256" }],
+          outputs: [{ name: "", type: "string" }]
+        }
+      ],
+      functionName: "uri",
+      args: [BigInt(nft.tokenID)]
+    });
+  }
+  throw new EnsAvatarUnsupportedNamespaceError({ namespace: nft.namespace });
+}
+
+// ../../node_modules/viem/_esm/utils/ens/avatar/parseAvatarRecord.js
+async function parseAvatarRecord(client, { gatewayUrls, record }) {
+  if (/eip155:/i.test(record))
+    return parseNftAvatarUri(client, { gatewayUrls, record });
+  return parseAvatarUri({ uri: record, gatewayUrls });
+}
+async function parseNftAvatarUri(client, { gatewayUrls, record }) {
+  const nft = parseNftUri(record);
+  const nftUri = await getNftTokenUri(client, { nft });
+  const { uri: resolvedNftUri, isOnChain, isEncoded } = resolveAvatarUri({ uri: nftUri, gatewayUrls });
+  if (isOnChain && (resolvedNftUri.includes("data:application/json;base64,") || resolvedNftUri.startsWith("{"))) {
+    const encodedJson = isEncoded ? (
+      // if it is encoded, decode it
+      atob(resolvedNftUri.replace("data:application/json;base64,", ""))
+    ) : (
+      // if it isn't encoded assume it is a JSON string, but it could be anything (it will error if it is)
+      resolvedNftUri
+    );
+    const decoded = JSON.parse(encodedJson);
+    return parseAvatarUri({ uri: getJsonImage(decoded), gatewayUrls });
+  }
+  let uriTokenId = nft.tokenID;
+  if (nft.namespace === "erc1155")
+    uriTokenId = uriTokenId.replace("0x", "").padStart(64, "0");
+  return getMetadataAvatarUri({
+    gatewayUrls,
+    uri: resolvedNftUri.replace(/(?:0x)?{id}/, uriTokenId)
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/ens/getEnsText.js
+async function getEnsText(client, { blockNumber, blockTag, name, key, gatewayUrls, strict, universalResolverAddress: universalResolverAddress_ }) {
+  let universalResolverAddress = universalResolverAddress_;
+  if (!universalResolverAddress) {
+    if (!client.chain)
+      throw new Error("client chain not configured. universalResolverAddress is required.");
+    universalResolverAddress = getChainContractAddress({
+      blockNumber,
+      chain: client.chain,
+      contract: "ensUniversalResolver"
+    });
+  }
+  try {
+    const readContractParameters = {
+      address: universalResolverAddress,
+      abi: universalResolverResolveAbi,
+      functionName: "resolve",
+      args: [
+        toHex(packetToBytes(name)),
+        encodeFunctionData({
+          abi: textResolverAbi,
+          functionName: "text",
+          args: [namehash(name), key]
+        })
+      ],
+      blockNumber,
+      blockTag
+    };
+    const readContractAction = getAction(client, readContract, "readContract");
+    const res = gatewayUrls ? await readContractAction({
+      ...readContractParameters,
+      args: [...readContractParameters.args, gatewayUrls]
+    }) : await readContractAction(readContractParameters);
+    if (res[0] === "0x")
+      return null;
+    const record = decodeFunctionResult({
+      abi: textResolverAbi,
+      functionName: "text",
+      data: res[0]
+    });
+    return record === "" ? null : record;
+  } catch (err) {
+    if (strict)
+      throw err;
+    if (isNullUniversalResolverError(err, "resolve"))
+      return null;
+    throw err;
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/ens/getEnsAvatar.js
+async function getEnsAvatar(client, { blockNumber, blockTag, assetGatewayUrls, name, gatewayUrls, strict, universalResolverAddress }) {
+  const record = await getAction(client, getEnsText, "getEnsText")({
+    blockNumber,
+    blockTag,
+    key: "avatar",
+    name,
+    universalResolverAddress,
+    gatewayUrls,
+    strict
+  });
+  if (!record)
+    return null;
+  try {
+    return await parseAvatarRecord(client, {
+      record,
+      gatewayUrls: assetGatewayUrls
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/ens/getEnsName.js
+async function getEnsName(client, { address, blockNumber, blockTag, gatewayUrls, strict, universalResolverAddress: universalResolverAddress_ }) {
+  let universalResolverAddress = universalResolverAddress_;
+  if (!universalResolverAddress) {
+    if (!client.chain)
+      throw new Error("client chain not configured. universalResolverAddress is required.");
+    universalResolverAddress = getChainContractAddress({
+      blockNumber,
+      chain: client.chain,
+      contract: "ensUniversalResolver"
+    });
+  }
+  const reverseNode = `${address.toLowerCase().substring(2)}.addr.reverse`;
+  try {
+    const readContractParameters = {
+      address: universalResolverAddress,
+      abi: universalResolverReverseAbi,
+      functionName: "reverse",
+      args: [toHex(packetToBytes(reverseNode))],
+      blockNumber,
+      blockTag
+    };
+    const readContractAction = getAction(client, readContract, "readContract");
+    const [name, resolvedAddress] = gatewayUrls ? await readContractAction({
+      ...readContractParameters,
+      args: [...readContractParameters.args, gatewayUrls]
+    }) : await readContractAction(readContractParameters);
+    if (address.toLowerCase() !== resolvedAddress.toLowerCase())
+      return null;
+    return name;
+  } catch (err) {
+    if (strict)
+      throw err;
+    if (isNullUniversalResolverError(err, "reverse"))
+      return null;
+    throw err;
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/ens/getEnsResolver.js
+async function getEnsResolver(client, { blockNumber, blockTag, name, universalResolverAddress: universalResolverAddress_ }) {
+  let universalResolverAddress = universalResolverAddress_;
+  if (!universalResolverAddress) {
+    if (!client.chain)
+      throw new Error("client chain not configured. universalResolverAddress is required.");
+    universalResolverAddress = getChainContractAddress({
+      blockNumber,
+      chain: client.chain,
+      contract: "ensUniversalResolver"
+    });
+  }
+  const [resolverAddress] = await getAction(client, readContract, "readContract")({
+    address: universalResolverAddress,
+    abi: [
+      {
+        inputs: [{ type: "bytes" }],
+        name: "findResolver",
+        outputs: [{ type: "address" }, { type: "bytes32" }],
+        stateMutability: "view",
+        type: "function"
+      }
+    ],
+    functionName: "findResolver",
+    args: [toHex(packetToBytes(name))],
+    blockNumber,
+    blockTag
+  });
+  return resolverAddress;
+}
+
+// ../../node_modules/viem/_esm/actions/public/createBlockFilter.js
+async function createBlockFilter(client) {
+  const getRequest = createFilterRequestScope(client, {
+    method: "eth_newBlockFilter"
+  });
+  const id = await client.request({
+    method: "eth_newBlockFilter"
+  });
+  return { id, request: getRequest(id), type: "block" };
+}
+
+// ../../node_modules/viem/_esm/actions/public/createEventFilter.js
+async function createEventFilter(client, { address, args, event, events: events_, fromBlock, strict, toBlock } = {}) {
+  const events = events_ ?? (event ? [event] : void 0);
+  const getRequest = createFilterRequestScope(client, {
+    method: "eth_newFilter"
+  });
+  let topics = [];
+  if (events) {
+    const encoded = events.flatMap((event2) => encodeEventTopics({
+      abi: [event2],
+      eventName: event2.name,
+      args
+    }));
+    topics = [encoded];
+    if (event)
+      topics = topics[0];
+  }
+  const id = await client.request({
+    method: "eth_newFilter",
+    params: [
+      {
+        address,
+        fromBlock: typeof fromBlock === "bigint" ? numberToHex(fromBlock) : fromBlock,
+        toBlock: typeof toBlock === "bigint" ? numberToHex(toBlock) : toBlock,
+        ...topics.length ? { topics } : {}
+      }
+    ]
+  });
+  return {
+    abi: events,
+    args,
+    eventName: event ? event.name : void 0,
+    fromBlock,
+    id,
+    request: getRequest(id),
+    strict: Boolean(strict),
+    toBlock,
+    type: "event"
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/createPendingTransactionFilter.js
+async function createPendingTransactionFilter(client) {
+  const getRequest = createFilterRequestScope(client, {
+    method: "eth_newPendingTransactionFilter"
+  });
+  const id = await client.request({
+    method: "eth_newPendingTransactionFilter"
+  });
+  return { id, request: getRequest(id), type: "transaction" };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getBlobBaseFee.js
+async function getBlobBaseFee(client) {
+  const baseFee = await client.request({
+    method: "eth_blobBaseFee"
+  });
+  return BigInt(baseFee);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getBlockTransactionCount.js
+async function getBlockTransactionCount(client, { blockHash, blockNumber, blockTag = "latest" } = {}) {
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  let count;
+  if (blockHash) {
+    count = await client.request({
+      method: "eth_getBlockTransactionCountByHash",
+      params: [blockHash]
+    }, { dedupe: true });
+  } else {
+    count = await client.request({
+      method: "eth_getBlockTransactionCountByNumber",
+      params: [blockNumberHex || blockTag]
+    }, { dedupe: Boolean(blockNumberHex) });
+  }
+  return hexToNumber(count);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getCode.js
+async function getCode(client, { address, blockNumber, blockTag = "latest" }) {
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  const hex = await client.request({
+    method: "eth_getCode",
+    params: [address, blockNumberHex || blockTag]
+  }, { dedupe: Boolean(blockNumberHex) });
+  if (hex === "0x")
+    return void 0;
+  return hex;
+}
+
+// ../../node_modules/viem/_esm/utils/formatters/feeHistory.js
+function formatFeeHistory(feeHistory) {
+  return {
+    baseFeePerGas: feeHistory.baseFeePerGas.map((value) => BigInt(value)),
+    gasUsedRatio: feeHistory.gasUsedRatio,
+    oldestBlock: BigInt(feeHistory.oldestBlock),
+    reward: feeHistory.reward?.map((reward) => reward.map((value) => BigInt(value)))
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getFeeHistory.js
+async function getFeeHistory(client, { blockCount, blockNumber, blockTag = "latest", rewardPercentiles }) {
+  const blockNumberHex = blockNumber ? numberToHex(blockNumber) : void 0;
+  const feeHistory = await client.request({
+    method: "eth_feeHistory",
+    params: [
+      numberToHex(blockCount),
+      blockNumberHex || blockTag,
+      rewardPercentiles
+    ]
+  }, { dedupe: Boolean(blockNumberHex) });
+  return formatFeeHistory(feeHistory);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getFilterLogs.js
+async function getFilterLogs(_client, { filter }) {
+  const strict = filter.strict ?? false;
+  const logs = await filter.request({
+    method: "eth_getFilterLogs",
+    params: [filter.id]
+  });
+  const formattedLogs = logs.map((log) => formatLog(log));
+  if (!filter.abi)
+    return formattedLogs;
+  return parseEventLogs({
+    abi: filter.abi,
+    logs: formattedLogs,
+    strict
+  });
+}
+
+// ../../node_modules/viem/_esm/errors/typedData.js
+var InvalidDomainError = class extends BaseError {
+  constructor({ domain }) {
+    super(`Invalid domain "${stringify(domain)}".`, {
+      metaMessages: ["Must be a valid EIP-712 domain."]
+    });
+  }
+};
+var InvalidPrimaryTypeError = class extends BaseError {
+  constructor({ primaryType, types }) {
+    super(`Invalid primary type \`${primaryType}\` must be one of \`${JSON.stringify(Object.keys(types))}\`.`, {
+      docsPath: "/api/glossary/Errors#typeddatainvalidprimarytypeerror",
+      metaMessages: ["Check that the primary type is a key in `types`."]
+    });
+  }
+};
+var InvalidStructTypeError = class extends BaseError {
+  constructor({ type }) {
+    super(`Struct type "${type}" is invalid.`, {
+      metaMessages: ["Struct type must not be a Solidity type."],
+      name: "InvalidStructTypeError"
+    });
+  }
+};
+
+// ../../node_modules/viem/_esm/utils/signature/hashTypedData.js
+function hashTypedData(parameters) {
+  const { domain = {}, message, primaryType } = parameters;
+  const types = {
+    EIP712Domain: getTypesForEIP712Domain({ domain }),
+    ...parameters.types
+  };
+  validateTypedData({
+    domain,
+    message,
+    primaryType,
+    types
+  });
+  const parts = ["0x1901"];
+  if (domain)
+    parts.push(hashDomain({
+      domain,
+      types
+    }));
+  if (primaryType !== "EIP712Domain")
+    parts.push(hashStruct({
+      data: message,
+      primaryType,
+      types
+    }));
+  return keccak256(concat(parts));
+}
+function hashDomain({ domain, types }) {
+  return hashStruct({
+    data: domain,
+    primaryType: "EIP712Domain",
+    types
+  });
+}
+function hashStruct({ data, primaryType, types }) {
+  const encoded = encodeData({
+    data,
+    primaryType,
+    types
+  });
+  return keccak256(encoded);
+}
+function encodeData({ data, primaryType, types }) {
+  const encodedTypes = [{ type: "bytes32" }];
+  const encodedValues = [hashType({ primaryType, types })];
+  for (const field of types[primaryType]) {
+    const [type, value] = encodeField({
+      types,
+      name: field.name,
+      type: field.type,
+      value: data[field.name]
+    });
+    encodedTypes.push(type);
+    encodedValues.push(value);
+  }
+  return encodeAbiParameters(encodedTypes, encodedValues);
+}
+function hashType({ primaryType, types }) {
+  const encodedHashType = toHex(encodeType({ primaryType, types }));
+  return keccak256(encodedHashType);
+}
+function encodeType({ primaryType, types }) {
+  let result = "";
+  const unsortedDeps = findTypeDependencies({ primaryType, types });
+  unsortedDeps.delete(primaryType);
+  const deps = [primaryType, ...Array.from(unsortedDeps).sort()];
+  for (const type of deps) {
+    result += `${type}(${types[type].map(({ name, type: t }) => `${t} ${name}`).join(",")})`;
+  }
+  return result;
+}
+function findTypeDependencies({ primaryType: primaryType_, types }, results = /* @__PURE__ */ new Set()) {
+  const match = primaryType_.match(/^\w*/u);
+  const primaryType = match?.[0];
+  if (results.has(primaryType) || types[primaryType] === void 0) {
+    return results;
+  }
+  results.add(primaryType);
+  for (const field of types[primaryType]) {
+    findTypeDependencies({ primaryType: field.type, types }, results);
+  }
+  return results;
+}
+function encodeField({ types, name, type, value }) {
+  if (types[type] !== void 0) {
+    return [
+      { type: "bytes32" },
+      keccak256(encodeData({ data: value, primaryType: type, types }))
+    ];
+  }
+  if (type === "bytes") {
+    const prepend = value.length % 2 ? "0" : "";
+    value = `0x${prepend + value.slice(2)}`;
+    return [{ type: "bytes32" }, keccak256(value)];
+  }
+  if (type === "string")
+    return [{ type: "bytes32" }, keccak256(toHex(value))];
+  if (type.lastIndexOf("]") === type.length - 1) {
+    const parsedType = type.slice(0, type.lastIndexOf("["));
+    const typeValuePairs = value.map((item) => encodeField({
+      name,
+      type: parsedType,
+      types,
+      value: item
+    }));
+    return [
+      { type: "bytes32" },
+      keccak256(encodeAbiParameters(typeValuePairs.map(([t]) => t), typeValuePairs.map(([, v]) => v)))
+    ];
+  }
+  return [{ type }, value];
+}
+
+// ../../node_modules/viem/_esm/utils/typedData.js
+function validateTypedData(parameters) {
+  const { domain, message, primaryType, types } = parameters;
+  const validateData = (struct, data) => {
+    for (const param of struct) {
+      const { name, type } = param;
+      const value = data[name];
+      const integerMatch = type.match(integerRegex);
+      if (integerMatch && (typeof value === "number" || typeof value === "bigint")) {
+        const [_type, base, size_] = integerMatch;
+        numberToHex(value, {
+          signed: base === "int",
+          size: Number.parseInt(size_) / 8
+        });
+      }
+      if (type === "address" && typeof value === "string" && !isAddress(value))
+        throw new InvalidAddressError({ address: value });
+      const bytesMatch = type.match(bytesRegex);
+      if (bytesMatch) {
+        const [_type, size_] = bytesMatch;
+        if (size_ && size(value) !== Number.parseInt(size_))
+          throw new BytesSizeMismatchError({
+            expectedSize: Number.parseInt(size_),
+            givenSize: size(value)
+          });
+      }
+      const struct2 = types[type];
+      if (struct2) {
+        validateReference(type);
+        validateData(struct2, value);
+      }
+    }
+  };
+  if (types.EIP712Domain && domain) {
+    if (typeof domain !== "object")
+      throw new InvalidDomainError({ domain });
+    validateData(types.EIP712Domain, domain);
+  }
+  if (primaryType !== "EIP712Domain") {
+    if (types[primaryType])
+      validateData(types[primaryType], message);
+    else
+      throw new InvalidPrimaryTypeError({ primaryType, types });
+  }
+}
+function getTypesForEIP712Domain({ domain }) {
+  return [
+    typeof domain?.name === "string" && { name: "name", type: "string" },
+    domain?.version && { name: "version", type: "string" },
+    typeof domain?.chainId === "number" && {
+      name: "chainId",
+      type: "uint256"
+    },
+    domain?.verifyingContract && {
+      name: "verifyingContract",
+      type: "address"
+    },
+    domain?.salt && { name: "salt", type: "bytes32" }
+  ].filter(Boolean);
+}
+function validateReference(type) {
+  if (type === "address" || type === "bool" || type === "string" || type.startsWith("bytes") || type.startsWith("uint") || type.startsWith("int"))
+    throw new InvalidStructTypeError({ type });
+}
+
+// ../../node_modules/viem/_esm/utils/formatters/transactionReceipt.js
+var receiptStatuses = {
+  "0x0": "reverted",
+  "0x1": "success"
+};
+function formatTransactionReceipt(transactionReceipt) {
+  const receipt = {
+    ...transactionReceipt,
+    blockNumber: transactionReceipt.blockNumber ? BigInt(transactionReceipt.blockNumber) : null,
+    contractAddress: transactionReceipt.contractAddress ? transactionReceipt.contractAddress : null,
+    cumulativeGasUsed: transactionReceipt.cumulativeGasUsed ? BigInt(transactionReceipt.cumulativeGasUsed) : null,
+    effectiveGasPrice: transactionReceipt.effectiveGasPrice ? BigInt(transactionReceipt.effectiveGasPrice) : null,
+    gasUsed: transactionReceipt.gasUsed ? BigInt(transactionReceipt.gasUsed) : null,
+    logs: transactionReceipt.logs ? transactionReceipt.logs.map((log) => formatLog(log)) : null,
+    to: transactionReceipt.to ? transactionReceipt.to : null,
+    transactionIndex: transactionReceipt.transactionIndex ? hexToNumber(transactionReceipt.transactionIndex) : null,
+    status: transactionReceipt.status ? receiptStatuses[transactionReceipt.status] : null,
+    type: transactionReceipt.type ? transactionType[transactionReceipt.type] || transactionReceipt.type : null
+  };
+  if (transactionReceipt.blobGasPrice)
+    receipt.blobGasPrice = BigInt(transactionReceipt.blobGasPrice);
+  if (transactionReceipt.blobGasUsed)
+    receipt.blobGasUsed = BigInt(transactionReceipt.blobGasUsed);
+  return receipt;
+}
+
+// ../../node_modules/viem/_esm/constants/strings.js
+var presignMessagePrefix = "Ethereum Signed Message:\n";
+
+// ../../node_modules/viem/_esm/utils/signature/toPrefixedMessage.js
+function toPrefixedMessage(message_) {
+  const message = (() => {
+    if (typeof message_ === "string")
+      return stringToHex(message_);
+    if (typeof message_.raw === "string")
+      return message_.raw;
+    return bytesToHex(message_.raw);
+  })();
+  const prefix = stringToHex(`${presignMessagePrefix}${size(message)}`);
+  return concat([prefix, message]);
+}
+
+// ../../node_modules/viem/_esm/utils/signature/hashMessage.js
+function hashMessage(message, to_) {
+  return keccak256(toPrefixedMessage(message), to_);
+}
+
+// ../../node_modules/viem/_esm/constants/bytes.js
+var erc6492MagicBytes = "0x6492649264926492649264926492649264926492649264926492649264926492";
+
+// ../../node_modules/viem/_esm/utils/signature/isErc6492Signature.js
+function isErc6492Signature(signature) {
+  return sliceHex(signature, -32) === erc6492MagicBytes;
+}
+
+// ../../node_modules/viem/_esm/utils/signature/serializeErc6492Signature.js
+function serializeErc6492Signature(parameters) {
+  const { address, data, signature, to = "hex" } = parameters;
+  const signature_ = concatHex([
+    encodeAbiParameters([{ type: "address" }, { type: "bytes" }, { type: "bytes" }], [address, data, signature]),
+    erc6492MagicBytes
+  ]);
+  if (to === "hex")
+    return signature_;
+  return hexToBytes(signature_);
+}
+
+// ../../node_modules/viem/_esm/utils/formatters/proof.js
+function formatStorageProof(storageProof) {
+  return storageProof.map((proof) => ({
+    ...proof,
+    value: BigInt(proof.value)
+  }));
+}
+function formatProof(proof) {
+  return {
+    ...proof,
+    balance: proof.balance ? BigInt(proof.balance) : void 0,
+    nonce: proof.nonce ? hexToNumber(proof.nonce) : void 0,
+    storageProof: proof.storageProof ? formatStorageProof(proof.storageProof) : void 0
+  };
+}
+
+// ../../node_modules/viem/_esm/actions/public/getProof.js
+async function getProof(client, { address, blockNumber, blockTag: blockTag_, storageKeys }) {
+  const blockTag = blockTag_ ?? "latest";
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  const proof = await client.request({
+    method: "eth_getProof",
+    params: [address, storageKeys, blockNumberHex || blockTag]
+  });
+  return formatProof(proof);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getStorageAt.js
+async function getStorageAt(client, { address, blockNumber, blockTag = "latest", slot }) {
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  const data = await client.request({
+    method: "eth_getStorageAt",
+    params: [address, slot, blockNumberHex || blockTag]
+  });
+  return data;
+}
+
+// ../../node_modules/viem/_esm/actions/public/getTransaction.js
+async function getTransaction(client, { blockHash, blockNumber, blockTag: blockTag_, hash, index: index2 }) {
+  const blockTag = blockTag_ || "latest";
+  const blockNumberHex = blockNumber !== void 0 ? numberToHex(blockNumber) : void 0;
+  let transaction = null;
+  if (hash) {
+    transaction = await client.request({
+      method: "eth_getTransactionByHash",
+      params: [hash]
+    }, { dedupe: true });
+  } else if (blockHash) {
+    transaction = await client.request({
+      method: "eth_getTransactionByBlockHashAndIndex",
+      params: [blockHash, numberToHex(index2)]
+    }, { dedupe: true });
+  } else if (blockNumberHex || blockTag) {
+    transaction = await client.request({
+      method: "eth_getTransactionByBlockNumberAndIndex",
+      params: [blockNumberHex || blockTag, numberToHex(index2)]
+    }, { dedupe: Boolean(blockNumberHex) });
+  }
+  if (!transaction)
+    throw new TransactionNotFoundError({
+      blockHash,
+      blockNumber,
+      blockTag,
+      hash,
+      index: index2
+    });
+  const format = client.chain?.formatters?.transaction?.format || formatTransaction;
+  return format(transaction);
+}
+
+// ../../node_modules/viem/_esm/actions/public/getTransactionConfirmations.js
+async function getTransactionConfirmations(client, { hash, transactionReceipt }) {
+  const [blockNumber, transaction] = await Promise.all([
+    getAction(client, getBlockNumber, "getBlockNumber")({}),
+    hash ? getAction(client, getTransaction, "getTransaction")({ hash }) : void 0
+  ]);
+  const transactionBlockNumber = transactionReceipt?.blockNumber || transaction?.blockNumber;
+  if (!transactionBlockNumber)
+    return 0n;
+  return blockNumber - transactionBlockNumber + 1n;
+}
+
+// ../../node_modules/viem/_esm/actions/public/getTransactionReceipt.js
+async function getTransactionReceipt(client, { hash }) {
+  const receipt = await client.request({
+    method: "eth_getTransactionReceipt",
+    params: [hash]
+  }, { dedupe: true });
+  if (!receipt)
+    throw new TransactionReceiptNotFoundError({ hash });
+  const format = client.chain?.formatters?.transactionReceipt?.format || formatTransactionReceipt;
+  return format(receipt);
+}
+
+// ../../node_modules/viem/_esm/actions/public/multicall.js
+async function multicall(client, parameters) {
+  const { allowFailure = true, batchSize: batchSize_, blockNumber, blockTag, multicallAddress: multicallAddress_, stateOverride } = parameters;
+  const contracts = parameters.contracts;
+  const batchSize = batchSize_ ?? (typeof client.batch?.multicall === "object" && client.batch.multicall.batchSize || 1024);
+  let multicallAddress = multicallAddress_;
+  if (!multicallAddress) {
+    if (!client.chain)
+      throw new Error("client chain not configured. multicallAddress is required.");
+    multicallAddress = getChainContractAddress({
+      blockNumber,
+      chain: client.chain,
+      contract: "multicall3"
+    });
+  }
+  const chunkedCalls = [[]];
+  let currentChunk = 0;
+  let currentChunkSize = 0;
+  for (let i = 0; i < contracts.length; i++) {
+    const { abi: abi2, address, args, functionName } = contracts[i];
+    try {
+      const callData = encodeFunctionData({ abi: abi2, args, functionName });
+      currentChunkSize += (callData.length - 2) / 2;
+      if (
+        // Check if batching is enabled.
+        batchSize > 0 && // Check if the current size of the batch exceeds the size limit.
+        currentChunkSize > batchSize && // Check if the current chunk is not already empty.
+        chunkedCalls[currentChunk].length > 0
+      ) {
+        currentChunk++;
+        currentChunkSize = (callData.length - 2) / 2;
+        chunkedCalls[currentChunk] = [];
+      }
+      chunkedCalls[currentChunk] = [
+        ...chunkedCalls[currentChunk],
+        {
+          allowFailure: true,
+          callData,
+          target: address
+        }
+      ];
+    } catch (err) {
+      const error = getContractError(err, {
+        abi: abi2,
+        address,
+        args,
+        docsPath: "/docs/contract/multicall",
+        functionName
+      });
+      if (!allowFailure)
+        throw error;
+      chunkedCalls[currentChunk] = [
+        ...chunkedCalls[currentChunk],
+        {
+          allowFailure: true,
+          callData: "0x",
+          target: address
+        }
+      ];
+    }
+  }
+  const aggregate3Results = await Promise.allSettled(chunkedCalls.map((calls) => getAction(client, readContract, "readContract")({
+    abi: multicall3Abi,
+    address: multicallAddress,
+    args: [calls],
+    blockNumber,
+    blockTag,
+    functionName: "aggregate3",
+    stateOverride
+  })));
+  const results = [];
+  for (let i = 0; i < aggregate3Results.length; i++) {
+    const result = aggregate3Results[i];
+    if (result.status === "rejected") {
+      if (!allowFailure)
+        throw result.reason;
+      for (let j = 0; j < chunkedCalls[i].length; j++) {
+        results.push({
+          status: "failure",
+          error: result.reason,
+          result: void 0
+        });
+      }
+      continue;
+    }
+    const aggregate3Result = result.value;
+    for (let j = 0; j < aggregate3Result.length; j++) {
+      const { returnData, success } = aggregate3Result[j];
+      const { callData } = chunkedCalls[i][j];
+      const { abi: abi2, address, functionName, args } = contracts[results.length];
+      try {
+        if (callData === "0x")
+          throw new AbiDecodingZeroDataError();
+        if (!success)
+          throw new RawContractError({ data: returnData });
+        const result2 = decodeFunctionResult({
+          abi: abi2,
+          args,
+          data: returnData,
+          functionName
+        });
+        results.push(allowFailure ? { result: result2, status: "success" } : result2);
+      } catch (err) {
+        const error = getContractError(err, {
+          abi: abi2,
+          address,
+          args,
+          docsPath: "/docs/contract/multicall",
+          functionName
+        });
+        if (!allowFailure)
+          throw error;
+        results.push({ error, result: void 0, status: "failure" });
+      }
+    }
+  }
+  if (results.length !== contracts.length)
+    throw new BaseError("multicall results mismatch");
+  return results;
+}
+
+// ../../node_modules/viem/_esm/utils/signature/serializeSignature.js
+function serializeSignature({ r, s, to = "hex", v, yParity }) {
+  const yParity_ = (() => {
+    if (yParity === 0 || yParity === 1)
+      return yParity;
+    if (v && (v === 27n || v === 28n || v >= 35n))
+      return v % 2n === 0n ? 1 : 0;
+    throw new Error("Invalid `v` or `yParity` value");
+  })();
+  const signature = `0x${new secp256k1.Signature(hexToBigInt(r), hexToBigInt(s)).toCompactHex()}${yParity_ === 0 ? "1b" : "1c"}`;
+  if (to === "hex")
+    return signature;
+  return hexToBytes(signature);
+}
+
+// ../../node_modules/viem/_esm/actions/public/verifyHash.js
+async function verifyHash(client, parameters) {
+  const { address, factory, factoryData, hash, signature, universalSignatureVerifierAddress = client.chain?.contracts?.universalSignatureVerifier?.address, ...rest } = parameters;
+  const signatureHex = (() => {
+    if (isHex(signature))
+      return signature;
+    if (typeof signature === "object" && "r" in signature && "s" in signature)
+      return serializeSignature(signature);
+    return bytesToHex(signature);
+  })();
+  const wrappedSignature = await (async () => {
+    if (!factory && !factoryData)
+      return signatureHex;
+    if (isErc6492Signature(signatureHex))
+      return signatureHex;
+    return serializeErc6492Signature({
+      address: factory,
+      data: factoryData,
+      signature: signatureHex
+    });
+  })();
+  try {
+    const args = universalSignatureVerifierAddress ? {
+      to: universalSignatureVerifierAddress,
+      data: encodeFunctionData({
+        abi: universalSignatureValidatorAbi,
+        functionName: "isValidSig",
+        args: [address, hash, wrappedSignature]
+      }),
+      ...rest
+    } : {
+      data: encodeDeployData({
+        abi: universalSignatureValidatorAbi,
+        args: [address, hash, wrappedSignature],
+        bytecode: universalSignatureValidatorByteCode
+      }),
+      ...rest
+    };
+    const { data } = await getAction(client, call, "call")(args);
+    return hexToBool(data ?? "0x0");
+  } catch (error) {
+    try {
+      const verified = isAddressEqual(getAddress(address), await recoverAddress({ hash, signature }));
+      if (verified)
+        return true;
+    } catch {
+    }
+    if (error instanceof CallExecutionError) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// ../../node_modules/viem/_esm/actions/public/verifyMessage.js
+async function verifyMessage(client, { address, message, factory, factoryData, signature, ...callRequest }) {
+  const hash = hashMessage(message);
+  return verifyHash(client, {
+    address,
+    factory,
+    factoryData,
+    hash,
+    signature,
+    ...callRequest
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/verifyTypedData.js
+async function verifyTypedData(client, parameters) {
+  const { address, factory, factoryData, signature, message, primaryType, types, domain, ...callRequest } = parameters;
+  const hash = hashTypedData({ message, primaryType, types, domain });
+  return verifyHash(client, {
+    address,
+    factory,
+    factoryData,
+    hash,
+    signature,
+    ...callRequest
+  });
+}
+
+// ../../node_modules/viem/_esm/actions/public/watchBlockNumber.js
+function watchBlockNumber(client, { emitOnBegin = false, emitMissed = false, onBlockNumber, onError, poll: poll_, pollingInterval = client.pollingInterval }) {
+  const enablePolling = (() => {
+    if (typeof poll_ !== "undefined")
+      return poll_;
+    if (client.transport.type === "webSocket")
+      return false;
+    if (client.transport.type === "fallback" && client.transport.transports[0].config.type === "webSocket")
+      return false;
+    return true;
+  })();
+  let prevBlockNumber;
+  const pollBlockNumber = () => {
+    const observerId = stringify([
+      "watchBlockNumber",
+      client.uid,
+      emitOnBegin,
+      emitMissed,
+      pollingInterval
+    ]);
+    return observe(observerId, { onBlockNumber, onError }, (emit) => poll(async () => {
+      try {
+        const blockNumber = await getAction(client, getBlockNumber, "getBlockNumber")({ cacheTime: 0 });
+        if (prevBlockNumber) {
+          if (blockNumber === prevBlockNumber)
+            return;
+          if (blockNumber - prevBlockNumber > 1 && emitMissed) {
+            for (let i = prevBlockNumber + 1n; i < blockNumber; i++) {
+              emit.onBlockNumber(i, prevBlockNumber);
+              prevBlockNumber = i;
+            }
+          }
+        }
+        if (!prevBlockNumber || blockNumber > prevBlockNumber) {
+          emit.onBlockNumber(blockNumber, prevBlockNumber);
+          prevBlockNumber = blockNumber;
+        }
+      } catch (err) {
+        emit.onError?.(err);
+      }
+    }, {
+      emitOnBegin,
+      interval: pollingInterval
+    }));
+  };
+  const subscribeBlockNumber = () => {
+    const observerId = stringify([
+      "watchBlockNumber",
+      client.uid,
+      emitOnBegin,
+      emitMissed
+    ]);
+    return observe(observerId, { onBlockNumber, onError }, (emit) => {
+      let active = true;
+      let unsubscribe = () => active = false;
+      (async () => {
+        try {
+          const transport = (() => {
+            if (client.transport.type === "fallback") {
+              const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket");
+              if (!transport2)
+                return client.transport;
+              return transport2.value;
+            }
+            return client.transport;
+          })();
+          const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+            params: ["newHeads"],
+            onData(data) {
+              if (!active)
+                return;
+              const blockNumber = hexToBigInt(data.result?.number);
+              emit.onBlockNumber(blockNumber, prevBlockNumber);
+              prevBlockNumber = blockNumber;
+            },
+            onError(error) {
+              emit.onError?.(error);
+            }
+          });
+          unsubscribe = unsubscribe_;
+          if (!active)
+            unsubscribe();
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+      return () => unsubscribe();
+    });
+  };
+  return enablePolling ? pollBlockNumber() : subscribeBlockNumber();
+}
+
+// ../../node_modules/viem/_esm/actions/public/waitForTransactionReceipt.js
+async function waitForTransactionReceipt(client, {
+  confirmations = 1,
+  hash,
+  onReplaced,
+  pollingInterval = client.pollingInterval,
+  retryCount = 6,
+  retryDelay = ({ count }) => ~~(1 << count) * 200,
+  // exponential backoff
+  timeout = 18e4
+}) {
+  const observerId = stringify(["waitForTransactionReceipt", client.uid, hash]);
+  let transaction;
+  let replacedTransaction;
+  let receipt;
+  let retrying = false;
+  const { promise, resolve, reject } = withResolvers();
+  const timer = timeout ? setTimeout(() => reject(new WaitForTransactionReceiptTimeoutError({ hash })), timeout) : void 0;
+  const _unobserve = observe(observerId, { onReplaced, resolve, reject }, (emit) => {
+    const _unwatch = getAction(client, watchBlockNumber, "watchBlockNumber")({
+      emitMissed: true,
+      emitOnBegin: true,
+      poll: true,
+      pollingInterval,
+      async onBlockNumber(blockNumber_) {
+        const done = (fn) => {
+          clearTimeout(timer);
+          _unwatch();
+          fn();
+          _unobserve();
+        };
+        let blockNumber = blockNumber_;
+        if (retrying)
+          return;
+        try {
+          if (receipt) {
+            if (confirmations > 1 && (!receipt.blockNumber || blockNumber - receipt.blockNumber + 1n < confirmations))
+              return;
+            done(() => emit.resolve(receipt));
+            return;
+          }
+          if (!transaction) {
+            retrying = true;
+            await withRetry(async () => {
+              transaction = await getAction(client, getTransaction, "getTransaction")({ hash });
+              if (transaction.blockNumber)
+                blockNumber = transaction.blockNumber;
+            }, {
+              delay: retryDelay,
+              retryCount
+            });
+            retrying = false;
+          }
+          receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({ hash });
+          if (confirmations > 1 && (!receipt.blockNumber || blockNumber - receipt.blockNumber + 1n < confirmations))
+            return;
+          done(() => emit.resolve(receipt));
+        } catch (err) {
+          if (err instanceof TransactionNotFoundError || err instanceof TransactionReceiptNotFoundError) {
+            if (!transaction) {
+              retrying = false;
+              return;
+            }
+            try {
+              replacedTransaction = transaction;
+              retrying = true;
+              const block = await withRetry(() => getAction(client, getBlock, "getBlock")({
+                blockNumber,
+                includeTransactions: true
+              }), {
+                delay: retryDelay,
+                retryCount,
+                shouldRetry: ({ error }) => error instanceof BlockNotFoundError
+              });
+              retrying = false;
+              const replacementTransaction = block.transactions.find(({ from, nonce }) => from === replacedTransaction.from && nonce === replacedTransaction.nonce);
+              if (!replacementTransaction)
+                return;
+              receipt = await getAction(client, getTransactionReceipt, "getTransactionReceipt")({
+                hash: replacementTransaction.hash
+              });
+              if (confirmations > 1 && (!receipt.blockNumber || blockNumber - receipt.blockNumber + 1n < confirmations))
+                return;
+              let reason = "replaced";
+              if (replacementTransaction.to === replacedTransaction.to && replacementTransaction.value === replacedTransaction.value) {
+                reason = "repriced";
+              } else if (replacementTransaction.from === replacementTransaction.to && replacementTransaction.value === 0n) {
+                reason = "cancelled";
+              }
+              done(() => {
+                emit.onReplaced?.({
+                  reason,
+                  replacedTransaction,
+                  transaction: replacementTransaction,
+                  transactionReceipt: receipt
+                });
+                emit.resolve(receipt);
+              });
+            } catch (err_) {
+              done(() => emit.reject(err_));
+            }
+          } else {
+            done(() => emit.reject(err));
+          }
+        }
+      }
+    });
+  });
+  return promise;
+}
+
+// ../../node_modules/viem/_esm/actions/public/watchBlocks.js
+function watchBlocks(client, { blockTag = "latest", emitMissed = false, emitOnBegin = false, onBlock, onError, includeTransactions: includeTransactions_, poll: poll_, pollingInterval = client.pollingInterval }) {
+  const enablePolling = (() => {
+    if (typeof poll_ !== "undefined")
+      return poll_;
+    if (client.transport.type === "webSocket")
+      return false;
+    if (client.transport.type === "fallback" && client.transport.transports[0].config.type === "webSocket")
+      return false;
+    return true;
+  })();
+  const includeTransactions = includeTransactions_ ?? false;
+  let prevBlock;
+  const pollBlocks = () => {
+    const observerId = stringify([
+      "watchBlocks",
+      client.uid,
+      blockTag,
+      emitMissed,
+      emitOnBegin,
+      includeTransactions,
+      pollingInterval
+    ]);
+    return observe(observerId, { onBlock, onError }, (emit) => poll(async () => {
+      try {
+        const block = await getAction(client, getBlock, "getBlock")({
+          blockTag,
+          includeTransactions
+        });
+        if (block.number && prevBlock?.number) {
+          if (block.number === prevBlock.number)
+            return;
+          if (block.number - prevBlock.number > 1 && emitMissed) {
+            for (let i = prevBlock?.number + 1n; i < block.number; i++) {
+              const block2 = await getAction(client, getBlock, "getBlock")({
+                blockNumber: i,
+                includeTransactions
+              });
+              emit.onBlock(block2, prevBlock);
+              prevBlock = block2;
+            }
+          }
+        }
+        if (
+          // If no previous block exists, emit.
+          !prevBlock?.number || // If the block tag is "pending" with no block number, emit.
+          blockTag === "pending" && !block?.number || // If the next block number is greater than the previous block number, emit.
+          // We don't want to emit blocks in the past.
+          block.number && block.number > prevBlock.number
+        ) {
+          emit.onBlock(block, prevBlock);
+          prevBlock = block;
+        }
+      } catch (err) {
+        emit.onError?.(err);
+      }
+    }, {
+      emitOnBegin,
+      interval: pollingInterval
+    }));
+  };
+  const subscribeBlocks = () => {
+    let active = true;
+    let emitFetched = true;
+    let unsubscribe = () => active = false;
+    (async () => {
+      try {
+        if (emitOnBegin) {
+          getAction(client, getBlock, "getBlock")({
+            blockTag,
+            includeTransactions
+          }).then((block) => {
+            if (!active)
+              return;
+            if (!emitFetched)
+              return;
+            onBlock(block, void 0);
+            emitFetched = false;
+          });
+        }
+        const transport = (() => {
+          if (client.transport.type === "fallback") {
+            const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket");
+            if (!transport2)
+              return client.transport;
+            return transport2.value;
+          }
+          return client.transport;
+        })();
+        const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+          params: ["newHeads"],
+          async onData(data) {
+            if (!active)
+              return;
+            const block = await getAction(client, getBlock, "getBlock")({
+              blockNumber: data.blockNumber,
+              includeTransactions
+            }).catch(() => {
+            });
+            if (!active)
+              return;
+            onBlock(block, prevBlock);
+            emitFetched = false;
+            prevBlock = block;
+          },
+          onError(error) {
+            onError?.(error);
+          }
+        });
+        unsubscribe = unsubscribe_;
+        if (!active)
+          unsubscribe();
+      } catch (err) {
+        onError?.(err);
+      }
+    })();
+    return () => unsubscribe();
+  };
+  return enablePolling ? pollBlocks() : subscribeBlocks();
+}
+
+// ../../node_modules/viem/_esm/actions/public/watchEvent.js
+function watchEvent(client, { address, args, batch = true, event, events, fromBlock, onError, onLogs, poll: poll_, pollingInterval = client.pollingInterval, strict: strict_ }) {
+  const enablePolling = (() => {
+    if (typeof poll_ !== "undefined")
+      return poll_;
+    if (typeof fromBlock === "bigint")
+      return true;
+    if (client.transport.type === "webSocket")
+      return false;
+    if (client.transport.type === "fallback" && client.transport.transports[0].config.type === "webSocket")
+      return false;
+    return true;
+  })();
+  const strict = strict_ ?? false;
+  const pollEvent = () => {
+    const observerId = stringify([
+      "watchEvent",
+      address,
+      args,
+      batch,
+      client.uid,
+      event,
+      pollingInterval,
+      fromBlock
+    ]);
+    return observe(observerId, { onLogs, onError }, (emit) => {
+      let previousBlockNumber;
+      if (fromBlock !== void 0)
+        previousBlockNumber = fromBlock - 1n;
+      let filter;
+      let initialized = false;
+      const unwatch = poll(async () => {
+        if (!initialized) {
+          try {
+            filter = await getAction(client, createEventFilter, "createEventFilter")({
+              address,
+              args,
+              event,
+              events,
+              strict,
+              fromBlock
+            });
+          } catch {
+          }
+          initialized = true;
+          return;
+        }
+        try {
+          let logs;
+          if (filter) {
+            logs = await getAction(client, getFilterChanges, "getFilterChanges")({ filter });
+          } else {
+            const blockNumber = await getAction(client, getBlockNumber, "getBlockNumber")({});
+            if (previousBlockNumber && previousBlockNumber !== blockNumber) {
+              logs = await getAction(client, getLogs, "getLogs")({
+                address,
+                args,
+                event,
+                events,
+                fromBlock: previousBlockNumber + 1n,
+                toBlock: blockNumber
+              });
+            } else {
+              logs = [];
+            }
+            previousBlockNumber = blockNumber;
+          }
+          if (logs.length === 0)
+            return;
+          if (batch)
+            emit.onLogs(logs);
+          else
+            for (const log of logs)
+              emit.onLogs([log]);
+        } catch (err) {
+          if (filter && err instanceof InvalidInputRpcError)
+            initialized = false;
+          emit.onError?.(err);
+        }
+      }, {
+        emitOnBegin: true,
+        interval: pollingInterval
+      });
+      return async () => {
+        if (filter)
+          await getAction(client, uninstallFilter, "uninstallFilter")({ filter });
+        unwatch();
+      };
+    });
+  };
+  const subscribeEvent = () => {
+    let active = true;
+    let unsubscribe = () => active = false;
+    (async () => {
+      try {
+        const transport = (() => {
+          if (client.transport.type === "fallback") {
+            const transport2 = client.transport.transports.find((transport3) => transport3.config.type === "webSocket");
+            if (!transport2)
+              return client.transport;
+            return transport2.value;
+          }
+          return client.transport;
+        })();
+        const events_ = events ?? (event ? [event] : void 0);
+        let topics = [];
+        if (events_) {
+          const encoded = events_.flatMap((event2) => encodeEventTopics({
+            abi: [event2],
+            eventName: event2.name,
+            args
+          }));
+          topics = [encoded];
+          if (event)
+            topics = topics[0];
+        }
+        const { unsubscribe: unsubscribe_ } = await transport.subscribe({
+          params: ["logs", { address, topics }],
+          onData(data) {
+            if (!active)
+              return;
+            const log = data.result;
+            try {
+              const { eventName, args: args2 } = decodeEventLog({
+                abi: events_ ?? [],
+                data: log.data,
+                topics: log.topics,
+                strict
+              });
+              const formatted = formatLog(log, { args: args2, eventName });
+              onLogs([formatted]);
+            } catch (err) {
+              let eventName;
+              let isUnnamed;
+              if (err instanceof DecodeLogDataMismatch || err instanceof DecodeLogTopicsMismatch) {
+                if (strict_)
+                  return;
+                eventName = err.abiItem.name;
+                isUnnamed = err.abiItem.inputs?.some((x) => !("name" in x && x.name));
+              }
+              const formatted = formatLog(log, {
+                args: isUnnamed ? [] : {},
+                eventName
+              });
+              onLogs([formatted]);
+            }
+          },
+          onError(error) {
+            onError?.(error);
+          }
+        });
+        unsubscribe = unsubscribe_;
+        if (!active)
+          unsubscribe();
+      } catch (err) {
+        onError?.(err);
+      }
+    })();
+    return () => unsubscribe();
+  };
+  return enablePolling ? pollEvent() : subscribeEvent();
+}
+
+// ../../node_modules/viem/_esm/actions/public/watchPendingTransactions.js
+function watchPendingTransactions(client, { batch = true, onError, onTransactions, poll: poll_, pollingInterval = client.pollingInterval }) {
+  const enablePolling = typeof poll_ !== "undefined" ? poll_ : client.transport.type !== "webSocket";
+  const pollPendingTransactions = () => {
+    const observerId = stringify([
+      "watchPendingTransactions",
+      client.uid,
+      batch,
+      pollingInterval
+    ]);
+    return observe(observerId, { onTransactions, onError }, (emit) => {
+      let filter;
+      const unwatch = poll(async () => {
+        try {
+          if (!filter) {
+            try {
+              filter = await getAction(client, createPendingTransactionFilter, "createPendingTransactionFilter")({});
+              return;
+            } catch (err) {
+              unwatch();
+              throw err;
+            }
+          }
+          const hashes = await getAction(client, getFilterChanges, "getFilterChanges")({ filter });
+          if (hashes.length === 0)
+            return;
+          if (batch)
+            emit.onTransactions(hashes);
+          else
+            for (const hash of hashes)
+              emit.onTransactions([hash]);
+        } catch (err) {
+          emit.onError?.(err);
+        }
+      }, {
+        emitOnBegin: true,
+        interval: pollingInterval
+      });
+      return async () => {
+        if (filter)
+          await getAction(client, uninstallFilter, "uninstallFilter")({ filter });
+        unwatch();
+      };
+    });
+  };
+  const subscribePendingTransactions = () => {
+    let active = true;
+    let unsubscribe = () => active = false;
+    (async () => {
+      try {
+        const { unsubscribe: unsubscribe_ } = await client.transport.subscribe({
+          params: ["newPendingTransactions"],
+          onData(data) {
+            if (!active)
+              return;
+            const transaction = data.result;
+            onTransactions([transaction]);
+          },
+          onError(error) {
+            onError?.(error);
+          }
+        });
+        unsubscribe = unsubscribe_;
+        if (!active)
+          unsubscribe();
+      } catch (err) {
+        onError?.(err);
+      }
+    })();
+    return () => unsubscribe();
+  };
+  return enablePolling ? pollPendingTransactions() : subscribePendingTransactions();
+}
+
+// ../../node_modules/viem/_esm/utils/siwe/parseSiweMessage.js
+function parseSiweMessage(message) {
+  const { scheme, statement, ...prefix } = message.match(prefixRegex)?.groups ?? {};
+  const { chainId, expirationTime, issuedAt, notBefore, requestId, ...suffix } = message.match(suffixRegex)?.groups ?? {};
+  const resources = message.split("Resources:")[1]?.split("\n- ").slice(1);
+  return {
+    ...prefix,
+    ...suffix,
+    ...chainId ? { chainId: Number(chainId) } : {},
+    ...expirationTime ? { expirationTime: new Date(expirationTime) } : {},
+    ...issuedAt ? { issuedAt: new Date(issuedAt) } : {},
+    ...notBefore ? { notBefore: new Date(notBefore) } : {},
+    ...requestId ? { requestId } : {},
+    ...resources ? { resources } : {},
+    ...scheme ? { scheme } : {},
+    ...statement ? { statement } : {}
+  };
+}
+var prefixRegex = /^(?:(?<scheme>[a-zA-Z][a-zA-Z0-9+-.]*):\/\/)?(?<domain>[a-zA-Z0-9+-.]*(?::[0-9]{1,5})?) (?:wants you to sign in with your Ethereum account:\n)(?<address>0x[a-fA-F0-9]{40})\n\n(?:(?<statement>.*)\n\n)?/;
+var suffixRegex = /(?:URI: (?<uri>.+))\n(?:Version: (?<version>.+))\n(?:Chain ID: (?<chainId>\d+))\n(?:Nonce: (?<nonce>[a-zA-Z0-9]+))\n(?:Issued At: (?<issuedAt>.+))(?:\nExpiration Time: (?<expirationTime>.+))?(?:\nNot Before: (?<notBefore>.+))?(?:\nRequest ID: (?<requestId>.+))?/;
+
+// ../../node_modules/viem/_esm/utils/siwe/validateSiweMessage.js
+function validateSiweMessage(parameters) {
+  const { address, domain, message, nonce, scheme, time = /* @__PURE__ */ new Date() } = parameters;
+  if (domain && message.domain !== domain)
+    return false;
+  if (nonce && message.nonce !== nonce)
+    return false;
+  if (scheme && message.scheme !== scheme)
+    return false;
+  if (message.expirationTime && time >= message.expirationTime)
+    return false;
+  if (message.notBefore && time < message.notBefore)
+    return false;
+  try {
+    if (!message.address)
+      return false;
+    if (address && !isAddressEqual(message.address, address))
+      return false;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+// ../../node_modules/viem/_esm/actions/siwe/verifySiweMessage.js
+async function verifySiweMessage(client, parameters) {
+  const { address, domain, message, nonce, scheme, signature, time = /* @__PURE__ */ new Date(), ...callRequest } = parameters;
+  const parsed = parseSiweMessage(message);
+  if (!parsed.address)
+    return false;
+  const isValid = validateSiweMessage({
+    address,
+    domain,
+    message: parsed,
+    nonce,
+    scheme,
+    time
+  });
+  if (!isValid)
+    return false;
+  const hash = hashMessage(message);
+  return verifyHash(client, {
+    address: parsed.address,
+    hash,
+    signature,
+    ...callRequest
+  });
+}
+
+// ../../node_modules/viem/_esm/clients/decorators/public.js
+function publicActions(client) {
+  return {
+    call: (args) => call(client, args),
+    createBlockFilter: () => createBlockFilter(client),
+    createContractEventFilter: (args) => createContractEventFilter(client, args),
+    createEventFilter: (args) => createEventFilter(client, args),
+    createPendingTransactionFilter: () => createPendingTransactionFilter(client),
+    estimateContractGas: (args) => estimateContractGas(client, args),
+    estimateGas: (args) => estimateGas(client, args),
+    getBalance: (args) => getBalance(client, args),
+    getBlobBaseFee: () => getBlobBaseFee(client),
+    getBlock: (args) => getBlock(client, args),
+    getBlockNumber: (args) => getBlockNumber(client, args),
+    getBlockTransactionCount: (args) => getBlockTransactionCount(client, args),
+    getBytecode: (args) => getCode(client, args),
+    getChainId: () => getChainId(client),
+    getCode: (args) => getCode(client, args),
+    getContractEvents: (args) => getContractEvents(client, args),
+    getEip712Domain: (args) => getEip712Domain(client, args),
+    getEnsAddress: (args) => getEnsAddress(client, args),
+    getEnsAvatar: (args) => getEnsAvatar(client, args),
+    getEnsName: (args) => getEnsName(client, args),
+    getEnsResolver: (args) => getEnsResolver(client, args),
+    getEnsText: (args) => getEnsText(client, args),
+    getFeeHistory: (args) => getFeeHistory(client, args),
+    estimateFeesPerGas: (args) => estimateFeesPerGas(client, args),
+    getFilterChanges: (args) => getFilterChanges(client, args),
+    getFilterLogs: (args) => getFilterLogs(client, args),
+    getGasPrice: () => getGasPrice(client),
+    getLogs: (args) => getLogs(client, args),
+    getProof: (args) => getProof(client, args),
+    estimateMaxPriorityFeePerGas: (args) => estimateMaxPriorityFeePerGas(client, args),
+    getStorageAt: (args) => getStorageAt(client, args),
+    getTransaction: (args) => getTransaction(client, args),
+    getTransactionConfirmations: (args) => getTransactionConfirmations(client, args),
+    getTransactionCount: (args) => getTransactionCount(client, args),
+    getTransactionReceipt: (args) => getTransactionReceipt(client, args),
+    multicall: (args) => multicall(client, args),
+    prepareTransactionRequest: (args) => prepareTransactionRequest(client, args),
+    readContract: (args) => readContract(client, args),
+    sendRawTransaction: (args) => sendRawTransaction(client, args),
+    simulateContract: (args) => simulateContract(client, args),
+    verifyMessage: (args) => verifyMessage(client, args),
+    verifySiweMessage: (args) => verifySiweMessage(client, args),
+    verifyTypedData: (args) => verifyTypedData(client, args),
+    uninstallFilter: (args) => uninstallFilter(client, args),
+    waitForTransactionReceipt: (args) => waitForTransactionReceipt(client, args),
+    watchBlocks: (args) => watchBlocks(client, args),
+    watchBlockNumber: (args) => watchBlockNumber(client, args),
+    watchContractEvent: (args) => watchContractEvent(client, args),
+    watchEvent: (args) => watchEvent(client, args),
+    watchPendingTransactions: (args) => watchPendingTransactions(client, args)
+  };
+}
+
+// ../../node_modules/viem/_esm/clients/createPublicClient.js
+function createPublicClient(parameters) {
+  const { key = "public", name = "Public Client" } = parameters;
+  const client = createClient({
+    ...parameters,
+    key,
+    name,
+    type: "publicClient"
+  });
+  return client.extend(publicActions);
+}
+
+// src/generation.ts
 async function trimTokens(context, maxTokens, runtime) {
   if (!context) return "";
   if (maxTokens <= 0) throw new Error("maxTokens must be positive");
@@ -30383,6 +36184,94 @@ async function truncateTiktoken(model, context, maxTokens) {
     return context.slice(-maxTokens * 4);
   }
 }
+async function getOnChainEternalAISystemPrompt(runtime) {
+  const agentId = runtime.getSetting("ETERNALAI_AGENT_ID");
+  const providerUrl = runtime.getSetting("ETERNALAI_RPC_URL");
+  const contractAddress = runtime.getSetting(
+    "ETERNALAI_AGENT_CONTRACT_ADDRESS"
+  );
+  if (agentId && providerUrl && contractAddress) {
+    const contractABI = [
+      {
+        inputs: [
+          {
+            internalType: "uint256",
+            name: "_agentId",
+            type: "uint256"
+          }
+        ],
+        name: "getAgentSystemPrompt",
+        outputs: [
+          { internalType: "bytes[]", name: "", type: "bytes[]" }
+        ],
+        stateMutability: "view",
+        type: "function"
+      }
+    ];
+    const publicClient = createPublicClient({
+      transport: http(providerUrl)
+    });
+    try {
+      const validAddress = contractAddress;
+      const result = await publicClient.readContract({
+        address: validAddress,
+        abi: contractABI,
+        functionName: "getAgentSystemPrompt",
+        args: [new bignumber_default(agentId)]
+      });
+      if (result) {
+        elizaLogger.info("on-chain system-prompt response", result[0]);
+        const value = result[0].toString().replace("0x", "");
+        const content = Buffer2.from(value, "hex").toString("utf-8");
+        elizaLogger.info("on-chain system-prompt", content);
+        return await fetchEternalAISystemPrompt(runtime, content);
+      } else {
+        return void 0;
+      }
+    } catch (error) {
+      elizaLogger.error(error);
+      elizaLogger.error("err", error);
+    }
+  }
+  return void 0;
+}
+async function fetchEternalAISystemPrompt(runtime, content) {
+  const IPFS = "ipfs://";
+  const containsSubstring = content.includes(IPFS);
+  if (containsSubstring) {
+    const lightHouse = content.replace(
+      IPFS,
+      "https://gateway.lighthouse.storage/ipfs/"
+    );
+    elizaLogger.info("fetch lightHouse", lightHouse);
+    const responseLH = await fetch(lightHouse, {
+      method: "GET"
+    });
+    elizaLogger.info("fetch lightHouse resp", responseLH);
+    if (responseLH.ok) {
+      const data = await responseLH.text();
+      return data;
+    } else {
+      const gcs = content.replace(
+        IPFS,
+        "https://cdn.eternalai.org/upload/"
+      );
+      elizaLogger.info("fetch gcs", gcs);
+      const responseGCS = await fetch(gcs, {
+        method: "GET"
+      });
+      elizaLogger.info("fetch lightHouse gcs", responseGCS);
+      if (responseGCS.ok) {
+        const data = await responseGCS.text();
+        return data;
+      } else {
+        throw new Error("invalid on-chain system prompt");
+      }
+    }
+  } else {
+    return content;
+  }
+}
 function getCloudflareGatewayBaseURL(runtime, provider) {
   const isCloudflareEnabled = runtime.getSetting("CLOUDFLARE_GW_ENABLED") === "true";
   const cloudflareAccountId = runtime.getSetting("CLOUDFLARE_AI_ACCOUNT_ID");
@@ -30398,11 +36287,15 @@ function getCloudflareGatewayBaseURL(runtime, provider) {
     return void 0;
   }
   if (!cloudflareAccountId) {
-    elizaLogger.warn("Cloudflare Gateway is enabled but CLOUDFLARE_AI_ACCOUNT_ID is not set");
+    elizaLogger.warn(
+      "Cloudflare Gateway is enabled but CLOUDFLARE_AI_ACCOUNT_ID is not set"
+    );
     return void 0;
   }
   if (!cloudflareGatewayId) {
-    elizaLogger.warn("Cloudflare Gateway is enabled but CLOUDFLARE_AI_GATEWAY_ID is not set");
+    elizaLogger.warn(
+      "Cloudflare Gateway is enabled but CLOUDFLARE_AI_GATEWAY_ID is not set"
+    );
     return void 0;
   }
   const baseURL = `https://gateway.ai.cloudflare.com/v1/${cloudflareAccountId}/${cloudflareGatewayId}/${provider.toLowerCase()}`;
@@ -30465,8 +36358,12 @@ async function generateText({
     hasRuntime: !!runtime,
     runtimeSettings: {
       CLOUDFLARE_GW_ENABLED: runtime.getSetting("CLOUDFLARE_GW_ENABLED"),
-      CLOUDFLARE_AI_ACCOUNT_ID: runtime.getSetting("CLOUDFLARE_AI_ACCOUNT_ID"),
-      CLOUDFLARE_AI_GATEWAY_ID: runtime.getSetting("CLOUDFLARE_AI_GATEWAY_ID")
+      CLOUDFLARE_AI_ACCOUNT_ID: runtime.getSetting(
+        "CLOUDFLARE_AI_ACCOUNT_ID"
+      ),
+      CLOUDFLARE_AI_GATEWAY_ID: runtime.getSetting(
+        "CLOUDFLARE_AI_GATEWAY_ID"
+      )
     }
   });
   const endpoint = runtime.character.modelEndpointOverride || getEndpoint(provider);
@@ -30552,8 +36449,11 @@ async function generateText({
       case "hyperbolic" /* HYPERBOLIC */:
       case "together" /* TOGETHER */:
       case "nineteen_ai" /* NINETEEN_AI */:
-      case "akash_chat_api" /* AKASH_CHAT_API */: {
-        elizaLogger.debug("Initializing OpenAI model with Cloudflare check");
+      case "akash_chat_api" /* AKASH_CHAT_API */:
+      case "lmstudio" /* LMSTUDIO */: {
+        elizaLogger.debug(
+          "Initializing OpenAI model with Cloudflare check"
+        );
         const baseURL2 = getCloudflareGatewayBaseURL(runtime, "openai") || endpoint;
         const openai = createOpenAI({
           apiKey,
@@ -30582,20 +36482,22 @@ async function generateText({
         const openai = createOpenAI({
           apiKey,
           baseURL: endpoint,
-          fetch: async (url, options) => {
+          fetch: async (input, init) => {
+            const url = typeof input === "string" ? input : input.toString();
             const chain_id = runtime.getSetting("ETERNALAI_CHAIN_ID") || "45762";
-            if (options?.body) {
-              const body = JSON.parse(options.body);
+            const options2 = { ...init };
+            if (options2?.body) {
+              const body = JSON.parse(options2.body);
               body.chain_id = chain_id;
-              options.body = JSON.stringify(body);
+              options2.body = JSON.stringify(body);
             }
-            const fetching = await runtime.fetch(url, options);
+            const fetching = await runtime.fetch(url, options2);
             if (parseBooleanFromText(
               runtime.getSetting("ETERNALAI_LOG")
             )) {
               elizaLogger.info(
                 "Request data: ",
-                JSON.stringify(options, null, 2)
+                JSON.stringify(options2, null, 2)
               );
               const clonedResponse = fetching.clone();
               try {
@@ -30612,10 +36514,27 @@ async function generateText({
             return fetching;
           }
         });
+        let system_prompt = runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0;
+        try {
+          const on_chain_system_prompt = await getOnChainEternalAISystemPrompt(runtime);
+          if (!on_chain_system_prompt) {
+            elizaLogger.error(
+              new Error("invalid on_chain_system_prompt")
+            );
+          } else {
+            system_prompt = on_chain_system_prompt;
+            elizaLogger.info(
+              "new on-chain system prompt",
+              system_prompt
+            );
+          }
+        } catch (e) {
+          elizaLogger.error(e);
+        }
         const { text: openaiResponse } = await aiGenerateText({
           model: openai.languageModel(model),
           prompt: context,
-          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          system: system_prompt,
           temperature,
           maxTokens: max_response_length,
           frequencyPenalty: frequency_penalty,
@@ -30663,10 +36582,16 @@ async function generateText({
         break;
       }
       case "anthropic" /* ANTHROPIC */: {
-        elizaLogger.debug("Initializing Anthropic model with Cloudflare check");
+        elizaLogger.debug(
+          "Initializing Anthropic model with Cloudflare check"
+        );
         const baseURL2 = getCloudflareGatewayBaseURL(runtime, "anthropic") || "https://api.anthropic.com/v1";
         elizaLogger.debug("Anthropic baseURL result:", { baseURL: baseURL2 });
-        const anthropic = createAnthropic({ apiKey, baseURL: baseURL2, fetch: runtime.fetch });
+        const anthropic = createAnthropic({
+          apiKey,
+          baseURL: baseURL2,
+          fetch: runtime.fetch
+        });
         const { text: anthropicResponse } = await aiGenerateText({
           model: anthropic.languageModel(model),
           prompt: context,
@@ -30736,10 +36661,16 @@ async function generateText({
         break;
       }
       case "groq" /* GROQ */: {
-        elizaLogger.debug("Initializing Groq model with Cloudflare check");
+        elizaLogger.debug(
+          "Initializing Groq model with Cloudflare check"
+        );
         const baseURL2 = getCloudflareGatewayBaseURL(runtime, "groq");
         elizaLogger.debug("Groq baseURL result:", { baseURL: baseURL2 });
-        const groq = createGroq({ apiKey, fetch: runtime.fetch, baseURL: baseURL2 });
+        const groq = createGroq({
+          apiKey,
+          fetch: runtime.fetch,
+          baseURL: baseURL2
+        });
         const { text: groqResponse } = await aiGenerateText({
           model: groq.languageModel(model),
           prompt: context,
@@ -30916,6 +36847,30 @@ async function generateText({
         elizaLogger.debug("Received response from GAIANET model.");
         break;
       }
+      case "atoma" /* ATOMA */: {
+        elizaLogger.debug("Initializing Atoma model.");
+        const atoma = createOpenAI({
+          apiKey,
+          baseURL: endpoint,
+          fetch: runtime.fetch
+        });
+        const { text: atomaResponse } = await aiGenerateText({
+          model: atoma.languageModel(model),
+          prompt: context,
+          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          tools,
+          onStepFinish,
+          maxSteps,
+          temperature,
+          maxTokens: max_response_length,
+          frequencyPenalty: frequency_penalty,
+          presencePenalty: presence_penalty,
+          experimental_telemetry
+        });
+        response = atomaResponse;
+        elizaLogger.debug("Received response from Atoma model.");
+        break;
+      }
       case "galadriel" /* GALADRIEL */: {
         elizaLogger.debug("Initializing Galadriel model.");
         const headers = {};
@@ -30992,6 +36947,26 @@ async function generateText({
         elizaLogger.debug("Received response from Venice model.");
         break;
       }
+      case "nvidia" /* NVIDIA */: {
+        elizaLogger.debug("Initializing NVIDIA model.");
+        const nvidia = createOpenAI({
+          apiKey,
+          baseURL: endpoint
+        });
+        const { text: nvidiaResponse } = await aiGenerateText({
+          model: nvidia.languageModel(model),
+          prompt: context,
+          system: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? void 0,
+          tools,
+          onStepFinish,
+          temperature,
+          maxSteps,
+          maxTokens: max_response_length
+        });
+        response = nvidiaResponse;
+        elizaLogger.debug("Received response from NVIDIA model.");
+        break;
+      }
       case "deepseek" /* DEEPSEEK */: {
         elizaLogger.debug("Initializing Deepseek model.");
         const serverUrl = models[provider].endpoint;
@@ -31015,6 +36990,54 @@ async function generateText({
         });
         response = deepseekResponse;
         elizaLogger.debug("Received response from Deepseek model.");
+        break;
+      }
+      case "livepeer" /* LIVEPEER */: {
+        elizaLogger.debug("Initializing Livepeer model.");
+        if (!endpoint) {
+          throw new Error("Livepeer Gateway URL is not defined");
+        }
+        const requestBody = {
+          model,
+          messages: [
+            {
+              role: "system",
+              content: runtime.character.system ?? settings_default.SYSTEM_PROMPT ?? "You are a helpful assistant"
+            },
+            {
+              role: "user",
+              content: context
+            }
+          ],
+          max_tokens: max_response_length,
+          stream: false
+        };
+        const fetchResponse = await runtime.fetch(endpoint + "/llm", {
+          method: "POST",
+          headers: {
+            accept: "text/event-stream",
+            "Content-Type": "application/json",
+            Authorization: "Bearer eliza-app-llm"
+          },
+          body: JSON.stringify(requestBody)
+        });
+        if (!fetchResponse.ok) {
+          const errorText = await fetchResponse.text();
+          throw new Error(
+            `Livepeer request failed (${fetchResponse.status}): ${errorText}`
+          );
+        }
+        const json = await fetchResponse.json();
+        if (!json?.choices?.[0]?.message?.content) {
+          throw new Error("Invalid response format from Livepeer");
+        }
+        response = json.choices[0].message.content.replace(
+          /<\|start_header_id\|>assistant<\|end_header_id\|>\n\n/,
+          ""
+        );
+        elizaLogger.debug(
+          "Successfully received response from Livepeer model"
+        );
         break;
       }
       default: {
@@ -31068,11 +37091,17 @@ async function generateShouldRespond({
   }
 }
 async function splitChunks(content, chunkSize = 512, bleed = 20) {
+  elizaLogger.debug(`[splitChunks] Starting text split`);
   const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: Number(chunkSize),
     chunkOverlap: Number(bleed)
   });
-  return textSplitter.splitText(content);
+  const chunks = await textSplitter.splitText(content);
+  elizaLogger.debug(`[splitChunks] Split complete:`, {
+    numberOfChunks: chunks.length,
+    averageChunkSize: chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length
+  });
+  return chunks;
 }
 async function generateTrueOrFalse({
   runtime,
@@ -31221,6 +37250,10 @@ async function generateMessageResponse({
 }
 var generateImage = async (data, runtime) => {
   const modelSettings = getImageModelSettings(runtime.imageModelProvider);
+  if (!modelSettings) {
+    elizaLogger.warn("No model settings found for the image model provider.");
+    return { success: false, error: "No model settings available" };
+  }
   const model = modelSettings.name;
   elizaLogger.info("Generating image with options:", {
     imageModelProvider: model
@@ -31354,8 +37387,8 @@ var generateImage = async (data, runtime) => {
       const base64Promises = result.data.images.map(async (image) => {
         const response = await fetch(image.url);
         const blob = await response.blob();
-        const buffer = await blob.arrayBuffer();
-        const base64 = Buffer2.from(buffer).toString("base64");
+        const buffer2 = await blob.arrayBuffer();
+        const base64 = Buffer2.from(buffer2).toString("base64");
         return `data:${image.content_type};base64,${base64}`;
       });
       const base64s = await Promise.all(base64Promises);
@@ -31372,10 +37405,12 @@ var generateImage = async (data, runtime) => {
           body: JSON.stringify({
             model,
             prompt: data.prompt,
+            cfg_scale: data.guidanceScale,
             negative_prompt: data.negativePrompt,
             width: data.width,
             height: data.height,
             steps: data.numIterations,
+            safe_mode: data.safeMode,
             seed: data.seed,
             style_preset: data.stylePreset,
             hide_watermark: data.hideWatermark
@@ -31442,10 +37477,11 @@ var generateImage = async (data, runtime) => {
           {
             method: "POST",
             headers: {
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              Authorization: "Bearer eliza-app-img"
             },
             body: JSON.stringify({
-              model_id: model,
+              model_id: data.modelId || "ByteDance/SDXL-Lightning",
               prompt: data.prompt,
               width: data.width || 1024,
               height: data.height || 1024
@@ -31528,29 +37564,6 @@ var generateCaption = async (data, runtime) => {
     description: resp.description.trim()
   };
 };
-var generateWebSearch = async (query, runtime) => {
-  try {
-    const apiKey = runtime.getSetting("TAVILY_API_KEY");
-    if (!apiKey) {
-      throw new Error("TAVILY_API_KEY is not set");
-    }
-    const tvly = tavily({ apiKey });
-    const response = await tvly.search(query, {
-      includeAnswer: true,
-      maxResults: 3,
-      // 5 (default)
-      topic: "general",
-      // "general"(default) "news"
-      searchDepth: "basic",
-      // "basic"(default) "advanced"
-      includeImages: false
-      // false (default) true
-    });
-    return response;
-  } catch (error) {
-    elizaLogger.error("Error:", error);
-  }
-};
 var generateObject = async ({
   runtime,
   context,
@@ -31612,7 +37625,7 @@ var generateObject = async ({
     throw error;
   }
 };
-async function handleProvider(options) {
+async function handleProvider(options2) {
   const {
     provider,
     runtime,
@@ -31621,7 +37634,7 @@ async function handleProvider(options) {
     //verifiableInference,
     //verifiableInferenceAdapter,
     //verifiableInferenceOptions,
-  } = options;
+  } = options2;
   switch (provider) {
     case "openai" /* OPENAI */:
     case "eternalai" /* ETERNALAI */:
@@ -31631,14 +37644,15 @@ async function handleProvider(options) {
     case "together" /* TOGETHER */:
     case "nanogpt" /* NANOGPT */:
     case "akash_chat_api" /* AKASH_CHAT_API */:
-      return await handleOpenAI(options);
+    case "lmstudio" /* LMSTUDIO */:
+      return await handleOpenAI(options2);
     case "anthropic" /* ANTHROPIC */:
     case "claude_vertex" /* CLAUDE_VERTEX */:
-      return await handleAnthropic(options);
+      return await handleAnthropic(options2);
     case "grok" /* GROK */:
-      return await handleGrok(options);
+      return await handleGrok(options2);
     case "groq" /* GROQ */:
-      return await handleGroq(options);
+      return await handleGroq(options2);
     case "llama_local" /* LLAMALOCAL */:
       return await generateObjectDeprecated({
         runtime,
@@ -31646,17 +37660,19 @@ async function handleProvider(options) {
         modelClass
       });
     case "google" /* GOOGLE */:
-      return await handleGoogle(options);
+      return await handleGoogle(options2);
     case "mistral" /* MISTRAL */:
-      return await handleMistral(options);
+      return await handleMistral(options2);
     case "redpill" /* REDPILL */:
-      return await handleRedPill(options);
+      return await handleRedPill(options2);
     case "openrouter" /* OPENROUTER */:
-      return await handleOpenRouter(options);
+      return await handleOpenRouter(options2);
     case "ollama" /* OLLAMA */:
-      return await handleOllama(options);
+      return await handleOllama(options2);
     case "deepseek" /* DEEPSEEK */:
-      return await handleDeepSeek(options);
+      return await handleDeepSeek(options2);
+    case "livepeer" /* LIVEPEER */:
+      return await handleLivepeer(options2);
     default: {
       const errorMessage = `Unsupported provider: ${provider}`;
       elizaLogger.error(errorMessage);
@@ -31692,11 +37708,15 @@ async function handleAnthropic({
   schema,
   schemaName,
   schemaDescription,
-  mode = "json",
+  mode = "auto",
   modelOptions,
   runtime
 }) {
   elizaLogger.debug("Handling Anthropic request with Cloudflare check");
+  if (mode === "json") {
+    elizaLogger.warn("Anthropic mode is set to json, changing to auto");
+    mode = "auto";
+  }
   const baseURL = getCloudflareGatewayBaseURL(runtime, "anthropic");
   elizaLogger.debug("Anthropic handleAnthropic baseURL:", { baseURL });
   const anthropic = createAnthropic({ apiKey, baseURL });
@@ -31870,6 +37890,35 @@ async function handleDeepSeek({
     ...modelOptions
   });
 }
+async function handleLivepeer({
+  model,
+  apiKey,
+  schema,
+  schemaName,
+  schemaDescription,
+  mode,
+  modelOptions
+}) {
+  console.log("Livepeer provider api key:", apiKey);
+  if (!apiKey) {
+    throw new Error(
+      "Livepeer provider requires LIVEPEER_GATEWAY_URL to be configured"
+    );
+  }
+  const livepeerClient = createOpenAI({
+    apiKey,
+    baseURL: apiKey
+    // Use the apiKey as the baseURL since it contains the gateway URL
+  });
+  return await aiGenerateObject({
+    model: livepeerClient.languageModel(model),
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    ...modelOptions
+  });
+}
 async function generateTweetActions({
   runtime,
   context,
@@ -31883,13 +37932,13 @@ async function generateTweetActions({
         context,
         modelClass
       });
-      console.debug(
+      elizaLogger.debug(
         "Received response from generateText for tweet actions:",
         response
       );
       const { actions } = parseActionResponseFromText(response.trim());
       if (actions) {
-        console.debug("Parsed tweet actions:", actions);
+        elizaLogger.debug("Parsed tweet actions:", actions);
         return actions;
       } else {
         elizaLogger.debug("generateTweetActions no valid response");
@@ -32298,7 +38347,7 @@ async function formatRelationships({
 
 // src/runtime.ts
 import { readFile } from "fs/promises";
-import { join } from "path";
+import { join as join2 } from "path";
 import { names as names4, uniqueNamesGenerator as uniqueNamesGenerator4 } from "unique-names-generator";
 import { v4 as uuidv4 } from "uuid";
 
@@ -32331,14 +38380,14 @@ function stringToUuid(target) {
     return out;
   };
   const escapedStr = encodeURIComponent(target);
-  const buffer = new Uint8Array(escapedStr.length);
+  const buffer2 = new Uint8Array(escapedStr.length);
   for (let i = 0; i < escapedStr.length; i++) {
-    buffer[i] = escapedStr[i].charCodeAt(0);
+    buffer2[i] = escapedStr[i].charCodeAt(0);
   }
-  const hash = sha1(buffer);
+  const hash = sha1(buffer2);
   const hashBuffer = new Uint8Array(hash.length / 2);
   for (let i = 0; i < hash.length; i += 2) {
-    hashBuffer[i / 2] = parseInt(hash.slice(i, i + 2), 16);
+    hashBuffer[i / 2] = Number.parseInt(hash.slice(i, i + 2), 16);
   }
   return _uint8ArrayToHex(hashBuffer.slice(0, 4)) + "-" + _uint8ArrayToHex(hashBuffer.slice(4, 6)) + "-" + _uint8ToHex(hashBuffer[6] & 15) + _uint8ToHex(hashBuffer[7]) + "-" + _uint8ToHex(hashBuffer[8] & 63 | 128) + _uint8ToHex(hashBuffer[9]) + "-" + _uint8ArrayToHex(hashBuffer.slice(10, 16));
 }
@@ -32437,6 +38486,8 @@ var knowledge_default = {
 };
 
 // src/ragknowledge.ts
+import { existsSync } from "fs";
+import { join } from "path";
 var RAGKnowledgeManager = class {
   /**
    * The AgentRuntime instance associated with this manager.
@@ -32447,6 +38498,10 @@ var RAGKnowledgeManager = class {
    */
   tableName;
   /**
+   * The root directory where RAG knowledge files are located (internal)
+   */
+  knowledgeRoot;
+  /**
    * Constructs a new KnowledgeManager instance.
    * @param opts Options for the manager.
    * @param opts.tableName The name of the table this manager will operate on.
@@ -32455,6 +38510,7 @@ var RAGKnowledgeManager = class {
   constructor(opts) {
     this.runtime = opts.runtime;
     this.tableName = opts.tableName;
+    this.knowledgeRoot = opts.knowledgeRoot;
   }
   defaultRAGMatchThreshold = 0.85;
   defaultRAGMatchCount = 5;
@@ -32524,7 +38580,7 @@ var RAGKnowledgeManager = class {
       logger_default.warn("Invalid input for preprocessing");
       return "";
     }
-    return content.replace(/```[\s\S]*?```/g, "").replace(/`.*?`/g, "").replace(/#{1,6}\s*(.*)/g, "$1").replace(/!\[(.*?)\]\(.*?\)/g, "$1").replace(/\[(.*?)\]\(.*?\)/g, "$1").replace(/(https?:\/\/)?(www\.)?([^\s]+\.[^\s]+)/g, "$3").replace(/<@[!&]?\d+>/g, "").replace(/<[^>]*>/g, "").replace(/^\s*[-*_]{3,}\s*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "").replace(/\s+/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[^a-zA-Z0-9\s\-_./:?=&]/g, "").trim().toLowerCase();
+    return content.replace(/```[\s\S]*?```/g, "").replace(/`.*?`/g, "").replace(/#{1,6}\s*(.*)/g, "$1").replace(/!\[(.*?)\]\(.*?\)/g, "$1").replace(/\[(.*?)\]\(.*?\)/g, "$1").replace(/(https?:\/\/)?(www\.)?([^\s]+\.[^\s]+)/g, "$3").replace(/<@[!&]?\d+>/g, "").replace(/<[^>]*>/g, "").replace(/^\s*[-*_]{3,}\s*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "").replace(/\s+/g, " ").replace(/\n{3,}/g, "\n\n").trim().toLowerCase();
   }
   hasProximityMatch(text, terms) {
     const words = text.toLowerCase().split(" ");
@@ -32629,10 +38685,10 @@ var RAGKnowledgeManager = class {
         createdAt: Date.now()
       });
       const chunks = await splitChunks(processedContent, 512, 20);
-      for (const [index, chunk] of chunks.entries()) {
+      for (const [index2, chunk] of chunks.entries()) {
         const chunkEmbeddingArray = await embed(this.runtime, chunk);
         const chunkEmbedding = new Float32Array(chunkEmbeddingArray);
-        const chunkId = `${item.id}-chunk-${index}`;
+        const chunkId = `${item.id}-chunk-${index2}`;
         await this.runtime.databaseAdapter.createKnowledge({
           id: chunkId,
           agentId: this.runtime.agentId,
@@ -32642,7 +38698,7 @@ var RAGKnowledgeManager = class {
               ...item.content.metadata,
               isChunk: true,
               originalId: item.id,
-              chunkIndex: index
+              chunkIndex: index2
             }
           },
           embedding: chunkEmbedding,
@@ -32679,6 +38735,96 @@ var RAGKnowledgeManager = class {
       shared ? shared : false
     );
   }
+  /**
+   * Lists all knowledge entries for an agent without semantic search or reranking.
+   * Used primarily for administrative tasks like cleanup.
+   *
+   * @param agentId The agent ID to fetch knowledge entries for
+   * @returns Array of RAGKnowledgeItem entries
+   */
+  async listAllKnowledge(agentId) {
+    logger_default.debug(
+      `[Knowledge List] Fetching all entries for agent: ${agentId}`
+    );
+    try {
+      const results = await this.runtime.databaseAdapter.getKnowledge({
+        agentId
+      });
+      logger_default.debug(
+        `[Knowledge List] Found ${results.length} entries`
+      );
+      return results;
+    } catch (error) {
+      logger_default.error(
+        "[Knowledge List] Error fetching knowledge entries:",
+        error
+      );
+      throw error;
+    }
+  }
+  async cleanupDeletedKnowledgeFiles() {
+    try {
+      logger_default.debug(
+        "[Cleanup] Starting knowledge cleanup process, agent: ",
+        this.runtime.agentId
+      );
+      logger_default.debug(
+        `[Cleanup] Knowledge root path: ${this.knowledgeRoot}`
+      );
+      const existingKnowledge = await this.listAllKnowledge(
+        this.runtime.agentId
+      );
+      const parentDocuments = existingKnowledge.filter(
+        (item) => !item.id.includes("chunk") && item.content.metadata?.source
+        // Must have a source path
+      );
+      logger_default.debug(
+        `[Cleanup] Found ${parentDocuments.length} parent documents to check`
+      );
+      for (const item of parentDocuments) {
+        const relativePath = item.content.metadata?.source;
+        const filePath = join(this.knowledgeRoot, relativePath);
+        logger_default.debug(
+          `[Cleanup] Checking joined file path: ${filePath}`
+        );
+        if (!existsSync(filePath)) {
+          logger_default.warn(
+            `[Cleanup] File not found, starting removal process: ${filePath}`
+          );
+          const idToRemove = item.id;
+          logger_default.debug(
+            `[Cleanup] Using ID for removal: ${idToRemove}`
+          );
+          try {
+            await this.removeKnowledge(idToRemove);
+            logger_default.success(
+              `[Cleanup] Successfully removed knowledge for file: ${filePath}`
+            );
+          } catch (deleteError) {
+            logger_default.error(
+              `[Cleanup] Error during deletion process for ${filePath}:`,
+              deleteError instanceof Error ? {
+                message: deleteError.message,
+                stack: deleteError.stack,
+                name: deleteError.name
+              } : deleteError
+            );
+          }
+        }
+      }
+      logger_default.debug("[Cleanup] Finished knowledge cleanup process");
+    } catch (error) {
+      logger_default.error(
+        "[Cleanup] Error cleaning up deleted knowledge files:",
+        error
+      );
+    }
+  }
+  generateScopedId(path5, isShared) {
+    const scope = isShared ? "shared" /* SHARED */ : "private" /* PRIVATE */;
+    const scopedPath = `${scope}-${path5}`;
+    return stringToUuid(scopedPath);
+  }
   async processFile(file) {
     const timeMarker = (label) => {
       const time = (Date.now() - startTime) / 1e3;
@@ -32691,6 +38837,10 @@ var RAGKnowledgeManager = class {
       logger_default.info(
         `[File Progress] Starting ${file.path} (${fileSizeKB.toFixed(2)} KB)`
       );
+      const scopedId = this.generateScopedId(
+        file.path,
+        file.isShared || false
+      );
       const processedContent = this.preprocess(content);
       timeMarker("Preprocessing");
       const mainEmbeddingArray = await embed(
@@ -32700,7 +38850,7 @@ var RAGKnowledgeManager = class {
       const mainEmbedding = new Float32Array(mainEmbeddingArray);
       timeMarker("Main embedding");
       await this.runtime.databaseAdapter.createKnowledge({
-        id: stringToUuid(file.path),
+        id: scopedId,
         agentId: this.runtime.agentId,
         content: {
           text: content,
@@ -32730,21 +38880,22 @@ var RAGKnowledgeManager = class {
           batch.map((chunk) => embed(this.runtime, chunk))
         );
         await Promise.all(
-          embeddings.map(async (embeddingArray, index) => {
-            const chunkId = `${stringToUuid(file.path)}-chunk-${i + index}`;
+          embeddings.map(async (embeddingArray, index2) => {
+            const chunkId = `${scopedId}-chunk-${i + index2}`;
             const chunkEmbedding = new Float32Array(embeddingArray);
             await this.runtime.databaseAdapter.createKnowledge({
               id: chunkId,
               agentId: this.runtime.agentId,
               content: {
-                text: batch[index],
+                text: batch[index2],
                 metadata: {
                   source: file.path,
                   type: file.type,
                   isShared: file.isShared || false,
                   isChunk: true,
-                  originalId: stringToUuid(file.path),
-                  chunkIndex: i + index
+                  originalId: scopedId,
+                  chunkIndex: i + index2,
+                  originalPath: file.path
                 }
               },
               embedding: chunkEmbedding,
@@ -32755,7 +38906,7 @@ var RAGKnowledgeManager = class {
         processedChunks += batch.length;
         const batchTime = (Date.now() - batchStart) / 1e3;
         logger_default.info(
-          `[Batch Progress] Processed ${processedChunks}/${totalChunks} chunks (${batchTime.toFixed(2)}s for batch)`
+          `[Batch Progress] ${file.path}: Processed ${processedChunks}/${totalChunks} chunks (${batchTime.toFixed(2)}s for batch)`
         );
       }
       const totalTime = (Date.now() - startTime) / 1e3;
@@ -32776,6 +38927,11 @@ var RAGKnowledgeManager = class {
 };
 
 // src/runtime.ts
+import { glob } from "glob";
+import { existsSync as existsSync2 } from "fs";
+function isDirectoryItem(item) {
+  return typeof item === "object" && item !== null && "directory" in item && typeof item.directory === "string";
+}
 var AgentRuntime = class {
   /**
    * Default count for recent messages to be kept in memory.
@@ -32853,6 +39009,7 @@ var AgentRuntime = class {
    */
   knowledgeManager;
   ragKnowledgeManager;
+  knowledgeRoot;
   services = /* @__PURE__ */ new Map();
   memoryManagers = /* @__PURE__ */ new Map();
   cacheManager;
@@ -32883,15 +39040,15 @@ var AgentRuntime = class {
   }
   async registerService(service) {
     const serviceType = service.serviceType;
-    elizaLogger.log("Registering service:", serviceType);
+    elizaLogger.log(`${this.character.name}(${this.agentId}) - Registering service:`, serviceType);
     if (this.services.has(serviceType)) {
       elizaLogger.warn(
-        `Service ${serviceType} is already registered. Skipping registration.`
+        `${this.character.name}(${this.agentId}) - Service ${serviceType} is already registered. Skipping registration.`
       );
       return;
     }
     this.services.set(serviceType, service);
-    elizaLogger.success(`Service ${serviceType} registered successfully`);
+    elizaLogger.success(`${this.character.name}(${this.agentId}) - Service ${serviceType} registered successfully`);
   }
   /**
    * Creates an instance of AgentRuntime.
@@ -32911,22 +39068,34 @@ var AgentRuntime = class {
    * @param opts.fetch - Custom fetch function to use for making requests.
    */
   constructor(opts) {
-    elizaLogger.info("Initializing AgentRuntime with options:", {
+    this.agentId = opts.character?.id ?? opts?.agentId ?? stringToUuid(opts.character?.name ?? uuidv4());
+    this.character = opts.character || defaultCharacter;
+    elizaLogger.info(`${this.character.name}(${this.agentId}) - Initializing AgentRuntime with options:`, {
       character: opts.character?.name,
       modelProvider: opts.modelProvider,
       characterModelProvider: opts.character?.modelProvider
     });
+    elizaLogger.debug(
+      `[AgentRuntime] Process working directory: ${process.cwd()}`
+    );
+    this.knowledgeRoot = join2(
+      process.cwd(),
+      "..",
+      "characters",
+      "knowledge"
+    );
+    elizaLogger.debug(
+      `[AgentRuntime] Process knowledgeRoot: ${this.knowledgeRoot}`
+    );
     this.#conversationLength = opts.conversationLength ?? this.#conversationLength;
     if (!opts.databaseAdapter) {
       throw new Error("No database adapter provided");
     }
     this.databaseAdapter = opts.databaseAdapter;
-    this.agentId = opts.character?.id ?? opts?.agentId ?? stringToUuid(opts.character?.name ?? uuidv4());
-    this.character = opts.character || defaultCharacter;
     this.ensureRoomExists(this.agentId);
     this.ensureUserExists(
       this.agentId,
-      this.character.name,
+      this.character.username || this.character.name,
       this.character.name
     ).then(() => {
       this.ensureParticipantExists(this.agentId, this.agentId);
@@ -32956,7 +39125,8 @@ var AgentRuntime = class {
     });
     this.ragKnowledgeManager = new RAGKnowledgeManager({
       runtime: this,
-      tableName: "knowledge"
+      tableName: "knowledge",
+      knowledgeRoot: this.knowledgeRoot
     });
     (opts.managers ?? []).forEach((manager) => {
       this.registerMemoryManager(manager);
@@ -32965,8 +39135,7 @@ var AgentRuntime = class {
       this.registerService(service);
     });
     this.serverUrl = opts.serverUrl ?? this.serverUrl;
-    elizaLogger.info("Setting model provider...");
-    elizaLogger.info("Model Provider Selection:", {
+    elizaLogger.info(`${this.character.name}(${this.agentId}) - Setting Model Provider:`, {
       characterModelProvider: this.character.modelProvider,
       optsModelProvider: opts.modelProvider,
       currentModelProvider: this.modelProvider,
@@ -32974,15 +39143,17 @@ var AgentRuntime = class {
     });
     this.modelProvider = this.character.modelProvider ?? opts.modelProvider ?? this.modelProvider;
     this.imageModelProvider = this.character.imageModelProvider ?? this.modelProvider;
-    elizaLogger.info("Selected model provider:", this.modelProvider);
+    this.imageVisionModelProvider = this.character.imageVisionModelProvider ?? this.modelProvider;
     elizaLogger.info(
-      "Selected image model provider:",
+      `${this.character.name}(${this.agentId}) - Selected model provider:`,
+      this.modelProvider
+    );
+    elizaLogger.info(
+      `${this.character.name}(${this.agentId}) - Selected image model provider:`,
       this.imageModelProvider
     );
-    this.imageVisionModelProvider = this.character.imageVisionModelProvider ?? this.modelProvider;
-    elizaLogger.info("Selected model provider:", this.modelProvider);
     elizaLogger.info(
-      "Selected image model provider:",
+      `${this.character.name}(${this.agentId}) - Selected image vision model provider:`,
       this.imageVisionModelProvider
     );
     if (!Object.values(ModelProviderName).includes(this.modelProvider)) {
@@ -33032,37 +39203,90 @@ var AgentRuntime = class {
         await service.initialize(this);
         this.services.set(serviceType, service);
         elizaLogger.success(
-          `Service ${serviceType} initialized successfully`
+          `${this.character.name}(${this.agentId}) - Service ${serviceType} initialized successfully`
         );
       } catch (error) {
         elizaLogger.error(
-          `Failed to initialize service ${serviceType}:`,
+          `${this.character.name}(${this.agentId}) - Failed to initialize service ${serviceType}:`,
           error
         );
         throw error;
       }
     }
-    for (const plugin of this.plugins) {
-      if (plugin.services)
-        await Promise.all(
-          plugin.services?.map((service) => service.initialize(this))
-        );
-    }
     if (this.character && this.character.knowledge && this.character.knowledge.length > 0) {
+      elizaLogger.info(
+        `[RAG Check] RAG Knowledge enabled: ${this.character.settings.ragKnowledge ? true : false}`
+      );
+      elizaLogger.info(
+        `[RAG Check] Knowledge items:`,
+        this.character.knowledge
+      );
       if (this.character.settings.ragKnowledge) {
-        await this.processCharacterRAGKnowledge(
-          this.character.knowledge
+        const [directoryKnowledge, pathKnowledge, stringKnowledge] = this.character.knowledge.reduce(
+          (acc, item) => {
+            if (typeof item === "object") {
+              if (isDirectoryItem(item)) {
+                elizaLogger.debug(
+                  `[RAG Filter] Found directory item: ${JSON.stringify(item)}`
+                );
+                acc[0].push(item);
+              } else if ("path" in item) {
+                elizaLogger.debug(
+                  `[RAG Filter] Found path item: ${JSON.stringify(item)}`
+                );
+                acc[1].push(item);
+              }
+            } else if (typeof item === "string") {
+              elizaLogger.debug(
+                `[RAG Filter] Found string item: ${item.slice(0, 100)}...`
+              );
+              acc[2].push(item);
+            }
+            return acc;
+          },
+          [[], [], []]
         );
+        elizaLogger.info(
+          `[RAG Summary] Found ${directoryKnowledge.length} directories, ${pathKnowledge.length} paths, and ${stringKnowledge.length} strings`
+        );
+        if (directoryKnowledge.length > 0) {
+          elizaLogger.info(
+            `[RAG Process] Processing directory knowledge sources:`
+          );
+          for (const dir of directoryKnowledge) {
+            elizaLogger.info(
+              `  - Directory: ${dir.directory} (shared: ${!!dir.shared})`
+            );
+            await this.processCharacterRAGDirectory(dir);
+          }
+        }
+        if (pathKnowledge.length > 0) {
+          elizaLogger.info(
+            `[RAG Process] Processing individual file knowledge sources`
+          );
+          await this.processCharacterRAGKnowledge(pathKnowledge);
+        }
+        if (stringKnowledge.length > 0) {
+          elizaLogger.info(
+            `[RAG Process] Processing direct string knowledge`
+          );
+          await this.processCharacterKnowledge(stringKnowledge);
+        }
       } else {
         const stringKnowledge = this.character.knowledge.filter(
           (item) => typeof item === "string"
         );
         await this.processCharacterKnowledge(stringKnowledge);
       }
+      elizaLogger.info(
+        `[RAG Cleanup] Starting cleanup of deleted knowledge files`
+      );
+      await this.ragKnowledgeManager.cleanupDeletedKnowledgeFiles();
+      elizaLogger.info(`[RAG Cleanup] Cleanup complete`);
     }
   }
   async stop() {
-    elizaLogger.debug("runtime::stop - character", this.character);
+    elizaLogger.debug("runtime::stop - character", this.character.name);
     for (const cStr in this.clients) {
       const c = this.clients[cStr];
       elizaLogger.log(
@@ -33120,24 +39344,44 @@ var AgentRuntime = class {
         } else {
           contentItem = item;
         }
-        const knowledgeId = stringToUuid(contentItem);
+        const knowledgeId = this.ragKnowledgeManager.generateScopedId(
+          contentItem,
+          isShared
+        );
         const fileExtension = contentItem.split(".").pop()?.toLowerCase();
         if (fileExtension && ["md", "txt", "pdf"].includes(fileExtension)) {
           try {
-            const rootPath = join(process.cwd(), "..");
-            const filePath = join(
-              rootPath,
-              "characters",
-              "knowledge",
-              contentItem
-            );
-            elizaLogger.info(
-              "Attempting to read file from:",
-              filePath
-            );
+            const filePath = join2(this.knowledgeRoot, contentItem);
+            elizaLogger.debug("[RAG Query]", {
+              knowledgeId,
+              agentId: this.agentId,
+              relativePath: contentItem,
+              fullPath: filePath,
+              isShared,
+              knowledgeRoot: this.knowledgeRoot
+            });
             const existingKnowledge = await this.ragKnowledgeManager.getKnowledge({
               id: knowledgeId,
               agentId: this.agentId
+              // Keep agentId as it's used in OR query
+            });
+            elizaLogger.debug("[RAG Query Result]", {
+              relativePath: contentItem,
+              fullPath: filePath,
+              knowledgeId,
+              isShared,
+              exists: existingKnowledge.length > 0,
+              knowledgeCount: existingKnowledge.length,
+              firstResult: existingKnowledge[0] ? {
+                id: existingKnowledge[0].id,
+                agentId: existingKnowledge[0].agentId,
+                contentLength: existingKnowledge[0].content.text.length
+              } : null,
+              results: existingKnowledge.map((k) => ({
+                id: k.id,
+                agentId: k.agentId,
+                isBaseKnowledge: !k.id.includes("chunk")
+              }))
             });
             const content = await readFile(
               filePath,
@@ -33149,22 +39393,37 @@ var AgentRuntime = class {
             }
             if (existingKnowledge.length > 0) {
               const existingContent = existingKnowledge[0].content.text;
+              elizaLogger.debug("[RAG Compare]", {
+                path: contentItem,
+                knowledgeId,
+                isShared,
+                existingContentLength: existingContent.length,
+                newContentLength: content.length,
+                contentSample: content.slice(0, 100),
+                existingContentSample: existingContent.slice(
+                  0,
+                  100
+                ),
+                matches: existingContent === content
+              });
               if (existingContent === content) {
                 elizaLogger.info(
-                  `File ${contentItem} unchanged, skipping`
+                  `${isShared ? "Shared knowledge" : "Knowledge"} ${contentItem} unchanged, skipping`
                 );
                 continue;
-              } else {
-                await this.ragKnowledgeManager.removeKnowledge(
-                  knowledgeId
-                );
-                await this.ragKnowledgeManager.removeKnowledge(
-                  `${knowledgeId}-chunk-*`
-                );
               }
+              elizaLogger.info(
+                `${isShared ? "Shared knowledge" : "Knowledge"} ${contentItem} changed, updating...`
+              );
+              await this.ragKnowledgeManager.removeKnowledge(
+                knowledgeId
+              );
+              await this.ragKnowledgeManager.removeKnowledge(
+                `${knowledgeId}-chunk-*`
+              );
             }
             elizaLogger.info(
-              `Successfully read ${fileExtension.toUpperCase()} file content for`,
+              `Processing ${fileExtension.toUpperCase()} file content for`,
               this.character.name,
               "-",
               contentItem
@@ -33226,6 +39485,92 @@ var AgentRuntime = class {
       );
     }
   }
+  /**
+   * Processes directory-based RAG knowledge by recursively loading and processing files.
+   * @param dirConfig The directory configuration containing path and shared flag
+   */
+  async processCharacterRAGDirectory(dirConfig) {
+    if (!dirConfig.directory) {
+      elizaLogger.error("[RAG Directory] No directory specified");
+      return;
+    }
+    const sanitizedDir = dirConfig.directory.replace(/\.\./g, "");
+    const dirPath = join2(this.knowledgeRoot, sanitizedDir);
+    try {
+      const dirExists = existsSync2(dirPath);
+      if (!dirExists) {
+        elizaLogger.error(
+          `[RAG Directory] Directory does not exist: ${sanitizedDir}`
+        );
+        return;
+      }
+      elizaLogger.debug(`[RAG Directory] Searching in: ${dirPath}`);
+      const files = await glob("**/*.{md,txt,pdf}", {
+        cwd: dirPath,
+        nodir: true,
+        absolute: false
+      });
+      if (files.length === 0) {
+        elizaLogger.warn(
+          `No matching files found in directory: ${dirConfig.directory}`
+        );
+        return;
+      }
+      elizaLogger.info(
+        `[RAG Directory] Found ${files.length} files in ${dirConfig.directory}`
+      );
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (file) => {
+            try {
+              const relativePath = join2(sanitizedDir, file);
+              elizaLogger.debug(
+                `[RAG Directory] Processing file ${i + 1}/${files.length}:`,
+                {
+                  file,
+                  relativePath,
+                  shared: dirConfig.shared
+                }
+              );
+              await this.processCharacterRAGKnowledge([
+                {
+                  path: relativePath,
+                  shared: dirConfig.shared
+                }
+              ]);
+            } catch (error) {
+              elizaLogger.error(
+                `[RAG Directory] Failed to process file: ${file}`,
+                error instanceof Error ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack
+                } : error
+              );
+            }
+          })
+        );
+        elizaLogger.debug(
+          `[RAG Directory] Completed batch ${Math.min(i + BATCH_SIZE, files.length)}/${files.length} files`
+        );
+      }
+      elizaLogger.success(
+        `[RAG Directory] Successfully processed directory: ${sanitizedDir}`
+      );
+    } catch (error) {
+      elizaLogger.error(
+        `[RAG Directory] Failed to process directory: ${sanitizedDir}`,
+        error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : error
+      );
+      throw error;
+    }
+  }
   getSetting(key) {
     if (this.character.settings?.secrets?.[key]) {
       return this.character.settings.secrets[key];
@@ -33250,7 +39595,7 @@ var AgentRuntime = class {
    * @param action The action to register.
    */
   registerAction(action) {
-    elizaLogger.success(`Registering action: ${action.name}`);
+    elizaLogger.success(`${this.character.name}(${this.agentId}) - Registering action: ${action.name}`);
     this.actions.push(action);
   }
   /**
@@ -33401,11 +39746,11 @@ var AgentRuntime = class {
     if (!account) {
       await this.databaseAdapter.createAccount({
         id: userId,
-        name: name || userName || "Unknown User",
-        username: userName || name || "Unknown",
-        email: email || (userName || "Bot") + "@" + source || "Unknown",
+        name: name || this.character.name || "Unknown User",
+        username: userName || this.character.username || "Unknown",
+        email: email || this.character.email || userId,
         // Temporary
-        details: { summary: "" }
+        details: this.character || { summary: "" }
       });
       elizaLogger.success(`User ${userName} created successfully.`);
     }
@@ -33429,7 +39774,7 @@ var AgentRuntime = class {
     await Promise.all([
       this.ensureUserExists(
         this.agentId,
-        this.character.name ?? "Agent",
+        this.character.username ?? "Agent",
         this.character.name ?? "Agent",
         source
       ),
@@ -33505,7 +39850,7 @@ var AgentRuntime = class {
       if (lastMessageWithAttachment) {
         const lastMessageTime = lastMessageWithAttachment?.createdAt ?? Date.now();
         const oneHourBeforeLastMessage = lastMessageTime - 60 * 60 * 1e3;
-        allAttachments = recentMessagesData.reverse().map((msg) => {
+        allAttachments = recentMessagesData.reverse().flatMap((msg) => {
           const msgTime = msg.createdAt ?? Date.now();
           const isWithinTime = msgTime >= oneHourBeforeLastMessage;
           const attachments = msg.content.attachments || [];
@@ -33515,7 +39860,7 @@ var AgentRuntime = class {
             });
           }
           return attachments;
-        }).flat();
+        });
       }
     }
     const formattedAttachments = allAttachments.map(
@@ -33546,8 +39891,8 @@ Text: ${attachment.text}
       );
       return example.map((message2) => {
         let messageString = `${message2.user}: ${message2.content.text}`;
-        exampleNames.forEach((name, index) => {
-          const placeholder = `{{user${index + 1}}}`;
+        exampleNames.forEach((name, index2) => {
+          const placeholder = `{{user${index2 + 1}}}`;
           messageString = messageString.replaceAll(
             placeholder,
             name
@@ -33638,11 +39983,11 @@ Text: ${attachment.text}
       topic: this.character.topics && this.character.topics.length > 0 ? this.character.topics[Math.floor(
         Math.random() * this.character.topics.length
       )] : null,
-      topics: this.character.topics && this.character.topics.length > 0 ? `${this.character.name} is interested in ` + this.character.topics.sort(() => 0.5 - Math.random()).slice(0, 5).map((topic, index) => {
-        if (index === this.character.topics.length - 2) {
+      topics: this.character.topics && this.character.topics.length > 0 ? `${this.character.name} is interested in ` + this.character.topics.sort(() => 0.5 - Math.random()).slice(0, 5).map((topic, index2, array) => {
+        if (index2 === array.length - 2) {
           return topic + " and ";
         }
-        if (index === this.character.topics.length - 1) {
+        if (index2 === array.length - 1) {
           return topic;
         }
         return topic + ", ";
@@ -33875,8 +40220,15 @@ var CharacterSchema = z2.object({
   knowledge: z2.array(
     z2.union([
       z2.string(),
+      // Direct knowledge strings
       z2.object({
+        // Individual file config
         path: z2.string(),
+        shared: z2.boolean().optional()
+      }),
+      z2.object({
+        // Directory config
+        directory: z2.string(),
         shared: z2.boolean().optional()
       })
     ])
@@ -34038,6 +40390,7 @@ var CacheManager = class {
 export {
   ActionTimelineType,
   AgentRuntime,
+  CacheKeyPrefix,
   CacheManager,
   CacheStore,
   CharacterSchema,
@@ -34049,6 +40402,7 @@ export {
   GoalStatus,
   IrysDataType,
   IrysMessageType,
+  KnowledgeScope,
   LoggingLevel,
   MemoryCacheAdapter,
   MemoryManager,
@@ -34062,6 +40416,7 @@ export {
   VerifiableInferenceProvider,
   addHeader,
   booleanFooter,
+  cleanJsonResponse,
   composeActionExamples,
   composeContext,
   composeRandomUser,
@@ -34073,6 +40428,7 @@ export {
   embed,
   envSchema,
   evaluationTemplate,
+  extractAttributes,
   findNearestEnvFile,
   formatActionNames,
   formatActions,
@@ -34097,7 +40453,6 @@ export {
   generateTextArray,
   generateTrueOrFalse,
   generateTweetActions,
-  generateWebSearch,
   getActorDetails,
   getEmbeddingConfig,
   getEmbeddingModelSettings,
@@ -34117,6 +40472,7 @@ export {
   loadEnvConfig,
   messageCompletionFooter,
   models,
+  normalizeJsonString,
   parseActionResponseFromText,
   parseBooleanFromText,
   parseJSONObjectFromText,
