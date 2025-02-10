@@ -29,7 +29,7 @@ class DeEvoAgent extends AgentRuntime {
     }
 
     override async initialize() {
-        elizaLogger.info("De evolution agent initialized");
+        elizaLogger.info("De evolution agent initializing");
         this.pollingUpdateCharacter();
         await super.initialize();
         const profile = await getProfileByAgentName(this.character.name);
@@ -40,6 +40,7 @@ class DeEvoAgent extends AgentRuntime {
         this.maxOP = this.getSetting('MAX_OP') ?? 2000;
         this.maxVP = this.getSetting('MAX_VP') ?? 200;
         this.opvpRecoverDay = this.getSetting('OPVP_RECOVER_DAY') ?? 3;
+        elizaLogger.info("De evolution agent initialized");
     }
     override async stop() {
         elizaLogger.info("De evolution agent stopped");
@@ -58,7 +59,7 @@ class DeEvoAgent extends AgentRuntime {
             const lore = parseJsonArrayFromText(character.lores) ?? this.character.lore;
             const topics = parseJsonArrayFromText(character.topics) ?? this.character.topics;
             const adjectives = parseJsonArrayFromText(character.adjectives) ?? this.character.adjectives;
-            const messageExamples = parseJsonArrayFromText(character.messageExamples) ?? this.character.messageExamples;
+            const postExamples = parseJsonArrayFromText(character.postExamples) ?? this.character.postExamples;
             const knowledge = parseJsonArrayFromText(character.knowledges) ?? this.character.knowledge;
             const styleAll = parseJsonArrayFromText(character.styleAll) ?? this.character.style.all;
             const styleChat = parseJsonArrayFromText(character.styleChat) ?? this.character.style.chat;
@@ -69,7 +70,7 @@ class DeEvoAgent extends AgentRuntime {
                 lore,
                 topics,
                 adjectives,
-                messageExamples,
+                postExamples,
                 knowledge,
                 style: {
                     all: styleAll,

@@ -2,7 +2,7 @@ import { execute } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
 
 export const getCharacter = async (agentName: string) => {
-    let sql = `SELECT twitter_id as twitterId, name, tick, bios, lores, topics, adjectives, messageExamples, knowledges,
+    let sql = `SELECT twitter_id as twitterId, name, tick, bios, lores, topics, adjectives, postExamples, knowledges,
         style_all as styleAll, style_chat as styleChat, style_post as stylePost
      FROM agent WHERE name = ? LIMIT 1`;
     let result = await execute(sql, [agentName]);
