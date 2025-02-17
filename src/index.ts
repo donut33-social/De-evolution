@@ -49,6 +49,17 @@ export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     return new Promise((resolve) => setTimeout(resolve, waitTime));
 };
 
+let runtimes: AgentRuntime[] = [];
+
+process.on("SIGINT", () => {
+    elizaLogger.log("SIGINT received, stopping all agents");
+    for (const runtime of runtimes) {
+        runtime.stop().catch();
+        runtime.clients.twitter?.post?.stop();
+        runtime.clients.twitter?.interaction?.stop();
+    }
+});
+
 const logFetch = async (url: string, options: any) => {
     elizaLogger.debug(`Fetching ${url}`);
     // Disabled to avoid disclosure of sensitive information such as API keys
@@ -636,7 +647,7 @@ const startAgents = async () => {
 
     try {
         for (const character of characters) {
-            await startAgent(character);
+            runtimes.push(await startAgent(character));
         }
     } catch (error) {
         elizaLogger.error("Error starting agents:", error);
@@ -673,4 +684,4 @@ const startAgents = async () => {
 startAgents().catch((error) => {
     elizaLogger.error("Unhandled error in startAgents:", error);
     process.exit(1);
-});
+})

@@ -20,6 +20,9 @@ import {
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
+/**
+ * 根据通知，酌情回复推文形成对话
+ */
 export const twitterMessageHandlerTemplate =
     `
 # Areas of Expertise

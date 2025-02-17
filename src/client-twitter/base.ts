@@ -26,6 +26,9 @@ export function extractAnswer(text: string): string {
     return text.slice(startIndex, endIndex);
 }
 
+/**
+ * 定时发布新帖，以及根据timeline的推文进行互动，包含从社区推文抓取的数据，会根据情况策展
+ */
 type TwitterProfile = {
     id: string;
     username: string;
@@ -264,7 +267,7 @@ export class ClientBase extends EventEmitter {
             ? await this.twitterClient.fetchFollowingTimeline(count, [])
             : await this.twitterClient.fetchHomeTimeline(count, []);
 
-        elizaLogger.debug(homeTimeline, { depth: Infinity });
+        elizaLogger.debug(JSON.stringify(homeTimeline, null, 2));
         const processedTimeline = homeTimeline
             .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
             .map((tweet) => {
