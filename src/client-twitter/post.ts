@@ -24,6 +24,7 @@ import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { State } from "@elizaos/core";
 import { ActionResponse } from "@elizaos/core";
+import { sleep2 } from "../../src/utils/helper.ts";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
@@ -155,7 +156,7 @@ export class TwitterPostClient {
             const delay = randomMinutes * 60 * 1000;
 
             if (Date.now() > lastPostTimestamp + delay) {
-                await this.generateNewTweet();
+            await this.generateNewTweet();
             }
 
             setTimeout(() => {
@@ -179,7 +180,7 @@ export class TwitterPostClient {
                     );
                     // Add exponential backoff on error
                 }
-                await wait(180000, 480000);
+                await sleep2(360000, () => !this.stopProcessingActions);
             }
         };
 
@@ -188,8 +189,8 @@ export class TwitterPostClient {
         // }
 
         // Only start tweet generation loop if not in dry run mode
-        // generateNewTweetLoop();
-        // elizaLogger.log("Tweet generation loop started");
+        generateNewTweetLoop();
+        elizaLogger.log("Tweet generation loop started");
 
         if (this.client.twitterConfig.ENABLE_ACTION_PROCESSING) {
             processActionsLoop().catch((error) => {
@@ -552,11 +553,14 @@ export class TwitterPostClient {
             );
             const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions(5);
 
+            console.log("find timelines", timelines.length, communityTweets.length);
+
             for (let tweet of communityTweets) {
                 if (!timelines.find(t => t.id === tweet.id)) {
                     timelines.push(tweet);
                 }
             }
+
 
             const maxActionsProcessing =
                 this.client.twitterConfig.MAX_ACTIONS_PROCESSING;
@@ -597,12 +601,10 @@ export class TwitterPostClient {
                         }
                     );
 
+
                     const actionContext = composeContext({
                         state: tweetState,
-                        template:
-                            this.runtime.character.templates
-                                ?.twitterActionTemplate ||
-                            twitterActionTemplate,
+                        template: twitterActionTemplate,
                     });
 
                     const actionResponse = await generateTweetActions({
@@ -961,7 +963,9 @@ export class TwitterPostClient {
             }
             // await 3-7 minutes
             elizaLogger.log("await 3-7 minutes for the next action")
-            await wait(3 * 60 * 100, 7 * 60 * 100);
+            const waitTime =
+            Math.floor(Math.random() * (7 * 60 * 1000 - 3 * 60 * 1000 + 1)) + 3 * 60 * 1000;
+            await sleep2(waitTime, () => !this.stopProcessingActions);
         }
 
         return results;

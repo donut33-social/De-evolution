@@ -1,5 +1,8 @@
 import crypto from "crypto";
+import yargs from "yargs";
+import env from "dotenv";
 
+env.config();
 function generatePassword() {
     return {
         key: crypto.randomBytes(32).toString('hex'),
@@ -19,7 +22,25 @@ function decrypt(encryptedText: string, key: string, iv: string): string {
     let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
-}
+}  
 
+const args = yargs(process.argv)
+            .option("dec", {
+                type: "string",
+                description: "Path to the character JSON file",
+            })
+            .option("enc", {
+                type: "string",
+                description:
+                    "Comma separated list of paths to character JSON files",
+            })
+            .parseSync();
+
+if (args.dec) {
+    const password = decrypt(args.dec, process.env.ENCODE_KEY, process.env.ENCODE_IV);
+    console.log(password);
+}else if (args.enc) {
+    const password = encrypt(args.enc, process.env.ENCODE_KEY, process.env.ENCODE_IV);
+    console.log(password);
+}
 export { generatePassword, encrypt, decrypt };
-// console.log(generatePassword())

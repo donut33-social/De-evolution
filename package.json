@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsup src/index.ts --format esm --dts",
     "start": "tsx src/index.ts --characters",
-    "script": "ts-node src/script/updateAgent.ts"
+    "script": "ts-node src/script/updateAgent.ts",
+    "crypto": "ts-node src/utils/encode.ts"
   },
   "keywords": [],
   "author": "",
