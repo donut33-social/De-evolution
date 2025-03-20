@@ -56,7 +56,7 @@ process.on("SIGINT", () => {
     for (const runtime of runtimes) {
         runtime.stop().catch();
         runtime.clients.twitter?.post?.stop();
-        runtime.clients.twitter?.interaction?.stop();
+        // runtime.clients.twitter?.interaction?.stop();
     }
 });
 

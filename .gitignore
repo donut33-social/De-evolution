@@ -7,6 +7,7 @@ node_modules
 concatenated-output.ts
 embedding-cache.json
 .DS_Store
+.vscode
 
 /out
 

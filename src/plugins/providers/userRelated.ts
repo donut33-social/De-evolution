@@ -2,6 +2,7 @@ import { Provider, IAgentRuntime, Memory, State, elizaLogger } from "@elizaos/co
 import DeEvoAgent from "../../DeEvoAgent.ts";
 import { getUserInfoByUsername, getUserVPOPByTwitterId } from "../../db/apis/user.ts";
 import { getBalance, getEthBalance } from "../../utils/ethers.ts";
+import fromEnv from "../../config/fromEnv.ts";
 
 export const userRelatedProvider: Provider = {
     async  get(
@@ -21,7 +22,8 @@ export const userRelatedProvider: Provider = {
             let result: null | string = ''
             // get user balance
             if (contract && userInfo.ethAddr) {
-                const [ethBalance, tokenBalance] = await Promise.all([getEthBalance(userInfo.ethAddr, 'base'), getBalance(userInfo.ethAddr, contract as string, 'base')]) 
+                const [ethBalance, tokenBalance] = await Promise.all([getEthBalance(userInfo.ethAddr, fromEnv.CHAIN_PRE.replace("_", "")), 
+                    getBalance(userInfo.ethAddr, contract as string, fromEnv.CHAIN_PRE)]) 
                 result += `@${state.authorUsername} has ${tokenBalance} $${tick} and $${tick} total supply is 1B.
 @${state.authorUsername} has ${ethBalance} ETH balance.
 @${state.authorUsername} has ${userInfo.followers} followers and ${userInfo.followings} followings.

@@ -14,6 +14,7 @@ import DeEvoAgent from "../../DeEvoAgent.ts";
 import { getTweetCurationById, newCurate } from "../../db/apis/tweet.ts";
 import { getBalance } from "../../utils/ethers.ts";
 import { ethers } from "ethers";
+import fromEnv from "../../config/fromEnv.ts";
 
 const shouldCurateTemplate = `# Areas of Expertise
 {{knowledge}}
@@ -133,7 +134,7 @@ export default {
       if (!ethers.isAddress(_runtime.ethAddress)) return false;
 
       // get balance
-      const balance = await getBalance(_runtime.ethAddress, _runtime.contract, 'base')
+      const balance = await getBalance(_runtime.ethAddress, _runtime.contract, fromEnv.CHAIN_PRE)
       if (balance < 10000) return false;
 
       const context = composeContext({

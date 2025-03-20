@@ -13,6 +13,17 @@ const chainConfig = {
             "decimals": 18
         },
         "multiCallAddress": "0xcA11bde05977b3631167028862bE2a173976CA11"
+    },
+    "bsc": {
+        "rpc": "https://bsc-dataseed.binance.org/",
+        "chainId": 56,
+        "chainName": "BSC",
+        "nativeCurrency": {
+            "name": "Binance Smart Chain",
+            "symbol": "BNB",
+            "decimals": 18
+        },
+        "multiCallAddress": "0x41263cba59eb80dc200f3e2544eda4ed6a90e76c"
     }
 }
 
