@@ -2,6 +2,8 @@ import { execute, executeTransaction } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
 import fromEnv from '../../config/fromEnv.ts';
 
+const chainPre = fromEnv.CHAIN_PRE;
+
 export const getRecentTweets = async (tick: string, agentUsername: string, limit: number = 30) => {
     let sql = `SELECT t.id as dbId, t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 
     t.retweet_id as quotedStatusId, t.create_at as timeParsed,
@@ -10,7 +12,7 @@ export const getRecentTweets = async (tick: string, agentUsername: string, limit
     t.quote_count as quoteCount, 
     a.twitter_id as userId, a.twitter_name as name, a.twitter_username as username, a.profile, a.followers, a.followings,
     a.eth_addr as ethAddr
-    FROM bsc_tweet as t
+    FROM ${chainPre}tweet as t
     LEFT JOIN account as a ON a.twitter_id = t.twitter_id
     LEFT JOIN agent as ag ON ag.tick = t.tick
     WHERE t.id > ag.last_handled_tweet_id AND ag.tick = ? AND a.twitter_username != ? LIMIT ?`;
@@ -31,7 +33,7 @@ export const getRecentReplys = async (agentName: string) => {
     t.like_count as likeCount, t.retweet_count as retweetCount, t.reply_count as replyCount,
     t.quote_count as quoteCount, a.twitter_name as twitterName, a.twitter_username as twitterUsername, a.profile, a.followers, a.followings,
     a.eth_addr as ethAddr
-    FROM bsc_relation_reply as r
+    FROM ${chainPre}relation_reply as r
     LEFT JOIN account as a ON a.twitter_id = r.twitter_id
     LEFT JOIN agent as ag ON ag.tick = r.tick
     WHERE r.id > ag.last_handled_reply_id AND ag.name = ?`;
@@ -44,9 +46,9 @@ export const newLikeAction = async (twitterId: string, tweetId: string) => {
     let sql = `
         INSERT INTO relation_like (twitter_id, tweet_id) 
         SELECT ?, ?
-        FROM bsc_tweet
+        FROM ${chainPre}tweet
         WHERE tweet_id = ?;
-        UPDATE bsc_tweet SET like_count = like_count + 1 WHERE tweet_id = ?;
+        UPDATE ${chainPre}tweet SET like_count = like_count + 1 WHERE tweet_id = ?;
     `;
     await executeTransaction(sql, [twitterId, tweetId, tweetId, tweetId]);
 }
@@ -56,23 +58,23 @@ export const newRetweetAction = async (twitterId: string, tweetId: string) => {
     let sql = `
         INSERT INTO relation_retweet (twitter_id, tweet_id) 
         SELECT ?, ?
-        FROM bsc_tweet
+        FROM ${chainPre}tweet
         WHERE tweet_id = ?;
-        UPDATE bsc_tweet SET retweet_count = retweet_count + 1 WHERE tweet_id = ?;
+        UPDATE ${chainPre}tweet SET retweet_count = retweet_count + 1 WHERE tweet_id = ?;
     `;
     await executeTransaction(sql, [twitterId, tweetId, tweetId, tweetId]);
 }
 
 export const getTweetCurationById = async (tweetId: string) => {
     let sql = `SELECT community_id as tick, day_number as dayNumber, curation_type as curationType
-     FROM bsc_curation WHERE tweet_id = ? AND is_settled = 0`;
+     FROM ${chainPre}curation WHERE tweet_id = ? AND is_settled = 0`;
     let result = await execute(sql, [tweetId]);
     return emptyOrRow(result);
 }
 
 export const newCurate = async (tweetId: string, twitterId: string, tick: string, vp: number) => {
     if (fromEnv.TWITTER_DRY_RUN === 'true') return 1;
-    let sql = `CALL bsc_new_curate(?,?,?,?,@isCuration);
+    let sql = `CALL ${chainPre}new_curate(?,?,?,?,@isCuration);
                 SELECT @isCuration;`;
     const res: any = await execute(sql, [tweetId, twitterId, tick, vp])
     if (res && res.length > 1) {

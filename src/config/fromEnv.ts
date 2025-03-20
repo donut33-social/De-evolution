@@ -6,6 +6,8 @@ export default {
     DB_USER: process.env.DB_USER,
     DB_PASSWORD: b64uDec(process.env.DB_PASSWORD),
 
+    CHAIN_PRE: process.env.CHAIN_PRE,
+
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_PWD: b64uDec(process.env.REDIS_PWD),
