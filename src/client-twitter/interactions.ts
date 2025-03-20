@@ -48,6 +48,8 @@ Recent interactions between {{agentName}} and other users:
 
 Current Post:
 {{currentPost}}
+Determine whether to recommend #{{tick}} to the tweet author in the reply.
+
 Here is the descriptions of images in the Current post.
 {{imageDescriptions}}
 
@@ -154,7 +156,9 @@ export class TwitterInteractionClient {
                     const tweetsByUser = new Map<string, Tweet[]>();
 
                     // Fetch tweets from all target users
-                    for (const username of TARGET_USERS) {
+                    const shuffledUsers = TARGET_USERS.sort(() => 0.5 - Math.random());
+                    const selectedUsers = shuffledUsers.slice(0, Math.min(shuffledUsers.length, 3));
+                    for (const username of selectedUsers) {
                         try {
                             const userTweets = (
                                 await this.client.twitterClient.fetchSearchTweets(
@@ -379,6 +383,7 @@ export class TwitterInteractionClient {
             twitterClient: this.client.twitterClient,
             twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
             currentPost,
+            tick: this.client.twitterConfig.TICK,
             formattedConversation,
             imageDescriptions: imageDescriptionsArray.length > 0
             ? `\nImages in Tweet:\n${imageDescriptionsArray.map((desc, i) =>
