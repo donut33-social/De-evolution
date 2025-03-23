@@ -551,7 +551,7 @@ export class TwitterPostClient {
             let timelines: TagAiTweet[] = await this.client.fetchTimelineForActions(
                 MAX_TIMELINES_TO_FETCH
             );
-            const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions(5);
+            const communityTweets: TagAiTweet[] = await this.client.fetchTweetsForActions(15);
 
             console.log("find timelines", timelines.length, communityTweets.length);
 

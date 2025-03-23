@@ -157,7 +157,7 @@ export class TwitterInteractionClient {
 
                     // Fetch tweets from all target users
                     const shuffledUsers = TARGET_USERS.sort(() => 0.5 - Math.random());
-                    const selectedUsers = shuffledUsers.slice(0, Math.min(shuffledUsers.length, 3));
+                    const selectedUsers = shuffledUsers.slice(0, Math.min(shuffledUsers.length, 2));
                     for (const username of selectedUsers) {
                         try {
                             const userTweets = (
