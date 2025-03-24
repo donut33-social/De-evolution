@@ -143,9 +143,9 @@ export async function validateTwitterConfig(
             TWITTER_PASSWORD:
                 runtime.getSetting("TWITTER_PASSWORD") ||
                 decrypt(profile?.password,
-                fromEnv.ENCODE_KEY,
-                fromEnv.ENCODE_IV
-            ),
+                    fromEnv.ENCODE_KEY,
+                    fromEnv.ENCODE_IV
+                ),
 
             TICK: runtime.getSetting("TICK") || profile?.tick,
 

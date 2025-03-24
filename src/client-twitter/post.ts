@@ -481,13 +481,14 @@ export class TwitterPostClient {
             .replace(/```json\s*/g, "") // Remove ```json
             .replace(/```\s*/g, "") // Remove any remaining ```
             .replaceAll(/\\n/g, "\n")
+            .replace('```', '').replace(/^\\boxed{\s*|\s*}$/g, '')
             .trim();
 
         // Try to parse as JSON first
         try {
             const jsonResponse = JSON.parse(cleanedResponse);
             if (jsonResponse.text) {
-                return this.trimTweetLength(jsonResponse.text);
+                return this.trimTweetLength(jsonResponse.text) + `\n\n#${this.client.twitterConfig.DEFAULT_TAG} #${this.client.twitterConfig.TICK}`;
             }
             if (typeof jsonResponse === "object") {
                 const possibleContent =
@@ -495,7 +496,7 @@ export class TwitterPostClient {
                     jsonResponse.message ||
                     jsonResponse.response;
                 if (possibleContent) {
-                    return this.trimTweetLength(possibleContent);
+                    return this.trimTweetLength(possibleContent) + `\n\n#${this.client.twitterConfig.DEFAULT_TAG} #${this.client.twitterConfig.TICK}`;
                 }
             }
         } catch (error) {
