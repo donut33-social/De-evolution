@@ -512,6 +512,7 @@ export class TwitterPostClient {
 
     // Helper method to ensure tweet length compliance
     private trimTweetLength(text: string, maxLength: number = 270): string {
+        text = text.replace(/^\\boxed{\s*|\s*}$/g, '').trim();
         if (text.length <= maxLength) return text;
 
         // Try to cut at last sentence
