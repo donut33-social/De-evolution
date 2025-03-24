@@ -2,7 +2,7 @@ import { execute, executeTransaction } from '../pool.ts';
 import { emptyOrRow, emptyOrRows } from "../helper.ts";
 import fromEnv from '../../config/fromEnv.ts';
 
-const chainPre = fromEnv.CHAIN_PRE?.length > 0 ? fromEnv.CHAIN_PRE + '_' : '';
+const chainPre = (fromEnv.CHAIN_PRE?.length > 0 && fromEnv.CHAIN_PRE !== 'base') ? fromEnv.CHAIN_PRE + '_' : '';
 
 export const getRecentTweets = async (tick: string, agentUsername: string, limit: number = 30) => {
     let sql = `SELECT t.id as dbId, t.tweet_id as conversationId, t.tweet_id as id, t.content as text, t.tags as hashtags, t.page_info as pageInfo, 

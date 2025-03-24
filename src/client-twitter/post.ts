@@ -481,7 +481,8 @@ export class TwitterPostClient {
             .replace(/```json\s*/g, "") // Remove ```json
             .replace(/```\s*/g, "") // Remove any remaining ```
             .replaceAll(/\\n/g, "\n")
-            .replace('```', '').replace(/^\\boxed{\s*|\s*}$/g, '')
+            .replace('```', '')
+            .replace(/^\\boxed{\s*|\s*}$/g, '')
             .trim();
 
         // Try to parse as JSON first
