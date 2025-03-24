@@ -15,6 +15,7 @@ import { getTweetCurationById, newCurate } from "../../db/apis/tweet.ts";
 import { getBalance } from "../../utils/ethers.ts";
 import { ethers } from "ethers";
 import fromEnv from "../../config/fromEnv.ts";
+import { getUserVPOPByTwitterId } from "../../db/apis/user.ts";
 
 const shouldCurateTemplate = `# Areas of Expertise
 {{knowledge}}
@@ -25,8 +26,8 @@ const shouldCurateTemplate = `# Areas of Expertise
 
 # Task: Decide if {{agentName}} should curate the tweet.
 {{agentName}} is bref, and doesn't want to be annoying. {{agentName}} will only curate the tweet most greatfull/interesting/helpfull for \${{tick}}.
-Consider the balance of {{agentName}}'s VP:
-The more VP {{agentName}} have the more, the more likely to curate. A suitable VP balance is approximately from 100 to 150.
+Consider the balance of {{agentName}}'s VP, now {{agentName}} has {{vp}} VP.
+The more VP {{agentName}} have, the more likely to curate. A suitable VP balance is approximately from 100 to 150.
 
 Tweet:
 {{currentTweet}}`;
@@ -38,7 +39,7 @@ Tweet:
 {{providers}}
 
 You should return a number between 1 and 10 only. The larger number means the tweet is more worthy to curate.
-The response should be in the format of "10".
+The response should be in the format like "10".
 `
 
 export default {
@@ -134,13 +135,20 @@ export default {
       if (!ethers.isAddress(_runtime.ethAddress)) return false;
 
       // get balance
-      const balance = await getBalance(_runtime.ethAddress, _runtime.contract, fromEnv.CHAIN_PRE)
+      const balance = await getBalance(_runtime.ethAddress, _runtime.clients.twitter.contract, fromEnv.CHAIN_PRE)
       if (balance < 10000) return false;
+
+      let userInfo = await getUserVPOPByTwitterId(_runtime.clients.twitter.profile.id)
+      // calculate the vp of the user
+      userInfo.vp = userInfo.vp + (Date.now() - userInfo.lastUpdateVpStamp) / 1000 / 86400 / 3 * 200;
+      userInfo.vp = Math.min(userInfo.vp, 200);
+      if (userInfo.vp < 10) return false;
 
       const context = composeContext({
         state: {
           ..._state,
           tick: _runtime.tick,
+          vp: userInfo.vp,
         },
         template: shouldCurateTemplate,
         templatingEngine: "handlebars",
@@ -192,10 +200,13 @@ export default {
                     action: 'CURATE',
                     vp
                 })
+                return;
             }
+            elizaLogger.error('curate failed', curated);
         }
+        elizaLogger.info('generate wrong value vp', vp);
     } catch (error) {
-        elizaLogger.error('generate wrong format vp', error);
+        elizaLogger.error('generate wrong format vp or curate failed', error);
     }
   },
 } as Action;
