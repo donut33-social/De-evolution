@@ -398,6 +398,7 @@ export class TwitterPostClient {
                     .replace(/^['"](.*)['"]$/g, "$1") // Remove quotes
                     .replace(/\\"/g, '"') // Unescape quotes
                     .replace(/\\n/g, "\n\n") // Unescape newlines, ensures double spaces
+                    .replace(/^\\boxed{\s*|\s*}$/g, '')
                     .trim();
             }
 
