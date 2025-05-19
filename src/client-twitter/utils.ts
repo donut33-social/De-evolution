@@ -7,6 +7,8 @@ import { elizaLogger } from "@elizaos/core";
 import { Media } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
+import DeEvoAgent from "../DeEvoAgent";
+import { getUserVPOPByTwitterId } from "../db/apis/user";
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
@@ -28,6 +30,29 @@ export const isValidTweet = (tweet: Tweet): boolean => {
         totalCount <= 3
     );
 };
+
+export async function getVPOP(runtime: DeEvoAgent) {
+    const twitterId = runtime.clients.twitter.twitterConfig.TWITTER_ID;
+    const vpop = await getUserVPOPByTwitterId(twitterId);
+    let vp = vpop.vp;
+    let op = vpop.op;
+    const lastUpdateVpStamp = vpop.lastUpdateVpStamp;
+    const lastUpdateOpStamp = vpop.lastUpdateOpStamp;
+    if ((!vp && vp !== 0) || !lastUpdateOpStamp) {
+        vp ??= 0;
+    }else {
+        vp = (vp + (Date.now() - lastUpdateVpStamp) * runtime.maxVP / (86400000 * runtime.opvpRecoverDay))
+        vp = vp > runtime.maxVP ? runtime.maxVP : vp
+    }
+    if ((!op && op !== 0) || !lastUpdateOpStamp) {
+        op ??= 0;
+    }else {
+        op = (op + (Date.now() - lastUpdateOpStamp) * runtime.maxOP / (86400000 * runtime.opvpRecoverDay))
+        op = op > runtime.maxOP ? runtime.maxOP : op
+    }
+
+    return { vp, op, lastUpdateVpStamp, lastUpdateOpStamp };
+}
 
 export async function buildConversationThread(
     tweet: Tweet,

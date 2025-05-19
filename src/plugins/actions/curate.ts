@@ -173,6 +173,7 @@ export default {
     const tweetId = _state.tweetId;
 
     if (!tweetId) {
+        elizaLogger.error('tweetId is required when curate');
         return;
     }
     const context = composeContext({

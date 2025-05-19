@@ -19,12 +19,13 @@ import { ClientBase } from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
 import { generateTweetActions } from "@elizaos/core";
 import { IImageDescriptionService, ServiceType } from "@elizaos/core";
-import { buildConversationThread, wait } from "./utils.ts";
+import { buildConversationThread, getVPOP, wait } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { State } from "@elizaos/core";
 import { ActionResponse } from "@elizaos/core";
 import { sleep2 } from "../../src/utils/helper.ts";
+import DeEvoAgent from "../DeEvoAgent.ts";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
@@ -708,6 +709,7 @@ export class TwitterPostClient {
             const { actionResponse, tweetState, roomId, tweet } = timeline;
             try {
                 const executedActions: string[] = [];
+                const opvp = await getVPOP(this.runtime as DeEvoAgent);
                 // Execute actions
                 if (actionResponse.like) {
                     if (this.isDryRun) {
@@ -750,11 +752,15 @@ export class TwitterPostClient {
                         executedActions.push("retweet (dry run)");
                     } else {
                         try {
-                            await this.client.twitterClient.retweet(tweet.id);
-                            executedActions.push("retweet");
-                            elizaLogger.log(`Retweeted tweet ${tweet.id}`);
-                            // add retweet to tagai
-                            await this.client.createNewRetweetAction(tweet.id);
+                            if (opvp.op < 1000) {
+                                elizaLogger.error("Not enough OP to retweet");
+                            } else {
+                                await this.client.twitterClient.retweet(tweet.id);
+                                executedActions.push("retweet");
+                                elizaLogger.log(`Retweeted tweet ${tweet.id}`);
+                                // add retweet to tagai
+                                await this.client.createNewRetweetAction(tweet.id);
+                            }
                         } catch (error) {
                             elizaLogger.error(
                                 `Error retweeting tweet ${tweet.id}:`,
@@ -766,140 +772,144 @@ export class TwitterPostClient {
 
                 if (actionResponse.quote) {
                     try {
-                        // Build conversation thread for context
-                        const thread = await buildConversationThread(
-                            tweet,
-                            this.client
-                        );
-                        const formattedConversation = thread
-                            .map(
-                                (t) =>
-                                    `@${t.username} (${(t.timeParsed ?? new Date(t.timestamp * 1000)).toLocaleString()}): ${t.text}`
-                            )
-                            .join("\n\n");
-
-                        // Generate image descriptions if present
-                        const imageDescriptions = [];
-                        if (tweet.photos?.length > 0) {
-                            elizaLogger.log(
-                                "Processing images in tweet for context"
+                        if (opvp.op < 1000) {
+                            elizaLogger.error("Not enough OP to quote");
+                        }else {
+                            // Build conversation thread for context
+                            const thread = await buildConversationThread(
+                                tweet,
+                                this.client
                             );
-                            for (const photo of tweet.photos) {
-                                const description = await this.runtime
-                                    .getService<IImageDescriptionService>(
-                                        ServiceType.IMAGE_DESCRIPTION
-                                    )
-                                    .describeImage(photo.url);
-                                imageDescriptions.push(description);
-                            }
-                        }
+                            const formattedConversation = thread
+                                .map(
+                                    (t) =>
+                                        `@${t.username} (${(t.timeParsed ?? new Date(t.timestamp * 1000)).toLocaleString()}): ${t.text}`
+                                )
+                                .join("\n\n");
 
-                        // Handle quoted tweet if present
-                        let quotedContent = "";
-                        if (tweet.quotedStatusId) {
-                            try {
-                                const quotedTweet =
-                                    await this.client.twitterClient.getTweet(
-                                        tweet.quotedStatusId
-                                    );
-                                if (quotedTweet) {
-                                    quotedContent = `\nQuoted Tweet from @${quotedTweet.username}:\n${quotedTweet.text}`;
-                                }
-                            } catch (error) {
-                                elizaLogger.error(
-                                    "Error fetching quoted tweet:",
-                                    error
-                                );
-                            }
-                        }
-
-                        // Compose rich state with all context
-                        const enrichedState = await this.runtime.composeState(
-                            {
-                                userId: this.runtime.agentId,
-                                roomId: stringToUuid(
-                                    tweet.conversationId +
-                                        "-" +
-                                        this.runtime.agentId
-                                ),
-                                agentId: this.runtime.agentId,
-                                content: {
-                                    text: tweet.text,
-                                    action: "QUOTE",
-                                },
-                            },
-                            {
-                                twitterUserName: this.twitterUsername,
-                                source: "twitter",
-                                authorUsername: tweet.username,
-                                currentPost: `From @${tweet.username}: ${tweet.text}`,
-                                formattedConversation,
-                                imageContext:
-                                    imageDescriptions.length > 0
-                                        ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
-                                        : "",
-                                quotedContent,
-                                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
-                            }
-                        );
-
-                        const quoteContent = await this.generateTweetContent(
-                            enrichedState,
-                            {
-                                template:
-                                    this.runtime.character.templates
-                                        ?.twitterMessageHandlerTemplate ||
-                                    twitterMessageHandlerTemplate,
-                            }
-                        );
-
-                        if (!quoteContent) {
-                            elizaLogger.error(
-                                "Failed to generate valid quote tweet content"
-                            );
-                            return;
-                        }
-
-                        elizaLogger.log(
-                            "Generated quote tweet content:",
-                            quoteContent
-                        );
-                        // Check for dry run mode
-                        if (this.isDryRun) {
-                            elizaLogger.info(
-                                `Dry run: A quote tweet for tweet ID ${tweet.id} would have been posted with the following content: "${quoteContent}".`
-                            );
-                            executedActions.push("quote (dry run)");
-                        } else {
-                            // Send the tweet through request queue
-                            const result = await this.client.requestQueue.add(
-                                async () =>
-                                    await this.client.twitterClient.sendQuoteTweet(
-                                        quoteContent,
-                                        tweet.id
-                                    )
-                            );
-
-                            const body = await result.json();
-
-                            if (
-                                body?.data?.create_tweet?.tweet_results?.result
-                            ) {
+                            // Generate image descriptions if present
+                            const imageDescriptions = [];
+                            if (tweet.photos?.length > 0) {
                                 elizaLogger.log(
-                                    "Successfully posted quote tweet"
+                                    "Processing images in tweet for context"
                                 );
-                                executedActions.push("quote");
+                                for (const photo of tweet.photos) {
+                                    const description = await this.runtime
+                                        .getService<IImageDescriptionService>(
+                                            ServiceType.IMAGE_DESCRIPTION
+                                        )
+                                        .describeImage(photo.url);
+                                    imageDescriptions.push(description);
+                                }
+                            }
 
-                                // Cache generation context for debugging
-                                await this.runtime.cacheManager.set(
-                                    `twitter/quote_generation_${tweet.id}.txt`,
-                                    `Context:\n${enrichedState}\n\nGenerated Quote:\n${quoteContent}`
-                                );
-                            } else {
+                            // Handle quoted tweet if present
+                            let quotedContent = "";
+                            if (tweet.quotedStatusId) {
+                                try {
+                                    const quotedTweet =
+                                        await this.client.twitterClient.getTweet(
+                                            tweet.quotedStatusId
+                                        );
+                                    if (quotedTweet) {
+                                        quotedContent = `\nQuoted Tweet from @${quotedTweet.username}:\n${quotedTweet.text}`;
+                                    }
+                                } catch (error) {
+                                    elizaLogger.error(
+                                        "Error fetching quoted tweet:",
+                                        error
+                                    );
+                                }
+                            }
+
+                            // Compose rich state with all context
+                            const enrichedState = await this.runtime.composeState(
+                                {
+                                    userId: this.runtime.agentId,
+                                    roomId: stringToUuid(
+                                        tweet.conversationId +
+                                            "-" +
+                                            this.runtime.agentId
+                                    ),
+                                    agentId: this.runtime.agentId,
+                                    content: {
+                                        text: tweet.text,
+                                        action: "QUOTE",
+                                    },
+                                },
+                                {
+                                    twitterUserName: this.twitterUsername,
+                                    source: "twitter",
+                                    authorUsername: tweet.username,
+                                    currentPost: `From @${tweet.username}: ${tweet.text}`,
+                                    formattedConversation,
+                                    imageContext:
+                                        imageDescriptions.length > 0
+                                            ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
+                                            : "",
+                                    quotedContent,
+                                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH
+                                }
+                            );
+
+                            const quoteContent = await this.generateTweetContent(
+                                enrichedState,
+                                {
+                                    template:
+                                        this.runtime.character.templates
+                                            ?.twitterMessageHandlerTemplate ||
+                                        twitterMessageHandlerTemplate,
+                                }
+                            );
+
+                            if (!quoteContent) {
                                 elizaLogger.error(
-                                    "Quote tweet creation failed:",
-                                    body
+                                    "Failed to generate valid quote tweet content"
                                 );
+                                return;
+                            }
+
+                            elizaLogger.log(
+                                "Generated quote tweet content:",
+                                quoteContent
+                            );
+                            // Check for dry run mode
+                            if (this.isDryRun) {
+                                elizaLogger.info(
+                                    `Dry run: A quote tweet for tweet ID ${tweet.id} would have been posted with the following content: "${quoteContent}".`
+                                );
+                                executedActions.push("quote (dry run)");
+                            } else {
+                                // Send the tweet through request queue
+                                const result = await this.client.requestQueue.add(
+                                    async () =>
+                                        await this.client.twitterClient.sendQuoteTweet(
+                                            quoteContent,
+                                            tweet.id
+                                        )
+                                );
+
+                                const body = await result.json();
+
+                                if (
+                                    body?.data?.create_tweet?.tweet_results?.result
+                                ) {
+                                    elizaLogger.log(
+                                        "Successfully posted quote tweet"
+                                    );
+                                    executedActions.push("quote");
+
+                                    // Cache generation context for debugging
+                                    await this.runtime.cacheManager.set(
+                                        `twitter/quote_generation_${tweet.id}.txt`,
+                                        `Context:\n${enrichedState}\n\nGenerated Quote:\n${quoteContent}`
+                                    );
+                                } else {
+                                    elizaLogger.error(
+                                        "Quote tweet creation failed:",
+                                        body
+                                    );
+                                }
                             }
                         }
                     } catch (error) {
@@ -912,11 +922,15 @@ export class TwitterPostClient {
 
                 if (actionResponse.reply) {
                     try {
-                        await this.handleTextOnlyReply(
-                            tweet,
-                            tweetState,
-                            executedActions
-                        );
+                        if (opvp.op < 500) {
+                            elizaLogger.error("Not enough OP to reply");
+                        } else {
+                            await this.handleTextOnlyReply(
+                                tweet,
+                                tweetState,
+                                executedActions
+                            );
+                        }
                     } catch (error) {
                         elizaLogger.error(
                             `Error replying to tweet ${tweet.id}:`,

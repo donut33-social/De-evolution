@@ -57,13 +57,13 @@ async function getVPOP(runtime: DeEvoAgent, twitterId: string) {
     if ((!vp && vp !== 0) || !lastUpdateOpStamp) {
         vp ??= 0;
     }else {
-        vp = (vp + (Date.now() - lastUpdateVpStamp) * runtime.maxVP / (864000000 * runtime.opvpRecoverDay))
+        vp = (vp + (Date.now() - lastUpdateVpStamp) * runtime.maxVP / (86400000 * runtime.opvpRecoverDay))
         vp = vp > runtime.maxVP ? runtime.maxVP : vp
     }
     if ((!op && op !== 0) || !lastUpdateOpStamp) {
         op ??= 0;
     }else {
-        op = (op + (Date.now() - lastUpdateOpStamp) * runtime.maxOP / (864000000 * runtime.opvpRecoverDay))
+        op = (op + (Date.now() - lastUpdateOpStamp) * runtime.maxOP / (86400000 * runtime.opvpRecoverDay))
         op = op > runtime.maxOP ? runtime.maxOP : op
     }
 

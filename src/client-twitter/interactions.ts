@@ -18,7 +18,8 @@ import {
     ServiceType
 } from "@elizaos/core";
 import { ClientBase } from "./base";
-import { buildConversationThread, sendTweet, wait } from "./utils.ts";
+import { buildConversationThread, getVPOP, sendTweet, wait } from "./utils.ts";
+import DeEvoAgent from "../DeEvoAgent.ts";
 
 /**
  * 根据通知，酌情回复推文形成对话
@@ -130,6 +131,12 @@ export class TwitterInteractionClient {
 
         const twitterUsername = this.client.profile.username;
         try {
+            // check op 
+            const opvp = await getVPOP(this.runtime as DeEvoAgent);
+            if (opvp.op < 800) {
+                elizaLogger.error("Not enough OP to check Twitter interactions");
+                return;
+            }
             // Check for mentions
             const mentionCandidates = (
                 await this.client.fetchSearchTweets(
